@@ -2398,6 +2398,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'This room is no longer available to start.';
 
   @override
+  String get entry_room_unavailable_title => 'Room unavailable';
+
+  @override
   String get entry_back => 'Back';
 
   @override

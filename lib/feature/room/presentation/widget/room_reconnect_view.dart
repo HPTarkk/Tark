@@ -6,11 +6,13 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
+import '../../../../core/motion/scene_turn.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/connection_journey.dart';
 import '../../../../core/widget/link_preparing_visual.dart';
 import '../../../../core/widget/qr_scanner_surface.dart';
 import '../../../../core/widget/qr_widgets.dart';
+import '../../../../core/widget/state_emblems.dart';
 
 /// Which half of a reconnect this phone is doing.
 enum RoomReconnectSide {
@@ -221,6 +223,21 @@ class _RoomReconnectViewState extends State<RoomReconnectView> {
         model.problem == RoomReconnectProblem.joinDeclined;
   }
 
+  /// Which of this side's screens [model] shows: the same name keeps it in
+  /// place, a new one turns.
+  static String _stateOf(RoomReconnectModel model) {
+    final side = model.side.name;
+    if (model.side == RoomReconnectSide.scan) {
+      if (model.wifiOff) return '$side-wifi';
+      if (model.phase == RoomReconnectPhase.connecting ||
+          model.phase == RoomReconnectPhase.failed) {
+        return '$side-journey';
+      }
+      return side;
+    }
+    return model.phase == RoomReconnectPhase.failed ? '$side-failed' : side;
+  }
+
   @override
   Widget build(BuildContext context) {
     final model = widget.model;
@@ -234,12 +251,11 @@ class _RoomReconnectViewState extends State<RoomReconnectView> {
       },
       child: _RoleMorph(
         side: model.side,
-        // Changes within one side are a quiet crossfade; the morph is kept
-        // for the side itself changing.
-        child: AnimatedSwitcher(
-          duration: AppMotion.card,
-          switchInCurve: AppMotion.easeOut,
-          switchOutCurve: AppMotion.leaving,
+        // Changes within one side turn too, the same way a whole screen does;
+        // the morph with its flying brackets is kept for the side itself.
+        child: SceneTurn(
+          scene: _stateOf(model),
+          depth: model.phase == RoomReconnectPhase.connecting ? 1 : 0,
           child: model.side == RoomReconnectSide.scan && model.wifiOff
               ? _WifiNeeded(
                   key: const ValueKey('room-reconnect-wifi'),
@@ -1033,23 +1049,7 @@ class _WifiNeeded extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(20, 40, 20, 24),
                 child: Column(
                   children: [
-                    Container(
-                      width: 84,
-                      height: 84,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.amber.withValues(alpha: 0.12),
-                        border: Border.all(
-                          color: AppColors.amber.withValues(alpha: 0.55),
-                          width: 2,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.wifi_off_rounded,
-                        size: 40,
-                        color: AppColors.amber,
-                      ),
-                    ),
+                    const WifiSeekingEmblem(),
                     const SizedBox(height: 20),
                     Text(
                       s.reconnect_wifi_needed_title,
@@ -1197,12 +1197,7 @@ class _ShowSide extends StatelessWidget {
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                child: AnimatedSwitcher(
-                  duration: AppMotion.card,
-                  switchInCurve: AppMotion.easeOut,
-                  switchOutCurve: AppMotion.leaving,
-                  child: _body(context),
-                ),
+                child: PhaseSwitcher(child: _body(context)),
               ),
             ),
             if (model.canSwitch && model.phase != RoomReconnectPhase.connecting)

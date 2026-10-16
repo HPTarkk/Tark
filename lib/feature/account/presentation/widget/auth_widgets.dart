@@ -8,6 +8,7 @@ import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/status_hero.dart';
 import '../../../../core/utils/localized_digits_formatter.dart';
+import '../../../../core/widget/status_note.dart';
 
 /// The frame every account screen shares: a back arrow, the [StatusHero], a
 /// heading and a line of explanation, then the screen's own fields, all
@@ -856,36 +857,9 @@ void showAuthToast(
   String message, {
   bool positive = true,
 }) {
-  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-    SnackBar(
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: AppColors.card,
-      elevation: 0,
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: AppColors.border),
-      ),
-      content: Row(
-        children: [
-          Icon(
-            positive ? Icons.check_circle_rounded : Icons.info_rounded,
-            color: positive ? AppColors.green : AppColors.amber,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
+  showStatusNote(
+    context,
+    message,
+    tone: positive ? StatusTone.done : StatusTone.notice,
   );
 }

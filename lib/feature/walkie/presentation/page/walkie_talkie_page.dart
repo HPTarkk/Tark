@@ -37,6 +37,7 @@ import '../widget/usage_tips_sheet.dart';
 import '../widget/user_list.dart';
 import '../widget/visualizer_section.dart';
 import '../widget/walkie_header.dart';
+import '../../../../core/widget/status_note.dart';
 
 class WalkieTalkiePage extends StatefulWidget {
   const WalkieTalkiePage._();
@@ -75,9 +76,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
             _ => null,
           };
           if (text == null) return;
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(SnackBar(content: Text(text)));
+          showStatusNote(context, text);
         });
 
     _scheduleUsageTips();

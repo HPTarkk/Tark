@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/scene_turn.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/connection_journey.dart';
 import '../../../../core/widget/permission_tile.dart';
+import '../../../../core/widget/state_emblems.dart';
 import 'network_link_established.dart';
 
 /// Full-screen status views the Bluetooth connect page switches between:
-/// connected flash, connection error, permission recovery, and the generic
-/// icon+text message.
+/// connected flash, connection error, permission recovery, and a status
+/// message drawn round a living emblem.
 
 /// The tether locking in: the Bluetooth beat of the app's one
 /// [ConnectionJourney] scene, held for [NetworkLinkEstablished.hold] before
@@ -138,41 +140,62 @@ class _BluetoothPermissionDeniedState extends State<BluetoothPermissionDenied> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.bluetooth_disabled_rounded,
-              color: AppColors.amber,
-              size: 40,
+            // The radio searching for the go-ahead it needs, not a still
+            // "disabled" glyph.
+            const SceneReflow(
+              index: 0,
+              child: ScanSweepEmblem(
+                icon: Icons.bluetooth_searching_rounded,
+                size: 96,
+              ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              s.bt_permission_denied,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            const SizedBox(height: 18),
+            SceneReflow(
+              index: 1,
+              child: Text(
+                s.bt_permission_denied,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 15,
+                  height: 1.45,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-            const SizedBox(height: 20),
-            PermissionTile(
-              icon: Icons.search_rounded,
-              title: s.permission_bt_scan_title,
-              description: s.permission_bt_scan_desc,
-              status: _scan,
-              onRequest: _requestAll,
-              onOpenSettings: widget.onOpenSettings,
+            const SizedBox(height: 22),
+            SceneReflow(
+              index: 2,
+              child: PermissionTile(
+                icon: Icons.search_rounded,
+                title: s.permission_bt_scan_title,
+                description: s.permission_bt_scan_desc,
+                status: _scan,
+                onRequest: _requestAll,
+                onOpenSettings: widget.onOpenSettings,
+              ),
             ),
-            PermissionTile(
-              icon: Icons.bluetooth_connected_rounded,
-              title: s.permission_bt_connect_title,
-              description: s.permission_bt_connect_desc,
-              status: _connect,
-              onRequest: _requestAll,
-              onOpenSettings: widget.onOpenSettings,
+            SceneReflow(
+              index: 3,
+              child: PermissionTile(
+                icon: Icons.bluetooth_connected_rounded,
+                title: s.permission_bt_connect_title,
+                description: s.permission_bt_connect_desc,
+                status: _connect,
+                onRequest: _requestAll,
+                onOpenSettings: widget.onOpenSettings,
+              ),
             ),
-            PermissionTile(
-              icon: Icons.campaign_rounded,
-              title: s.permission_bt_advertise_title,
-              description: s.permission_bt_advertise_desc,
-              status: _advertise,
-              onRequest: _requestAll,
-              onOpenSettings: widget.onOpenSettings,
+            SceneReflow(
+              index: 4,
+              child: PermissionTile(
+                icon: Icons.campaign_rounded,
+                title: s.permission_bt_advertise_title,
+                description: s.permission_bt_advertise_desc,
+                status: _advertise,
+                onRequest: _requestAll,
+                onOpenSettings: widget.onOpenSettings,
+              ),
             ),
           ],
         ),
@@ -199,12 +222,20 @@ class BluetoothStatusMessage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: AppColors.amber, size: 40),
-            const SizedBox(height: 16),
-            Text(
-              text,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            SceneReflow(index: 0, child: ScanSweepEmblem(icon: icon, size: 96)),
+            const SizedBox(height: 20),
+            SceneReflow(
+              index: 1,
+              child: Text(
+                text,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 15,
+                  height: 1.45,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),

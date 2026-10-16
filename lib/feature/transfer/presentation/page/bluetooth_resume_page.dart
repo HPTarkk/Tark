@@ -7,6 +7,7 @@ import 'package:get_it/get_it.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
+import '../../../../core/motion/scene_turn.dart';
 import '../../../../core/motion/route_arrival.dart';
 import '../../../../core/router/route_exit.dart';
 import '../../../../core/router/routes.dart';
@@ -243,12 +244,9 @@ class _BluetoothResumePageState extends State<BluetoothResumePage>
                 SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 28),
-                    child: AnimatedSwitcher(
-                      duration: AppMotion.reduced(context)
-                          ? Duration.zero
-                          : AppMotion.sheet,
-                      switchInCurve: AppMotion.easeOut,
-                      switchOutCurve: AppMotion.leaving,
+                    child: SceneTurn(
+                      scene: _failed || _linked ? 'resume-result' : 'searching',
+                      depth: _failed || _linked ? 1 : 0,
                       // Success and failure are one scene under one key, so a
                       // link lost while the success is up snaps in place
                       // rather than swapping screens.
@@ -313,6 +311,7 @@ class _Searching extends StatelessWidget {
         const SizedBox(height: 32),
         AnimatedSwitcher(
           duration: AppMotion.card,
+          transitionBuilder: HandOver.transition(),
           child: Text(
             headline,
             key: ValueKey(headline),

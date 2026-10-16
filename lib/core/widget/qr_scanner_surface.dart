@@ -763,38 +763,113 @@ class _Viewfinder extends StatelessWidget {
 }
 
 /// A rejected scan, floated under the viewfinder.
-class _ScanErrorCard extends StatelessWidget {
+/// What went wrong with a read, over the camera: a lit glass card that
+/// lands with a short head-shake (no shake under reduced motion), its mark
+/// in a ring of its own colour, so it reads as the scanner answering rather
+/// than a form error.
+class _ScanErrorCard extends StatefulWidget {
   const _ScanErrorCard({required this.message});
 
   final String message;
 
   @override
-  Widget build(BuildContext context) => Container(
-    key: const Key('room-join-error'),
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-    decoration: BoxDecoration(
-      color: AppColors.red.withAlpha(30),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppColors.red.withAlpha(120)),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.error_outline_rounded, size: 17, color: AppColors.red),
-        const SizedBox(width: 9),
-        Flexible(
-          child: Text(
-            message,
-            style: TextStyle(
-              color: Colors.white.withAlpha(226),
-              fontSize: 12.5,
-              height: 1.4,
-            ),
-          ),
-        ),
-      ],
-    ),
+  State<_ScanErrorCard> createState() => _ScanErrorCardState();
+}
+
+class _ScanErrorCardState extends State<_ScanErrorCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shake = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 520),
   );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) {
+      _shake.value = 1;
+    } else if (_shake.value == 0 && !_shake.isAnimating) {
+      _shake.forward();
+    }
+  }
+
+  @override
+  void didUpdateWidget(_ScanErrorCard old) {
+    super.didUpdateWidget(old);
+    // A fresh complaint shakes again.
+    if (old.message != widget.message && !AppMotion.reduced(context)) {
+      _shake.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _shake.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final red = AppColors.red;
+    return AnimatedBuilder(
+      animation: _shake,
+      builder: (context, child) {
+        final t = _shake.value;
+        final dx = math.sin(t * math.pi * 5) * 7 * (1 - t);
+        return Transform.translate(offset: Offset(dx, 0), child: child);
+      },
+      child: Container(
+        key: const Key('room-join-error'),
+        padding: const EdgeInsetsDirectional.fromSTEB(8, 8, 14, 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: LinearGradient(
+            begin: AlignmentDirectional.centerStart,
+            end: AlignmentDirectional.centerEnd,
+            colors: [
+              Color.alphaBlend(red.withAlpha(70), Colors.black.withAlpha(200)),
+              Colors.black.withAlpha(185),
+            ],
+          ),
+          border: Border.all(color: red.withAlpha(140)),
+          boxShadow: [
+            BoxShadow(
+              color: red.withAlpha(60),
+              blurRadius: 22,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: red.withAlpha(50),
+                border: Border.all(color: red.withAlpha(160)),
+              ),
+              child: Icon(Icons.priority_high_rounded, size: 17, color: red),
+            ),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                widget.message,
+                style: TextStyle(
+                  color: Colors.white.withAlpha(235),
+                  fontSize: 12.5,
+                  height: 1.4,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Fading tail with a bright, glowing edge — the strip that travels the window.

@@ -2386,6 +2386,9 @@ class AppLocalizationsFa extends AppLocalizations {
       'این اتاق دیگه برای شروع ارتباط در دسترس نیست.';
 
   @override
+  String get entry_room_unavailable_title => 'اتاق در دسترس نیست';
+
+  @override
   String get entry_back => 'بازگشت';
 
   @override

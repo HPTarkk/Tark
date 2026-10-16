@@ -23,6 +23,7 @@ import '../../domain/entity/room_invitation.dart';
 import '../../domain/repository/room_repository.dart';
 import '../room_member_display_name.dart';
 import 'room_invite_grant_toggle.dart';
+import '../../../../core/widget/state_emblems.dart';
 
 /// Who is in this Room, and how to add someone.
 ///
@@ -319,7 +320,7 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
       return const Padding(
         key: ValueKey('people-loading'),
         padding: EdgeInsets.symmetric(vertical: 60),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(child: SignalLoader(size: 48)),
       );
     }
     final saved = _room;

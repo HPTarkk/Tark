@@ -720,6 +720,7 @@
     "header_alone_in_room": "تنها در اتاق",
     "header_alone": "تنها",
     "entry_room_unavailable": "این اتاق دیگه برای شروع ارتباط در دسترس نیست.",
+    "entry_room_unavailable_title": "اتاق در دسترس نیست",
     "entry_back": "بازگشت",
     "confirm_cancel": "انصراف",
     "consent_title_first": "قبل از شروع",

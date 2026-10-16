@@ -19,6 +19,7 @@ import '../widget/diagnostics_card.dart';
 import '../widget/settings_category_card.dart';
 import '../widget/settings_row.dart';
 import '../widget/transport_mode_picker.dart';
+import '../../../../core/widget/status_note.dart';
 
 /// Advanced/technical settings, split off the main Settings page so casual
 /// users never meet them: the noise-cleaner engine choice, the playback
@@ -318,11 +319,10 @@ class _RestoreDefaultsButton extends StatelessWidget {
       onTap: () {
         HapticFeedback.selectionClick();
         context.read<SettingsCubit>().restoreVoiceDefaults();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(s.settings_restore_defaults_done),
-            duration: const Duration(seconds: 2),
-          ),
+        showStatusNote(
+          context,
+          s.settings_restore_defaults_done,
+          tone: StatusTone.done,
         );
       },
       child: Container(

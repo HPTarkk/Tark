@@ -13,6 +13,7 @@ import '../../core/entitlement/subscription_gate_page.dart';
 import '../../core/identity/channel_membership.dart';
 import '../../core/l10n/extension.dart';
 import '../../core/motion/app_motion.dart';
+import '../../core/motion/scene_turn.dart';
 import '../../core/router/route_exit.dart';
 import '../../core/router/routes.dart';
 import '../../core/theme/app_colors.dart';
@@ -30,6 +31,7 @@ import '../../feature/room/presentation/widget/room_group_access_guard.dart';
 import '../../feature/transfer/api/hotspot_invite_api.dart';
 import '../../feature/transfer/api/transfer_api.dart';
 import '../../feature/walkie/api/walkie_api.dart';
+import '../../core/widget/state_emblems.dart';
 
 /// Composition-root bridge between a durable selected Room and the live
 /// Walkie surface.
@@ -1818,6 +1820,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       _migrationPeerName = _memberName(peer);
       _migrationLanded = landed;
       _migrationStay = stop;
+      _migrationClose = null;
       _migrationFellBack = false;
       _migrationCarrier = RoomMoveCarrier.bluetooth;
       _migrationOnWifi = _resolvedLink == LiveLink.wifi;
@@ -2192,14 +2195,17 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     binding.carrierPromotion?.standDown();
     _endCoordinator();
     await binding.close();
-    clear();
     if (!mounted) return _EntryState.lobby(room);
     if (!_roomBluetoothApplies(room)) {
+      clear();
       unawaited(_openBluetoothPairing(room));
       final lobby = _EntryState.lobby(room);
       if (fellBack) setState(() => _entry = Future.value(lobby));
       return lobby;
     }
+    // The hotspot's scene is not cleared first: the Bluetooth one takes its
+    // place in the same beat, so the move turns from one to the other
+    // instead of dropping back to the Room between them.
     final next = _connectOverBluetooth(room);
     if (fellBack) setState(() => _entry = next);
     return next;
@@ -3109,12 +3115,25 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedSwitcher(
-    duration: AppMotion.card,
-    switchInCurve: AppMotion.easeOut,
-    switchOutCurve: AppMotion.leaving,
-    child: _resolved(context),
-  );
+  Widget build(BuildContext context) {
+    // Every change between the Room, the guided reconnect and a move turns
+    // one into the other rather than fading (Pedi, 2026-10-16).
+    final String scene;
+    final int depth;
+    if (_reconnectModel != null) {
+      scene = 'reconnect';
+      depth = 1;
+    } else if (_migrationProgress != null &&
+        _migrationRoom != null &&
+        !_migrationFellBack) {
+      scene = 'move-${_migrationCarrier.name}';
+      depth = 1;
+    } else {
+      scene = 'entry';
+      depth = 0;
+    }
+    return SceneTurn(scene: scene, depth: depth, child: _resolved(context));
+  }
 
   Widget _resolved(BuildContext context) {
     final reconnect = _reconnectModel;
@@ -3189,20 +3208,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       fit: StackFit.expand,
       children: [
         KeyedSubtree(key: _livePageKey, child: livePage),
-        AnimatedSwitcher(
-          duration: AppMotion.reduced(context)
-              ? Duration.zero
-              : AppMotion.sheet,
-          switchInCurve: AppMotion.easeOut,
-          switchOutCurve: AppMotion.leaving,
-          transitionBuilder: (child, animation) => FadeTransition(
-            opacity: animation,
-            child: ScaleTransition(
-              scale: Tween<double>(begin: .97, end: 1).animate(animation),
-              child: child,
-            ),
-          ),
-          child: scene ?? const SizedBox.shrink(key: ValueKey('no-move')),
+        SceneTurn(
+          scene: scene == null ? 'no-move' : 'move',
+          depth: scene == null ? 0 : 1,
+          child: scene ?? const SizedBox.shrink(),
         ),
       ],
     );
@@ -3259,124 +3268,43 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   Widget _resolvedEntry(BuildContext context) => FutureBuilder<_EntryState>(
     future: _entry,
     builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done) {
-        final room = _attemptRoom;
-        if ((room != null || widget.carryOver != null) && _tellsJourney) {
-          return RouteExitScope(
-            onExit: () => leaveRoomEntry(context),
-            child: _journeyScaffold(context, room, stage: JourneyStage.linking),
-          );
-        }
-        if (room != null) {
-          return RouteExitScope(
-            onExit: () => leaveRoomEntry(context),
-            child: SelectedRoomLobby(
-              room: room,
-              connectionPhase: RoomConnectionUiPhase.connecting,
-              requiresPremium: _needsWifiAccess,
-              link: _resolvedLink,
-              mode: _modeStore?.mode,
-              onStartRide: () {},
-              onBack: () => leaveRoomEntry(context),
-            ),
-          );
-        }
-        return const Scaffold(
-          key: ValueKey('walkie-entry-waiting'),
-          body: Center(child: _DelayedSpinner()),
-        );
+      final (scene, depth) = _entrySceneOf(snapshot);
+      return SceneTurn(
+        scene: scene,
+        depth: depth,
+        child: _entryBody(context, snapshot),
+      );
+    },
+  );
+
+  /// Which state of the entry [snapshot] shows, and how far in it is, so a
+  /// change of state turns rather than cuts.
+  (String, int) _entrySceneOf(AsyncSnapshot<_EntryState> snapshot) {
+    if (snapshot.connectionState != ConnectionState.done) {
+      final room = _attemptRoom;
+      if ((room != null || widget.carryOver != null) && _tellsJourney) {
+        return ('journey', 1);
       }
-      if (snapshot.hasError) {
-        Logger.log('Room-bound walkie entry failed: ${snapshot.error}');
+      return room != null ? ('lobby', 0) : ('waiting', 0);
+    }
+    if (snapshot.hasError) return ('recover', 0);
+    final state = snapshot.data ?? const _EntryState.invalidSelection();
+    if (state.live) return ('live', 2);
+    final room = state.room;
+    if (room != null && state.failure != null && _tellsJourney) {
+      return ('journey', 1);
+    }
+    if (room != null) return ('lobby', 0);
+    return state.failure != null ? ('recover', 0) : ('invalid', 0);
+  }
+
+  Widget _entryBody(BuildContext context, AsyncSnapshot<_EntryState> snapshot) {
+    if (snapshot.connectionState != ConnectionState.done) {
+      final room = _attemptRoom;
+      if ((room != null || widget.carryOver != null) && _tellsJourney) {
         return RouteExitScope(
           onExit: () => leaveRoomEntry(context),
-          child: _RecoverableRoomEntry(
-            message: context.getString.room_start_failed,
-            onRetry: _retryInitial,
-            onBack: () => leaveRoomEntry(context),
-          ),
-        );
-      }
-      final state = snapshot.data ?? const _EntryState.invalidSelection();
-      if (state.live) {
-        Widget livePage = CarrierStatusScope(
-          controller: _binding?.carrierPromotion,
-          child: WalkieTalkiePage.buildPage(),
-        );
-        final room = state.room;
-        final mode = _modeStore?.mode;
-        // Legacy setup pages already acknowledge their network. Room-first
-        // entry reaches this point only after the signed peer proof is verified.
-        // A scan's own journey ends here too: the link it showed being made
-        // locks in before the channel opens out of it.
-        if (room != null &&
-            !_arrivedByMove &&
-            (!widget.ride || _tellsJourney) &&
-            (mode == TransferMode.wifi ||
-                mode == TransferMode.hotspot ||
-                (_tellsJourney && mode == TransferMode.bluetooth))) {
-          livePage = NetworkConnectionArrival(
-            key: ValueKey(
-              'network-arrival-${room.room.id.value}-$_readinessEpoch',
-            ),
-            mode: mode!,
-            roomName: room.room.name,
-            child: livePage,
-          );
-        }
-        livePage = _withLiveMove(context, livePage);
-        final binding = _binding;
-        final runtime = binding?.runtime;
-        if (room != null && binding != null && runtime != null) {
-          return RoomGroupAccessGuard(
-            room: room,
-            repository: _rooms,
-            onBlocked: _stopGroupSession,
-            builder: (_) => RoomLiveRejoinScope(
-              onScanPeerCode: () => _scanPeerCodeFromLive(room),
-              child: RoomConnectionStatusScope(
-                room: room,
-                runtime: runtime,
-                peerProofs: binding.verifiedPeerProofs,
-                initialPeerProofs: binding.verifiedPeerProofSnapshot,
-                child: livePage,
-              ),
-            ),
-          );
-        }
-        return livePage;
-      }
-      final room = state.room;
-      if (room != null && state.failure != null && _tellsJourney) {
-        // The scan's link did not come up. Said where the rider is already
-        // looking, with the next step first: the other phone is usually
-        // still there, so trying again is the common fix; a fresh code is
-        // the fallback; the lobby is one tap away.
-        return RouteExitScope(
-          onExit: () => leaveRoomEntry(context),
-          child: _journeyScaffold(
-            context,
-            room,
-            stage: JourneyStage.failed,
-            problem: _failureMessage(context, state.failure),
-            actions: [
-              FilledButton(
-                key: const Key('room-journey-retry'),
-                onPressed: () => _startRide(room),
-                child: Text(context.getString.retry),
-              ),
-              OutlinedButton(
-                key: const Key('room-journey-scan-again'),
-                onPressed: () => context.go(AppRoutes.roomQrJoinPath),
-                child: Text(context.getString.journey_scan_again),
-              ),
-              TextButton(
-                key: const Key('room-journey-not-now'),
-                onPressed: () => setState(() => _journeyDismissed = true),
-                child: Text(context.getString.journey_not_now),
-              ),
-            ],
-          ),
+          child: _journeyScaffold(context, room, stage: JourneyStage.linking),
         );
       }
       if (room != null) {
@@ -3384,63 +3312,174 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           onExit: () => leaveRoomEntry(context),
           child: SelectedRoomLobby(
             room: room,
+            connectionPhase: RoomConnectionUiPhase.connecting,
+            requiresPremium: _needsWifiAccess,
             link: _resolvedLink,
             mode: _modeStore?.mode,
-            failureMessage: _failureMessage(context, state.failure),
-            requiresPremium: _needsWifiAccess,
-            onUseBluetooth: () => unawaited(_connectWithBluetooth(room)),
-            onRetry: state.failure == null ? null : () => _startRide(room),
-            onStartRide: () => _startRide(room),
-            // Only when this phone is on a Wi-Fi network, and only on request:
-            // the phones' own connection is the default.
-            onUseHomeWifi:
-                _guidedReconnectApplies(room) && _resolvedLink == LiveLink.wifi
-                ? () => _startRide(room, useHomeWifi: true)
-                : null,
-            // An accepted Room invite already has an authenticated control
-            // channel.  Its recovery stays inside that Room hand-off; the
-            // generic channel setup has a second QR and must not replace it.
-            onConnect:
-                (_roomPin == TransferMode.bluetooth
-                        ? !(_links?.bluetooth ?? false) ||
-                              _offersConnect(state.failure)
-                        : _resolvedLink != LiveLink.bluetooth ||
-                              _offersConnect(state.failure)) &&
-                    !RoomProximityControlSessionRegistry.instance.hasRoom(
-                      room.room.id,
-                    )
-                ? () {
-                    if (_roomPin == TransferMode.bluetooth ||
-                        _resolvedLink == LiveLink.bluetooth) {
-                      unawaited(_connectWithBluetooth(room));
-                    } else {
-                      unawaited(_startRide(room));
-                    }
-                  }
-                : null,
-            onInvite: () => _inviteFromLobby(room),
+            onStartRide: () {},
             onBack: () => leaveRoomEntry(context),
           ),
         );
       }
-      if (state.failure != null) {
-        return RouteExitScope(
-          onExit: () => leaveRoomEntry(context),
-          child: _RecoverableRoomEntry(
-            message:
-                _failureMessage(context, state.failure) ??
-                context.getString.room_start_failed,
-            onRetry: _retryInitial,
-            onBack: () => leaveRoomEntry(context),
-          ),
-        );
-      }
+      return const Scaffold(
+        key: ValueKey('walkie-entry-waiting'),
+        body: Center(child: _DelayedSpinner()),
+      );
+    }
+    if (snapshot.hasError) {
+      Logger.log('Room-bound walkie entry failed: ${snapshot.error}');
       return RouteExitScope(
         onExit: () => leaveRoomEntry(context),
-        child: _InvalidRoomSelection(onBack: () => leaveRoomEntry(context)),
+        child: _RecoverableRoomEntry(
+          message: context.getString.room_start_failed,
+          onRetry: _retryInitial,
+          onBack: () => leaveRoomEntry(context),
+        ),
       );
-    },
-  );
+    }
+    final state = snapshot.data ?? const _EntryState.invalidSelection();
+    if (state.live) {
+      Widget livePage = CarrierStatusScope(
+        controller: _binding?.carrierPromotion,
+        child: WalkieTalkiePage.buildPage(),
+      );
+      final room = state.room;
+      final mode = _modeStore?.mode;
+      // Legacy setup pages already acknowledge their network. Room-first
+      // entry reaches this point only after the signed peer proof is verified.
+      // A scan's own journey ends here too: the link it showed being made
+      // locks in before the channel opens out of it.
+      if (room != null &&
+          !_arrivedByMove &&
+          (!widget.ride || _tellsJourney) &&
+          (mode == TransferMode.wifi ||
+              mode == TransferMode.hotspot ||
+              (_tellsJourney && mode == TransferMode.bluetooth))) {
+        livePage = NetworkConnectionArrival(
+          key: ValueKey(
+            'network-arrival-${room.room.id.value}-$_readinessEpoch',
+          ),
+          mode: mode!,
+          roomName: room.room.name,
+          child: livePage,
+        );
+      }
+      livePage = _withLiveMove(context, livePage);
+      final binding = _binding;
+      final runtime = binding?.runtime;
+      if (room != null && binding != null && runtime != null) {
+        return RoomGroupAccessGuard(
+          room: room,
+          repository: _rooms,
+          onBlocked: _stopGroupSession,
+          builder: (_) => RoomLiveRejoinScope(
+            onScanPeerCode: () => _scanPeerCodeFromLive(room),
+            child: RoomConnectionStatusScope(
+              room: room,
+              runtime: runtime,
+              peerProofs: binding.verifiedPeerProofs,
+              initialPeerProofs: binding.verifiedPeerProofSnapshot,
+              child: livePage,
+            ),
+          ),
+        );
+      }
+      return livePage;
+    }
+    final room = state.room;
+    if (room != null && state.failure != null && _tellsJourney) {
+      // The scan's link did not come up. Said where the rider is already
+      // looking, with the next step first: the other phone is usually
+      // still there, so trying again is the common fix; a fresh code is
+      // the fallback; the lobby is one tap away.
+      return RouteExitScope(
+        onExit: () => leaveRoomEntry(context),
+        child: _journeyScaffold(
+          context,
+          room,
+          stage: JourneyStage.failed,
+          problem: _failureMessage(context, state.failure),
+          actions: [
+            FilledButton(
+              key: const Key('room-journey-retry'),
+              onPressed: () => _startRide(room),
+              child: Text(context.getString.retry),
+            ),
+            OutlinedButton(
+              key: const Key('room-journey-scan-again'),
+              onPressed: () => context.go(AppRoutes.roomQrJoinPath),
+              child: Text(context.getString.journey_scan_again),
+            ),
+            TextButton(
+              key: const Key('room-journey-not-now'),
+              onPressed: () => setState(() => _journeyDismissed = true),
+              child: Text(context.getString.journey_not_now),
+            ),
+          ],
+        ),
+      );
+    }
+    if (room != null) {
+      return RouteExitScope(
+        onExit: () => leaveRoomEntry(context),
+        child: SelectedRoomLobby(
+          room: room,
+          link: _resolvedLink,
+          mode: _modeStore?.mode,
+          failureMessage: _failureMessage(context, state.failure),
+          requiresPremium: _needsWifiAccess,
+          onUseBluetooth: () => unawaited(_connectWithBluetooth(room)),
+          onRetry: state.failure == null ? null : () => _startRide(room),
+          onStartRide: () => _startRide(room),
+          // Only when this phone is on a Wi-Fi network, and only on request:
+          // the phones' own connection is the default.
+          onUseHomeWifi:
+              _guidedReconnectApplies(room) && _resolvedLink == LiveLink.wifi
+              ? () => _startRide(room, useHomeWifi: true)
+              : null,
+          // An accepted Room invite already has an authenticated control
+          // channel.  Its recovery stays inside that Room hand-off; the
+          // generic channel setup has a second QR and must not replace it.
+          onConnect:
+              (_roomPin == TransferMode.bluetooth
+                      ? !(_links?.bluetooth ?? false) ||
+                            _offersConnect(state.failure)
+                      : _resolvedLink != LiveLink.bluetooth ||
+                            _offersConnect(state.failure)) &&
+                  !RoomProximityControlSessionRegistry.instance.hasRoom(
+                    room.room.id,
+                  )
+              ? () {
+                  if (_roomPin == TransferMode.bluetooth ||
+                      _resolvedLink == LiveLink.bluetooth) {
+                    unawaited(_connectWithBluetooth(room));
+                  } else {
+                    unawaited(_startRide(room));
+                  }
+                }
+              : null,
+          onInvite: () => _inviteFromLobby(room),
+          onBack: () => leaveRoomEntry(context),
+        ),
+      );
+    }
+    if (state.failure != null) {
+      return RouteExitScope(
+        onExit: () => leaveRoomEntry(context),
+        child: _RecoverableRoomEntry(
+          message:
+              _failureMessage(context, state.failure) ??
+              context.getString.room_start_failed,
+          onRetry: _retryInitial,
+          onBack: () => leaveRoomEntry(context),
+        ),
+      );
+    }
+    return RouteExitScope(
+      onExit: () => leaveRoomEntry(context),
+      child: _InvalidRoomSelection(onBack: () => leaveRoomEntry(context)),
+    );
+  }
 }
 
 void leaveRoomEntry(BuildContext context) =>
@@ -3476,9 +3515,7 @@ class _DelayedSpinnerState extends State<_DelayedSpinner> {
   Widget build(BuildContext context) => AnimatedSwitcher(
     duration: AppMotion.card,
     switchInCurve: AppMotion.easeOut,
-    child: _visible
-        ? const CircularProgressIndicator()
-        : const SizedBox.shrink(),
+    child: _visible ? const SignalLoader() : const SizedBox.shrink(),
   );
 }
 
@@ -3603,6 +3640,9 @@ class _EntryState {
   final _EntryFailure? failure;
 }
 
+/// A start that could not even be attempted, told in the same scene every
+/// other failed connection is told in: the link reaching out and snapping,
+/// the reason under it, and the way forward rising in after.
 class _RecoverableRoomEntry extends StatelessWidget {
   const _RecoverableRoomEntry({
     required this.message,
@@ -3618,34 +3658,30 @@ class _RecoverableRoomEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.getString;
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.sync_problem_rounded, size: 44),
-                const SizedBox(height: 12),
-                Text(message, textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  key: const Key('room-entry-retry'),
-                  onPressed: onRetry,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: Text(s.retry),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(onPressed: onBack, child: Text(s.entry_back)),
-              ],
+        child: ConnectionJourney(
+          stage: JourneyStage.failed,
+          link: JourneyLink.hotspot,
+          title: s.journey_failed_title,
+          detail: message,
+          actions: [
+            FilledButton.icon(
+              key: const Key('room-entry-retry'),
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(s.retry),
             ),
-          ),
+            OutlinedButton(onPressed: onBack, child: Text(s.entry_back)),
+          ],
         ),
       ),
     );
   }
 }
 
+/// The Room picked to start is gone (left, removed, or never saved), said in
+/// the connection scene rather than as a bare line on an empty page.
 class _InvalidRoomSelection extends StatelessWidget {
   const _InvalidRoomSelection({required this.onBack});
 
@@ -3653,28 +3689,22 @@ class _InvalidRoomSelection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.getString;
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.info_outline_rounded, size: 44),
-                const SizedBox(height: 12),
-                Text(
-                  context.getString.entry_room_unavailable,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton(
-                  onPressed: onBack,
-                  child: Text(context.getString.entry_back),
-                ),
-              ],
+        child: ConnectionJourney(
+          stage: JourneyStage.failed,
+          link: JourneyLink.hotspot,
+          title: s.entry_room_unavailable_title,
+          detail: s.entry_room_unavailable,
+          actions: [
+            FilledButton.icon(
+              onPressed: onBack,
+              icon: const Icon(Icons.arrow_back_rounded),
+              label: Text(s.entry_back),
             ),
-          ),
+          ],
         ),
       ),
     );

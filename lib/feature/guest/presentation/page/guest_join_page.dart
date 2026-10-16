@@ -19,6 +19,8 @@ import '../../di/guest_composition.dart';
 import '../manager/guest_session_cubit.dart';
 import '../widget/guest_console.dart';
 import '../widget/guest_settings_toggles.dart';
+import '../../../../core/motion/scene_turn.dart';
+import '../../../../core/widget/state_emblems.dart';
 
 /// The whole guest journey in one page:
 ///   opened without an offer  → "scan the host's QR" instructions
@@ -108,14 +110,10 @@ class _GuestJoinPageState extends State<GuestJoinPage> {
                           20,
                           28,
                         ),
-                        child: AnimatedSwitcher(
-                          duration: AppMotion.sheet,
-                          switchInCurve: AppMotion.easeOut,
-                          switchOutCurve: AppMotion.leaving,
-                          child: KeyedSubtree(
-                            key: ValueKey(_phaseKey),
-                            child: _body(context),
-                          ),
+                        child: SceneTurn(
+                          scene: _phaseKey,
+                          fill: false,
+                          child: _body(context),
                         ),
                       ),
                     ),
@@ -187,7 +185,7 @@ class _GuestJoinPageState extends State<GuestJoinPage> {
     if (_answerPayload != null) {
       return _ReplyQr(payload: _answerPayload!);
     }
-    return Center(child: CircularProgressIndicator(color: AppColors.amber));
+    return const Center(child: SignalLoader());
   }
 }
 
@@ -470,39 +468,17 @@ class _CenteredMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 84,
-          height: 84,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.amber.withAlpha(18),
-            border: Border.all(color: AppColors.amber.withAlpha(120)),
-          ),
-          child: Icon(icon, color: AppColors.amber, size: 38),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          title,
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          text,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 13,
-            height: 1.6,
-          ),
-        ),
-      ],
+    final failed = icon == Icons.error_outline_rounded;
+    final done = icon == Icons.check_circle_outline_rounded;
+    return StatePanel(
+      emblem: failed
+          ? SnappedLinkEmblem(width: 120, height: 76, color: AppColors.red)
+          : done
+          ? const SettledEmblem()
+          : ScanSweepEmblem(icon: icon, size: 92),
+      title: title,
+      detail: text,
+      scrollable: false,
     );
   }
 }

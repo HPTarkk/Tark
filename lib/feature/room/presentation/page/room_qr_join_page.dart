@@ -16,7 +16,7 @@ import '../../../../core/router/route_exit.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/utils/logger.dart';
-import '../../../../core/motion/app_motion.dart';
+import '../../../../core/motion/scene_turn.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/connection_journey.dart';
 import '../../../../core/widget/journey_carry_over.dart';
@@ -442,24 +442,13 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
   @override
   Widget build(BuildContext context) {
     final journey = _journey;
-    return AnimatedSwitcher(
-      duration: AppMotion.reduced(context) ? Duration.zero : AppMotion.sheet,
-      switchInCurve: AppMotion.easeOut,
-      switchOutCurve: AppMotion.leaving,
-      // The preview shrinks into the scene rather than cutting to it: the
-      // camera's frame is where the tick is drawn.
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: ScaleTransition(
-          scale: Tween<double>(begin: .94, end: 1).animate(animation),
-          child: child,
-        ),
-      ),
+    // The camera turns over into the journey, and the journey back into a
+    // fresh camera, as one card: the same turn every connection state makes.
+    return SceneTurn(
+      scene: journey == null ? 'scanner-$_scannerGeneration' : 'journey',
+      depth: journey == null ? 0 : 1,
       child: journey == null
-          ? KeyedSubtree(
-              key: ValueKey('scanner-$_scannerGeneration'),
-              child: _scanner(context),
-            )
+          ? _scanner(context)
           : _journeyView(context, journey),
     );
   }

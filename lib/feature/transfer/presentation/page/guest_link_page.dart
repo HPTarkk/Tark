@@ -19,6 +19,7 @@ import '../../../preflight/presentation/widget/silent_preflight_guard.dart';
 import '../../domain/entity/guest_link_state.dart';
 import '../../domain/entity/transfer_mode.dart';
 import '../manager/guest_link_cubit.dart';
+import '../../../../core/widget/state_emblems.dart';
 
 /// Host flow for inviting a browser guest: show the invite QR/link, then
 /// either scan the reply QR off the guest's screen or paste the reply code
@@ -159,14 +160,7 @@ class _PreparingLink extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: 34,
-            height: 34,
-            child: CircularProgressIndicator(
-              color: AppColors.amber,
-              strokeWidth: 2.5,
-            ),
-          ),
+          const SignalLoader(size: 52),
           const SizedBox(height: 18),
           _LanBadge(),
         ],
@@ -736,12 +730,19 @@ class _ErrorRetry extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline_rounded, color: AppColors.red, size: 40),
-            const SizedBox(height: 16),
+            // The link that did not hold, snapping, rather than a still
+            // error glyph.
+            SnappedLinkEmblem(width: 120, height: 76, color: AppColors.red),
+            const SizedBox(height: 20),
             Text(
               s.guest_link_failed,
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 15,
+                height: 1.45,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 22),
             GestureDetector(

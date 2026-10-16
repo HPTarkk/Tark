@@ -8,6 +8,7 @@ import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/entitlement/room_access_policy.dart';
 import '../../domain/entity/room.dart';
 import '../../domain/repository/room_repository.dart';
+import '../../../../core/widget/state_emblems.dart';
 
 /// Stops a free session when a third confirmed member arrives, or when the
 /// local subscription expires. Each participant checks their own entitlement;
@@ -93,6 +94,6 @@ class _RoomGroupAccessGuardState extends State<RoomGroupAccessGuard> {
         if (mounted && !_allowed) widget.onBlocked(_room);
       });
     }
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return const Scaffold(body: Center(child: SignalLoader()));
   }
 }

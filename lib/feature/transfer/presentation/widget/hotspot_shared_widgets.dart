@@ -124,24 +124,48 @@ class HotspotInlineNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A lit card rather than a tinted strip: the colour pools behind the
+    // mark and fades across, so a warning reads as the state of the screen,
+    // not a form-field error.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsetsDirectional.fromSTEB(10, 10, 14, 10),
       decoration: BoxDecoration(
-        color: color.withAlpha(16),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withAlpha(90)),
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: AlignmentDirectional.centerStart,
+          end: AlignmentDirectional.centerEnd,
+          colors: [color.withAlpha(34), color.withAlpha(8)],
+        ),
+        border: Border.all(color: color.withAlpha(70)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withAlpha(22),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 10),
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withAlpha(40),
+              border: Border.all(color: color.withAlpha(110)),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               text,
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 12.5,
-                height: 1.4,
+                height: 1.45,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

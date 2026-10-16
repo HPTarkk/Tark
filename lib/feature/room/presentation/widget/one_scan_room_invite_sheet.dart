@@ -31,6 +31,7 @@ import '../../domain/entity/room_invite_link.dart';
 import '../../domain/repository/room_repository.dart';
 import '../../domain/service/room_member_transport_identity.dart';
 import 'room_invite_grant_toggle.dart';
+import '../../../../core/widget/status_note.dart';
 
 /// Where the person who scanned this phone's code is, as this phone's link
 /// actually sees it. Only the opener — which owns the link and the signed
@@ -108,8 +109,10 @@ Future<bool> showOneScanRoomInviteSheet(
     saved = selected == null ? null : await rooms?.get(selected);
   } catch (_) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.getString.room_start_failed)),
+      showStatusNote(
+        context,
+        context.getString.room_start_failed,
+        tone: StatusTone.problem,
       );
     }
     return false;
@@ -120,9 +123,7 @@ Future<bool> showOneScanRoomInviteSheet(
   // sheet re-checks on issue, and every other phone re-verifies the signed
   // grant chain, so this is the courtesy — not the enforcement.
   if (saved != null && !canInviteFrom(saved)) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.getString.people_cannot_invite)),
-    );
+    showStatusNote(context, context.getString.people_cannot_invite);
     return false;
   }
   if (saved != null &&

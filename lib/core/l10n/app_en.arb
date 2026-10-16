@@ -701,6 +701,7 @@
     "header_alone_in_room": "Alone in the room",
     "header_alone": "ALONE",
     "entry_room_unavailable": "This room is no longer available to start.",
+    "entry_room_unavailable_title": "Room unavailable",
     "entry_back": "Back",
     "confirm_cancel": "Cancel",
     "consent_title_first": "Before we start",

@@ -7,6 +7,7 @@ import 'license_gate.dart';
 import 'premium_feature.dart';
 import 'subscription_gate_page.dart';
 import '../utils/logger.dart';
+import '../widget/state_emblems.dart';
 
 /// Defers camera/transport construction until access has actually been granted.
 /// Cancellation returns to the originating screen without a connection error.
@@ -89,5 +90,5 @@ class _FeatureAccessGuardState extends State<FeatureAccessGuard> {
   @override
   Widget build(BuildContext context) => _allowed
       ? widget.builder(context)
-      : const Scaffold(body: Center(child: CircularProgressIndicator()));
+      : const Scaffold(body: Center(child: SignalLoader()));
 }

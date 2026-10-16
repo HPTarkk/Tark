@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/scene_turn.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/state_emblems.dart';
 import '../../domain/entity/hotspot_credentials.dart';
 import '../manager/wifi_hotspot_cubit.dart';
 import 'hotspot_qr_scanner.dart';
@@ -75,37 +77,41 @@ class HotspotJoinFlow extends StatelessWidget {
     ];
   }
 
-  /// The one graphic at the top of the screen, chosen by phase.
+  /// The one graphic at the top of the screen, chosen by phase, and the
+  /// name it turns between them by.
   ///
-  /// Keyed so [AnimatedSwitcher] cross-fades between them; without a key it
-  /// sees "a widget" both sides of a phase change and swaps the contents in
-  /// place, which loses the transition that makes the states feel connected.
-  Widget _headerGraphic(Color color) => switch (state.joinPhase) {
-    JoinPhase.joining => const HotspotReachPulse(key: ValueKey('reaching')),
-    JoinPhase.joined => const HotspotJoinedPulse(
-      key: ValueKey('listening'),
-      size: 84,
+  /// Every state is drawn as what is happening: hunting for a code, the
+  /// Wi-Fi radio being asked for, the link that snapped. None is a still
+  /// badge.
+  (String, Widget) _headerGraphic() => switch (state.joinPhase) {
+    JoinPhase.joining => ('reaching', const HotspotReachPulse()),
+    JoinPhase.joined => ('listening', const HotspotJoinedPulse(size: 84)),
+    JoinPhase.wifiOff => (
+      'wifi-off',
+      const WifiSeekingEmblem(width: 100, height: 84),
     ),
-    // Idle and every failure: still hunting, or waiting to be pointed at
-    // something. The magnifier is right for all of them.
-    _ => Container(
-      key: const ValueKey('idle'),
-      width: 84,
-      height: 84,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color.withAlpha(20),
-        border: Border.all(color: color.withAlpha(120)),
+    JoinPhase.lost => (
+      'lost',
+      SnappedLinkEmblem(width: 112, height: 70, color: AppColors.red),
+    ),
+    JoinPhase.locationOff => (
+      'location-off',
+      ScanSweepEmblem(
+        icon: Icons.location_searching_rounded,
+        color: AppColors.red,
       ),
-      child: Icon(Icons.wifi_find_rounded, color: color, size: 38),
     ),
+    JoinPhase.invalid => (
+      'invalid',
+      ScanSweepEmblem(icon: Icons.qr_code_2_rounded, color: AppColors.red),
+    ),
+    // Idle and the manual card: still hunting, or waiting to be pointed at
+    // something.
+    _ => ('idle', const ScanSweepEmblem(icon: Icons.wifi_find_rounded)),
   };
 
   @override
   Widget build(BuildContext context) {
-    final s = context.getString;
-    final cubit = context.read<WifiHotspotCubit>();
-    final creds = state.credentials;
     // The standing "scan the host's QR code" paragraph belongs to the empty
     // screen and nothing else. It used to render above the phase switch
     // unconditionally, so it stayed up through every later state — stacked on
@@ -117,9 +123,13 @@ class HotspotJoinFlow extends StatelessWidget {
     // a loader for [JoinPhase.joining], the success note and Enter button for
     // [JoinPhase.joined], and a message-with-a-fix for each failure. None of
     // them is improved by generic instructions above it.
-    final joined = state.joinPhase == JoinPhase.joined;
-    final showInstructions = state.joinPhase == JoinPhase.idle;
-    final headerColor = joined ? AppColors.green : AppColors.amber;
+    final (headerScene, header) = _headerGraphic();
+    // Further along turns forward, a step back turns back.
+    final depth = switch (state.joinPhase) {
+      JoinPhase.joining => 1,
+      JoinPhase.joined => 2,
+      _ => 0,
+    };
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
       children: [
@@ -133,148 +143,167 @@ class HotspotJoinFlow extends StatelessWidget {
             // one event.
             child: SizedBox(
               height: 84,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 320),
-                child: _headerGraphic(headerColor),
+              child: SceneTurn(
+                scene: headerScene,
+                depth: depth,
+                alignment: Alignment.center,
+                child: Center(child: header),
               ),
             ),
           ),
         ),
-        const SizedBox(height: 20),
-        if (showInstructions) ...[
-          HotspotEntrance(
-            delayMs: 80,
-            child: Text(
-              s.hotspot_join_instructions,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13.5,
-                height: 1.5,
-              ),
+        const SizedBox(height: 28),
+        // The body turns with the header, as one object, rather than
+        // swapping under it.
+        SceneTurn(
+          scene: state.joinPhase,
+          depth: depth,
+          fill: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final (i, line) in _phaseBody(context).indexed)
+                SceneReflow(index: i ~/ 2, child: line),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _phaseBody(BuildContext context) {
+    final s = context.getString;
+    final cubit = context.read<WifiHotspotCubit>();
+    final creds = state.credentials;
+    return switch (state.joinPhase) {
+      // The header is already showing the reaching arcs, so this is the
+      // caption for them and nothing more.
+      JoinPhase.joining => [
+        Text(
+          s.hotspot_joining,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        ),
+      ],
+      JoinPhase.joined => [
+        HotspotInlineNote(
+          icon: Icons.check_circle_rounded,
+          // Naming the network we actually landed on: the SSID is Android's
+          // machine-generated one, so without it on screen there's no way
+          // to tell a successful join from a join onto the wrong AP.
+          text: creds == null
+              ? s.hotspot_joined
+              : s.hotspot_joined_network(creds.ssid),
+          color: AppColors.green,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          s.hotspot_join_waiting,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+        ),
+        const SizedBox(height: 18),
+        HotspotPrimaryButton(
+          icon: Icons.arrow_forward_rounded,
+          label: s.hotspot_enter_channel,
+          onTap: onEnterChannel,
+        ),
+      ],
+      // Both of these sit ahead of the manual card deliberately. They mean
+      // the phone can't see Wi-Fi networks at all, so the manual card's
+      // "pick this network in Settings" would be a dead end — there is
+      // nothing in the list to pick.
+      JoinPhase.wifiOff => _blockedSwitch(
+        context,
+        icon: Icons.wifi_off_rounded,
+        message: s.hotspot_wifi_off,
+        actionIcon: Icons.wifi_rounded,
+        actionLabel: s.hotspot_enable_wifi,
+        onAction: cubit.enableWifiAndRetry,
+        credentials: creds,
+      ),
+      JoinPhase.locationOff => _blockedSwitch(
+        context,
+        icon: Icons.location_off_rounded,
+        message: s.hotspot_location_off,
+        actionIcon: Icons.my_location_rounded,
+        actionLabel: s.hotspot_enable_location,
+        onAction: cubit.openLocationSettings,
+        credentials: creds,
+      ),
+      JoinPhase.manual when creds != null => [
+        // Only after an "I've joined" that could not pin the process. The
+        // card below already says what to do; this says why the tap did
+        // not take, which is the part the user cannot otherwise see.
+        if (state.errorCode == 'not_pinned') ...[
+          HotspotInlineNote(
+            icon: Icons.wifi_find_rounded,
+            text: s.hotspot_manual_not_pinned,
+            color: AppColors.red,
+          ),
+          const SizedBox(height: 18),
+        ],
+        _ManualJoinCard(credentials: creds),
+        const SizedBox(height: 18),
+        HotspotPrimaryButton(
+          icon: Icons.check_rounded,
+          label: s.hotspot_manual_joined,
+          onTap: cubit.confirmManualJoin,
+        ),
+        const SizedBox(height: 12),
+        _SecondaryButton(
+          label: s.hotspot_scan_again,
+          onTap: () => openHotspotScanner(context),
+        ),
+      ],
+      JoinPhase.lost => [
+        HotspotInlineNote(
+          icon: Icons.link_off_rounded,
+          text: s.hotspot_link_lost,
+          color: AppColors.red,
+        ),
+        const SizedBox(height: 18),
+        if (creds != null)
+          HotspotPrimaryButton(
+            icon: Icons.refresh_rounded,
+            label: s.hotspot_rejoin,
+            onTap: () => cubit.joinNetwork(creds),
+          ),
+        const SizedBox(height: 12),
+        _SecondaryButton(
+          label: s.hotspot_scan_again,
+          onTap: () => openHotspotScanner(context),
+        ),
+      ],
+      _ => [
+        // The standing paragraph belongs to the empty screen alone.
+        if (state.joinPhase == JoinPhase.idle) ...[
+          Text(
+            s.hotspot_join_instructions,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13.5,
+              height: 1.5,
             ),
           ),
           const SizedBox(height: 24),
-        ] else
-          const SizedBox(height: 8),
-        ...switch (state.joinPhase) {
-          // The header is already showing the reaching arcs, so this is the
-          // caption for them and nothing more.
-          JoinPhase.joining => [
-            Text(
-              s.hotspot_joining,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-            ),
-          ],
-          JoinPhase.joined => [
-            HotspotInlineNote(
-              icon: Icons.check_circle_rounded,
-              // Naming the network we actually landed on: the SSID is Android's
-              // machine-generated one, so without it on screen there's no way
-              // to tell a successful join from a join onto the wrong AP.
-              text: creds == null
-                  ? s.hotspot_joined
-                  : s.hotspot_joined_network(creds.ssid),
-              color: AppColors.green,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              s.hotspot_join_waiting,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
-            ),
-            const SizedBox(height: 18),
-            HotspotPrimaryButton(
-              icon: Icons.arrow_forward_rounded,
-              label: s.hotspot_enter_channel,
-              onTap: onEnterChannel,
-            ),
-          ],
-          // Both of these sit ahead of the manual card deliberately. They mean
-          // the phone can't see Wi-Fi networks at all, so the manual card's
-          // "pick this network in Settings" would be a dead end — there is
-          // nothing in the list to pick.
-          JoinPhase.wifiOff => _blockedSwitch(
-            context,
-            icon: Icons.wifi_off_rounded,
-            message: s.hotspot_wifi_off,
-            actionIcon: Icons.wifi_rounded,
-            actionLabel: s.hotspot_enable_wifi,
-            onAction: cubit.enableWifiAndRetry,
-            credentials: creds,
+        ],
+        if (state.joinPhase == JoinPhase.invalid) ...[
+          HotspotInlineNote(
+            icon: Icons.error_outline_rounded,
+            text: s.hotspot_invalid_qr,
+            color: AppColors.red,
           ),
-          JoinPhase.locationOff => _blockedSwitch(
-            context,
-            icon: Icons.location_off_rounded,
-            message: s.hotspot_location_off,
-            actionIcon: Icons.my_location_rounded,
-            actionLabel: s.hotspot_enable_location,
-            onAction: cubit.openLocationSettings,
-            credentials: creds,
-          ),
-          JoinPhase.manual when creds != null => [
-            // Only after an "I've joined" that could not pin the process. The
-            // card below already says what to do; this says why the tap did
-            // not take, which is the part the user cannot otherwise see.
-            if (state.errorCode == 'not_pinned') ...[
-              HotspotInlineNote(
-                icon: Icons.wifi_find_rounded,
-                text: s.hotspot_manual_not_pinned,
-                color: AppColors.red,
-              ),
-              const SizedBox(height: 18),
-            ],
-            _ManualJoinCard(credentials: creds),
-            const SizedBox(height: 18),
-            HotspotPrimaryButton(
-              icon: Icons.check_rounded,
-              label: s.hotspot_manual_joined,
-              onTap: cubit.confirmManualJoin,
-            ),
-            const SizedBox(height: 12),
-            _SecondaryButton(
-              label: s.hotspot_scan_again,
-              onTap: () => openHotspotScanner(context),
-            ),
-          ],
-          JoinPhase.lost => [
-            HotspotInlineNote(
-              icon: Icons.link_off_rounded,
-              text: s.hotspot_link_lost,
-              color: AppColors.red,
-            ),
-            const SizedBox(height: 18),
-            if (creds != null)
-              HotspotPrimaryButton(
-                icon: Icons.refresh_rounded,
-                label: s.hotspot_rejoin,
-                onTap: () => cubit.joinNetwork(creds),
-              ),
-            const SizedBox(height: 12),
-            _SecondaryButton(
-              label: s.hotspot_scan_again,
-              onTap: () => openHotspotScanner(context),
-            ),
-          ],
-          _ => [
-            if (state.joinPhase == JoinPhase.invalid) ...[
-              HotspotInlineNote(
-                icon: Icons.error_outline_rounded,
-                text: s.hotspot_invalid_qr,
-                color: AppColors.red,
-              ),
-              const SizedBox(height: 18),
-            ],
-            HotspotPrimaryButton(
-              icon: Icons.qr_code_scanner_rounded,
-              label: s.hotspot_scan_host,
-              onTap: () => openHotspotScanner(context),
-            ),
-          ],
-        },
+          const SizedBox(height: 18),
+        ],
+        HotspotPrimaryButton(
+          icon: Icons.qr_code_scanner_rounded,
+          label: s.hotspot_scan_host,
+          onTap: () => openHotspotScanner(context),
+        ),
       ],
-    );
+    };
   }
 }
 

@@ -11,6 +11,7 @@ import '../../../../core/entitlement/room_access_policy.dart';
 import '../../../../core/entitlement/subscription_service.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
+import '../../../../core/widget/state_emblems.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
@@ -715,40 +716,100 @@ class _RingsPainter extends CustomPainter {
       oldDelegate.color != color || oldDelegate.still != still;
 }
 
-class _FailureCallout extends StatelessWidget {
+/// Why the last start did not connect, told as the link itself: two phones
+/// reaching for each other, the line between them pulling taut and snapping,
+/// the ends springing back. Then the reason, under a short title. The big
+/// button below has already turned into Try again.
+class _FailureCallout extends StatefulWidget {
   const _FailureCallout({required this.message});
 
   final String message;
 
   @override
+  State<_FailureCallout> createState() => _FailureCalloutState();
+}
+
+class _FailureCalloutState extends State<_FailureCallout>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _snap = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduced(context)) {
+      _snap.value = 1;
+    } else if (!_snap.isAnimating && _snap.value == 0) {
+      _snap.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _snap.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final s = context.getString;
     return Semantics(
       container: true,
       liveRegion: true,
       child: Container(
         key: const Key('selected-room-start-failure'),
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.fromLTRB(14, 14, 16, 14),
         decoration: BoxDecoration(
-          color: AppColors.amber.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.amber.withValues(alpha: 0.45)),
+          gradient: LinearGradient(
+            begin: AlignmentDirectional.centerStart,
+            end: AlignmentDirectional.centerEnd,
+            colors: [
+              AppColors.amber.withValues(alpha: 0.16),
+              AppColors.amber.withValues(alpha: 0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.amber.withValues(alpha: 0.40)),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.info_outline_rounded, color: AppColors.amber, size: 21),
-            const SizedBox(width: 10),
+            ExcludeSemantics(
+              child: SizedBox(
+                width: 64,
+                height: 40,
+                child: CustomPaint(
+                  painter: SnappedLinkPainter(
+                    progress: _snap,
+                    color: AppColors.amber,
+                    track: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    message,
+                    s.journey_failed_title,
+                    style: TextStyle(
+                      color: AppColors.amber,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    widget.message,
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 13,
-                      height: 1.4,
-                      fontWeight: FontWeight.w600,
+                      height: 1.45,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],

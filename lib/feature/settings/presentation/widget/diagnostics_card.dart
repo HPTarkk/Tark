@@ -19,6 +19,7 @@ import '../../../../core/widget/ticker_text.dart';
 import '../manager/settings_cubit.dart';
 import 'settings_category_card.dart';
 import 'settings_row.dart';
+import '../../../../core/widget/status_note.dart';
 
 /// Settings → Advanced → Diagnostics: choose how much room the on-device log
 /// may take, hand it back to us, or wipe it.
@@ -134,9 +135,7 @@ class _DiagnosticsCardState extends State<DiagnosticsCard> {
   }
 
   void _say(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    showStatusNote(context, message, tone: StatusTone.done);
   }
 
   /// Rounded to whole units — the exact byte count answers nothing, and this

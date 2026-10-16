@@ -25,6 +25,7 @@ import '../widget/room_dissolve.dart';
 import '../widget/room_visuals.dart';
 import 'room_create_page.dart';
 import '../../../../core/utils/localized_digits_formatter.dart';
+import '../../../../core/widget/state_emblems.dart';
 
 /// Offline-first manager for durable Rooms.
 ///
@@ -146,7 +147,7 @@ class _RoomListPageState extends State<RoomListPage> {
       if (state.loading && state.rooms.isEmpty) {
         return const Center(
           key: ValueKey('rooms-loading'),
-          child: CircularProgressIndicator(),
+          child: SignalLoader(),
         );
       }
       if (state.error != null && state.rooms.isEmpty) {
@@ -1077,41 +1078,28 @@ class _ErrorState extends StatelessWidget {
   final Future<void> Function() onRetry;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.amber.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppColors.amber.withValues(alpha: 0.45)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.info_outline_rounded, size: 36, color: AppColors.amber),
-            const SizedBox(height: 12),
-            Text(
-              context.getString.rooms_load_error,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 14,
-                height: 1.4,
-                fontWeight: FontWeight.w600,
-              ),
+  Widget build(BuildContext context) => StatePanel(
+    emblem: ScanSweepEmblem(
+      icon: Icons.sync_problem_rounded,
+      color: AppColors.amber,
+      size: 92,
+    ),
+    title: context.getString.rooms_load_error,
+    actions: [
+      Center(
+        child: FilledButton.tonalIcon(
+          onPressed: onRetry,
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(height: 10),
-            TextButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: Text(context.getString.rooms_retry),
-            ),
-          ],
+          ),
+          icon: const Icon(Icons.refresh_rounded, size: 18),
+          label: Text(context.getString.rooms_retry),
         ),
       ),
-    ),
+    ],
   );
 }
 

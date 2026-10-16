@@ -4310,6 +4310,12 @@ abstract class AppLocalizations {
   /// **'این اتاق دیگه برای شروع ارتباط در دسترس نیست.'**
   String get entry_room_unavailable;
 
+  /// No description provided for @entry_room_unavailable_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاق در دسترس نیست'**
+  String get entry_room_unavailable_title;
+
   /// No description provided for @entry_back.
   ///
   /// In fa, this message translates to:
