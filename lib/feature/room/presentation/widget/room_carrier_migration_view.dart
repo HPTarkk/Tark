@@ -52,8 +52,13 @@ class RoomCarrierMigrationView extends StatefulWidget {
     this.fellBack = false,
     this.carrier = RoomMoveCarrier.hotspot,
     this.onHomeWifi = true,
+    this.onClose,
     super.key,
   });
+
+  /// The close button in the top corner: stop the move and go back. Hidden
+  /// once the link has landed, when there is nothing left to stop.
+  final VoidCallback? onClose;
 
   final RoomMigrationProgress progress;
 
@@ -322,7 +327,6 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
 
   @override
   Widget build(BuildContext context) {
-    final rtl = Directionality.of(context) == TextDirection.rtl;
     final reduced = AppMotion.reduced(context);
     final copy = _copy(context);
     final step = widget.progress.step;
@@ -330,6 +334,58 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
     final established = step == RoomMigrationStep.established && !failed;
     final bluetooth = widget.carrier == RoomMoveCarrier.bluetooth;
     final accent = bluetooth ? _bluetoothBlue : AppColors.amber;
+    final onClose = widget.onClose;
+    final scene = _scene(context, copy, step, failed, bluetooth, accent);
+    if (onClose == null) return scene;
+    return Stack(
+      children: [
+        Positioned.fill(child: scene),
+        PositionedDirectional(
+          top: 4,
+          end: 4,
+          child: AnimatedOpacity(
+            opacity: established ? 0 : 1,
+            duration: reduced ? Duration.zero : AppMotion.card,
+            child: IgnorePointer(
+              ignoring: established,
+              child: FadeTransition(
+                opacity: reduced
+                    ? const AlwaysStoppedAnimation(1)
+                    : CurvedAnimation(
+                        parent: _enter,
+                        curve: const Interval(.35, 1, curve: Curves.easeOut),
+                      ),
+                child: IconButton(
+                  key: const Key('carrier-migration-close'),
+                  tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    onClose();
+                  },
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _scene(
+    BuildContext context,
+    ({String title, String detail}) copy,
+    RoomMigrationStep step,
+    bool failed,
+    bool bluetooth,
+    Color accent,
+  ) {
+    final reduced = AppMotion.reduced(context);
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final established = step == RoomMigrationStep.established && !failed;
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = math.min(constraints.maxWidth, 420.0);

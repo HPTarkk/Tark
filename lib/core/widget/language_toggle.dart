@@ -153,6 +153,7 @@ class _LanguageSegment extends StatelessWidget {
                     fontSize: 8.5,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 3,
+                    fontFamily: 'Vazirmatn',
                   ),
                   child: Text(code),
                 ),

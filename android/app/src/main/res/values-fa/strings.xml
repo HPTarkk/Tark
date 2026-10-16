@@ -14,6 +14,7 @@
     <!-- Posted when Android killed the app mid-session and restarted only
          its keep-alive service (see SessionKeepAliveService). The app is not
          running then, so these come from resources, in the system language. -->
+    <string name="session_close_room">بستن اتاق</string>
     <string name="session_interrupted_channel">قطع شدن تماس</string>
     <string name="session_interrupted_title">تَرک قطع شد</string>
     <string name="session_interrupted_text">اندروید وسط تماس برنامه رو بست. بزن تا دوباره وصل شی.</string>

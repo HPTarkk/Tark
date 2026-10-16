@@ -464,6 +464,9 @@ class _RoomMemberTile extends StatelessWidget {
                               : AppColors.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
+                          // AnimatedDefaultTextStyle replaces the inherited
+                          // style rather than merging, so the font is named.
+                          fontFamily: 'Vazirmatn',
                         ),
                         child: Text(
                           name,

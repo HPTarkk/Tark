@@ -1521,6 +1521,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   Completer<void>? _migrationLanded;
   Completer<void>? _migrationStay;
 
+  /// Completed by the scene's close button on a move off the router.
+  Completer<void>? _migrationClose;
+
   /// The move is playing over a call that is already open.
   bool _migrationFellBack = false;
 
@@ -1586,12 +1589,14 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         .firstOrNull;
     final landed = Completer<void>();
     final stay = Completer<void>();
+    final close = Completer<void>();
     setState(() {
       _migrationRoom = room;
       _migrationProgress = const RoomMigrationProgress(RoomMigrationStep.found);
       _migrationPeerName = _memberName(peerMember);
       _migrationLanded = landed;
       _migrationStay = stay;
+      _migrationClose = close;
       _migrationFellBack = fellBack;
       _migrationCarrier = RoomMoveCarrier.hotspot;
       _migrationOnWifi = true;
@@ -1605,6 +1610,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         _migrationRoom = null;
         _migrationLanded = null;
         _migrationStay = null;
+        _migrationClose = null;
         _migrationFellBack = false;
         _migrationFailure = null;
         _migrationActions = const [];
@@ -1618,8 +1624,18 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         peer: peer,
         landed: landed,
         stay: stay,
+        close: close,
       );
       if (!mounted) return _EntryState.lobby(room);
+      if (close.isCompleted) {
+        return _closeMove(
+          room,
+          binding,
+          live,
+          fellBack: fellBack,
+          clear: clear,
+        );
+      }
       switch (outcome.result) {
         case RoomMigrationResult.moved:
           // The channel opens (or carries on) out of the scene's own landing.
@@ -1642,6 +1658,15 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             Logger.diagnostic('carrier_move: nobody to host');
             final next = await _migrationNoHost(stay: stay);
             if (!mounted) return _EntryState.lobby(room);
+            if (next == _MoveChoice.close) {
+              return _closeMove(
+                room,
+                binding,
+                live,
+                fellBack: fellBack,
+                clear: clear,
+              );
+            }
             if (next == _MoveChoice.bluetooth) {
               return _moveToBluetooth(room, binding, fellBack, clear);
             }
@@ -1675,6 +1700,14 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           final choice = await _migrationFailed(outcome, stay: stay);
           if (!mounted) return _EntryState.lobby(room);
           switch (choice) {
+            case _MoveChoice.close:
+              return _closeMove(
+                room,
+                binding,
+                live,
+                fellBack: fellBack,
+                clear: clear,
+              );
             case _MoveChoice.bluetooth:
               return _moveToBluetooth(room, binding, fellBack, clear);
             case _MoveChoice.stay:
@@ -1886,6 +1919,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           return _EntryState.lobby(room);
         case _MoveChoice.bluetooth:
         case _MoveChoice.stay:
+        case _MoveChoice.close:
           return _stopBluetooth(room, clear);
       }
     }
@@ -2107,6 +2141,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     required RoomPeerProofEvidence peer,
     required Completer<void> landed,
     required Completer<void> stay,
+    required Completer<void> close,
   }) async {
     final migration = RoomCarrierMigration(
       mover: mover,
@@ -2121,7 +2156,11 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     });
     try {
       return await migration.run(
-        abandoned: Future.any([_abandonWaits.future, stay.future]),
+        abandoned: Future.any([
+          _abandonWaits.future,
+          stay.future,
+          close.future,
+        ]),
       );
     } finally {
       await progress.cancel();
@@ -2166,6 +2205,39 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     return next;
   }
 
+  /// The scene's close button: the move stops and the person is back where
+  /// they were. A call already running over the router carries on under it;
+  /// one that never opened goes back to the Room, cleanly, so Start plans
+  /// afresh. Whatever access point the move raised comes down with it.
+  Future<_EntryState> _closeMove(
+    SavedRoom room,
+    SelectedRoomLiveSessionBinding binding,
+    _EntryState live, {
+    required bool fellBack,
+    required void Function() clear,
+  }) async {
+    Logger.diagnostic('carrier_move: closed by the person');
+    binding.carrierPromotion?.standDown();
+    clear();
+    await _releaseOwnHotspot();
+    if (fellBack) return live;
+    _endCoordinator();
+    await binding.close();
+    return _EntryState.lobby(room);
+  }
+
+  /// The close button over the move's scene.
+  void _closeMigration() {
+    if (_migrationCarrier == RoomMoveCarrier.bluetooth) {
+      // The Bluetooth scene's own stop.
+      final stop = _migrationStay;
+      if (stop != null && !stop.isCompleted) stop.complete();
+      return;
+    }
+    final close = _migrationClose;
+    if (close != null && !close.isCompleted) close.complete();
+  }
+
   /// Tells, in the scene, that neither phone could be chosen to share, and
   /// waits for Try again or Bluetooth ([_MoveChoice.stay] only when the
   /// screen went away).
@@ -2178,6 +2250,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
     unawaited(stay.future.then((_) => pick(_MoveChoice.bluetooth)));
     unawaited(_abandonWaits.future.then((_) => pick(_MoveChoice.stay)));
+    final close = _migrationClose;
+    if (close != null) {
+      unawaited(close.future.then((_) => pick(_MoveChoice.close)));
+    }
     setState(() {
       _migrationFailure = RoomMigrationFailureCopy(
         title: s.carriermove_failed_title,
@@ -2212,6 +2288,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
     unawaited(stay.future.then((_) => pick(_MoveChoice.bluetooth)));
     unawaited(_abandonWaits.future.then((_) => pick(_MoveChoice.stay)));
+    final close = _migrationClose;
+    if (close != null) {
+      unawaited(close.future.then((_) => pick(_MoveChoice.close)));
+    }
 
     // The phone that would host, still on the house Wi-Fi and unable to keep
     // both up: its hotspot is what dropped. Turning Wi-Fi off is the fix,
@@ -3091,6 +3171,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             onStay: () {
               if (stay != null && !stay.isCompleted) stay.complete();
             },
+            onClose: _closeMigration,
           ),
         ),
       ),
@@ -3403,7 +3484,8 @@ class _DelayedSpinnerState extends State<_DelayedSpinner> {
 
 /// The way forward a person picked after a move that did not finish.
 /// The way forward from a move: [stay] only when the screen went away.
-enum _MoveChoice { retry, showCode, scan, bluetooth, stay }
+/// [close] is the scene's close button: stop the move and go back.
+enum _MoveChoice { retry, showCode, scan, bluetooth, stay, close }
 
 /// Why a move onto Bluetooth stopped.
 enum _BluetoothMoveFailure { notFound, off, permission, location, unconfirmed }

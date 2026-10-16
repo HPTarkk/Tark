@@ -34,6 +34,7 @@ object WidgetActions {
     private const val RC_BADGE = 3102
     private const val RC_MUTE = 3103
     private const val RC_END = 3104
+    private const val RC_NOTIFICATION_END = 3105
 
     private val immutableFlags: Int
         get() = PendingIntent.FLAG_UPDATE_CURRENT or
@@ -76,6 +77,15 @@ object WidgetActions {
         } else {
             launch(context, INTENT_GO_LIVE, nonce, RC_END)
         }
+
+    /**
+     * The session notification's "Close room": the same END the widget sends,
+     * so the room is left the way the in-app Leave leaves it. The keep-alive
+     * notification only exists while a session runs, so it always has an
+     * engine to reach; a stale tap opens the app like the widget's does.
+     */
+    fun endFromNotification(context: Context): PendingIntent =
+        control(context, TarkWidgetControlReceiver.ACTION_END_SESSION, RC_NOTIFICATION_END)
 
     /** Plain "bring the app up", for the receiver's stale-binding fallback. */
     fun openIntent(context: Context): Intent =

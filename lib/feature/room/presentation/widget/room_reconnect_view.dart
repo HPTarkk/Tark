@@ -259,6 +259,15 @@ class _RoomReconnectViewState extends State<RoomReconnectView> {
                   onSwitch: widget.onSwitch,
                   onBack: widget.onBack,
                 )
+              : model.side == RoomReconnectSide.show &&
+                    model.phase == RoomReconnectPhase.failed
+              ? _ShowJourney(
+                  key: const ValueKey('room-reconnect-show-failed'),
+                  model: model,
+                  onRetry: widget.onRetry,
+                  onSwitch: widget.onSwitch,
+                  onBack: widget.onBack,
+                )
               : model.side == RoomReconnectSide.scan
               ? _ScanSide(
                   key: const ValueKey('room-reconnect-scan'),
@@ -662,76 +671,85 @@ class _ScanSide extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: QrScannerSurface(
-            title: s.reconnect_scan_title,
-            hint: s.reconnect_scan_hint(model.peerName),
-            searchingLabel: s.reconnect_scan_searching,
-            lockedLabel: s.reconnect_scan_locked,
-            busyLabel: s.reconnect_scan_busy,
-            cameraDeniedLabel: s.roomjoin_camera_denied,
-            cameraFailedLabel: s.roomjoin_camera_failed,
-            openSettingsLabel: s.roomjoin_open_settings,
-            // The entry's own words win; otherwise the reason it reported,
-            // said plainly over the camera that just failed to get anywhere.
-            errorText:
-                model.message ??
-                switch (model.problem) {
-                  RoomReconnectProblem.wifiOff => s.rcv_reason_wifi_off,
-                  RoomReconnectProblem.locationOff => s.rcv_reason_location_off,
-                  RoomReconnectProblem.joinDeclined => s.rcv_reason_declined,
-                  RoomReconnectProblem.noAnswer || null => null,
-                },
-            onCode: onScan,
+    // The scanner is its own Scaffold, so what floats over it sits outside
+    // any Material: its text came out in the fallback style, yellow
+    // underline and no app font (2026-10-16). One transparent Material
+    // under the whole stack gives it the theme's text.
+    return Material(
+      type: MaterialType.transparency,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: QrScannerSurface(
+              title: s.reconnect_scan_title,
+              hint: s.reconnect_scan_hint(model.peerName),
+              searchingLabel: s.reconnect_scan_searching,
+              lockedLabel: s.reconnect_scan_locked,
+              busyLabel: s.reconnect_scan_busy,
+              cameraDeniedLabel: s.roomjoin_camera_denied,
+              cameraFailedLabel: s.roomjoin_camera_failed,
+              openSettingsLabel: s.roomjoin_open_settings,
+              // The entry's own words win; otherwise the reason it reported,
+              // said plainly over the camera that just failed to get anywhere.
+              errorText:
+                  model.message ??
+                  switch (model.problem) {
+                    RoomReconnectProblem.wifiOff => s.rcv_reason_wifi_off,
+                    RoomReconnectProblem.locationOff =>
+                      s.rcv_reason_location_off,
+                    RoomReconnectProblem.joinDeclined => s.rcv_reason_declined,
+                    RoomReconnectProblem.noAnswer || null => null,
+                  },
+              onCode: onScan,
+            ),
           ),
-        ),
-        if (model.canSwitch)
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: 20 + MediaQuery.paddingOf(context).bottom,
-            child: _Reflow(
-              index: 1,
-              child: AnimatedSwitcher(
-                duration: AppMotion.sheet,
-                switchInCurve: AppMotion.easeOut,
-                switchOutCurve: AppMotion.leaving,
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.25),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
+          if (model.canSwitch)
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 20 + MediaQuery.paddingOf(context).bottom,
+              child: _Reflow(
+                index: 1,
+                child: AnimatedSwitcher(
+                  duration: AppMotion.sheet,
+                  switchInCurve: AppMotion.easeOut,
+                  switchOutCurve: AppMotion.leaving,
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.25),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
                   ),
-                ),
-                child: swapFirst
-                    ? _SwapSuggestion(
-                        key: const ValueKey('swap-first'),
-                        hint: model.problem == RoomReconnectProblem.joinDeclined
-                            ? s.rcv_scan_declined_hint(model.peerName)
-                            : s.rcv_scan_switch_hint(model.peerName),
-                        label: s.reconnect_switch_to_show,
-                        icon: Icons.qr_code_2_rounded,
-                        onTap: onSwitch,
-                      )
-                    : Center(
-                        key: const ValueKey('swap-quiet'),
-                        child: _SwitchButton(
-                          key: const Key('room-reconnect-switch'),
+                  child: swapFirst
+                      ? _SwapSuggestion(
+                          key: const ValueKey('swap-first'),
+                          hint:
+                              model.problem == RoomReconnectProblem.joinDeclined
+                              ? s.rcv_scan_declined_hint(model.peerName)
+                              : s.rcv_scan_switch_hint(model.peerName),
                           label: s.reconnect_switch_to_show,
                           icon: Icons.qr_code_2_rounded,
                           onTap: onSwitch,
-                          onDark: true,
+                        )
+                      : Center(
+                          key: const ValueKey('swap-quiet'),
+                          child: _SwitchButton(
+                            key: const Key('room-reconnect-switch'),
+                            label: s.reconnect_switch_to_show,
+                            icon: Icons.qr_code_2_rounded,
+                            onTap: onSwitch,
+                            onDark: true,
+                          ),
                         ),
-                      ),
+                ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -884,6 +902,65 @@ class _ScanJourney extends StatelessWidget {
                   ),
                 ]
               : const [],
+        ),
+      ),
+    );
+  }
+}
+
+/// The show side when its code could not be made or nobody arrived on it:
+/// the same scene the scan side fails in, the link drawn reaching for the
+/// other phone and snapping, with the reason and the way forward under it.
+/// A bare icon and a sentence read as the app giving up (2026-10-16).
+class _ShowJourney extends StatelessWidget {
+  const _ShowJourney({
+    required this.model,
+    required this.onRetry,
+    required this.onSwitch,
+    required this.onBack,
+    super.key,
+  });
+
+  final RoomReconnectModel model;
+  final VoidCallback onRetry;
+  final VoidCallback onSwitch;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: ConnectionJourney(
+          stage: JourneyStage.failed,
+          link: JourneyLink.hotspot,
+          caption: model.peerName,
+          title: s.journey_failed_title,
+          detail: model.message ?? s.reconnect_host_failed,
+          actions: [
+            FilledButton.icon(
+              key: const Key('room-reconnect-retry'),
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                onRetry();
+              },
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(s.reconnect_retry),
+            ),
+            if (model.canSwitch)
+              OutlinedButton.icon(
+                key: const Key('room-reconnect-switch'),
+                onPressed: onSwitch,
+                icon: const Icon(Icons.photo_camera_rounded),
+                label: Text(s.reconnect_switch_to_scan),
+              ),
+            TextButton(
+              key: const Key('room-reconnect-not-now'),
+              onPressed: onBack,
+              child: Text(s.journey_not_now),
+            ),
+          ],
         ),
       ),
     );
@@ -1182,33 +1259,8 @@ class _ShowSide extends StatelessWidget {
           text: s.reconnect_connecting,
         );
       case RoomReconnectPhase.failed:
-        return Column(
-          key: const ValueKey('failed'),
-          children: [
-            const SizedBox(height: 32),
-            Icon(Icons.sync_problem_rounded, size: 48, color: AppColors.amber),
-            const SizedBox(height: 16),
-            Text(
-              model.message ?? s.reconnect_host_failed,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 15,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              key: const Key('room-reconnect-retry'),
-              onPressed: () {
-                HapticFeedback.selectionClick();
-                onRetry();
-              },
-              icon: const Icon(Icons.refresh_rounded),
-              label: Text(s.reconnect_retry),
-            ),
-          ],
-        );
+        // Told by [_ShowJourney] instead.
+        return const SizedBox.shrink(key: ValueKey('failed'));
       case RoomReconnectPhase.preparing:
       case RoomReconnectPhase.waiting:
         // One widget for the wait and the code, so the beacon resolves into

@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.graphics.drawable.Icon
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
@@ -17,6 +18,7 @@ import android.os.PowerManager
 import android.util.Log
 import com.b1101.tark.R
 import com.b1101.tark.hotspot.HotspotHandler
+import com.b1101.tark.widget.WidgetActions
 
 /**
  * Keeps a walkie session alive while the screen is off — the motorcycle case.
@@ -419,6 +421,18 @@ class SessionKeepAliveService : Service() {
         }
     }
 
+    /**
+     * "Close room", straight from the notification: ends the session the way
+     * the in-app Leave does, which also stops this service and its locks.
+     */
+    private fun closeRoomAction(): Notification.Action? = runCatching {
+        Notification.Action.Builder(
+            Icon.createWithResource(this, applicationInfo.icon),
+            getString(R.string.session_close_room),
+            WidgetActions.endFromNotification(this),
+        ).build()
+    }.getOrNull()
+
     private fun buildNotification(): Notification {
         val contentIntent = launchIntent()
         return Notification.Builder(this, CHANNEL_ID)
@@ -427,6 +441,7 @@ class SessionKeepAliveService : Service() {
             .setSmallIcon(applicationInfo.icon)
             .setOngoing(true)
             .apply { if (contentIntent != null) setContentIntent(contentIntent) }
+            .apply { closeRoomAction()?.let { addAction(it) } }
             .build()
     }
 }

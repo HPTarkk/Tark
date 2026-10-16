@@ -20,6 +20,7 @@ void main() {
     bool fellBack = false,
     RoomMoveCarrier carrier = RoomMoveCarrier.hotspot,
     bool onHomeWifi = true,
+    VoidCallback? onClose,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -40,6 +41,7 @@ void main() {
               fellBack: fellBack,
               carrier: carrier,
               onHomeWifi: onHomeWifi,
+              onClose: onClose,
             ),
           ),
         ),
@@ -132,6 +134,47 @@ void main() {
     expect(stayed, 1);
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('a close button stops the move, until the link has landed', (
+    tester,
+  ) async {
+    var closed = 0;
+    await pump(
+      tester,
+      const RoomMigrationProgress(
+        RoomMigrationStep.moving,
+        side: RoomMigrationSide.host,
+      ),
+      onClose: () => closed++,
+    );
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.byKey(const Key('carrier-migration-close')));
+    expect(closed, 1);
+
+    await pump(
+      tester,
+      const RoomMigrationProgress(
+        RoomMigrationStep.established,
+        side: RoomMigrationSide.host,
+      ),
+      onClose: () => closed++,
+    );
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(
+      find.byKey(const Key('carrier-migration-close')),
+      warnIfMissed: false,
+    );
+    expect(closed, 1);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('without a close handler there is no close button', (
+    tester,
+  ) async {
+    await pump(tester, const RoomMigrationProgress(RoomMigrationStep.found));
+    expect(find.byKey(const Key('carrier-migration-close')), findsNothing);
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('the step rail fills as the move advances', (tester) async {

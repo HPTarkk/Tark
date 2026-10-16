@@ -9,7 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/app/router/room_bound_walkie_entry.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/router/routes.dart';
-import 'package:tark/core/settings/settings_keys.dart';
 import 'package:tark/core/widget/qr_scanner_surface.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/repository/room_repository.dart';
@@ -26,7 +25,8 @@ import 'package:tark/feature/transfer/domain/service/transfer_mode_store.dart';
 
 /// Start with no link between the phones opens a guided screen instead of
 /// trying whatever network this phone is on: one phone shows a code, the
-/// other scans it, and both pick the same side from the Room's history.
+/// other scans it, and both pick the same side from the Room itself: its
+/// creator shows the code.
 void main() {
   final getIt = GetIt.instance;
   const roomId = RoomId('0123456789abcdef0123456789abcdef');
@@ -37,8 +37,10 @@ void main() {
     await getIt.reset();
   });
 
-  SavedRoom room() {
+  /// [peerCreated]: the other member joined first, so they created the Room.
+  SavedRoom room({bool peerCreated = false}) {
     final now = DateTime.utc(2026, 9, 5, 7);
+    final localJoined = peerCreated ? now.add(const Duration(seconds: 2)) : now;
     return SavedRoom(
       room: Room(
         id: roomId,
@@ -46,7 +48,11 @@ void main() {
         createdAt: now,
         updatedAt: now,
         members: [
-          RoomMember(id: localId, displayName: 'Rider one', joinedAt: now),
+          RoomMember(
+            id: localId,
+            displayName: 'Rider one',
+            joinedAt: localJoined,
+          ),
           RoomMember(
             id: peerId,
             displayName: 'Rider two',
@@ -64,15 +70,11 @@ void main() {
   Future<_FakeModeStore> pumpEntry(
     WidgetTester tester, {
     LiveLinkSnapshot links = LiveLinkSnapshot.none,
-    RoomMemberId? lastHost,
+    bool peerCreated = false,
     ValueNotifier<bool>? wifi,
     Future<HotspotCredentials?> Function()? prepareHost,
   }) async {
-    SharedPreferences.setMockInitialValues({
-      if (lastHost != null)
-        '${SettingsKeys.roomLastHotspotHostPrefix}${roomId.value}':
-            lastHost.value,
-    });
+    SharedPreferences.setMockInitialValues({});
     const identityChannel = MethodChannel('tark/room_identity_secure_storage');
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       identityChannel,
@@ -86,7 +88,7 @@ void main() {
     );
     final modeStore = _FakeModeStore(TransferMode.wifi);
     getIt.registerLazySingleton<RoomRepository>(
-      () => _FakeRoomRepository(room()),
+      () => _FakeRoomRepository(room(peerCreated: peerCreated)),
     );
     getIt.registerLazySingleton<LiveLinkProbe>(() => _FakeProbe(links));
     getIt.registerLazySingleton<TransferModeStore>(() => modeStore);
@@ -142,10 +144,12 @@ void main() {
     await pumpEntry(tester);
     await tapStart(tester);
 
-    expect(find.byKey(const ValueKey('room-reconnect-show')), findsOneWidget);
-    expect(find.text('Connect with Rider two'), findsOneWidget);
-    // No hotspot is available in this harness, so it says so in plain words
-    // and offers both ways forward.
+    // No hotspot is available in this harness, so the show side fails in its
+    // scene, says so in plain words and offers both ways forward.
+    expect(
+      find.byKey(const ValueKey('room-reconnect-show-failed')),
+      findsOneWidget,
+    );
     expect(find.textContaining("couldn't start sharing"), findsOneWidget);
     expect(find.byKey(const Key('room-reconnect-retry')), findsOneWidget);
     expect(find.byKey(const Key('room-reconnect-switch')), findsOneWidget);
@@ -169,10 +173,10 @@ void main() {
     );
   });
 
-  testWidgets('when the other phone hosted last time, this one scans', (
+  testWidgets('when the other phone created the Room, this one scans', (
     tester,
   ) async {
-    await pumpEntry(tester, lastHost: peerId);
+    await pumpEntry(tester, peerCreated: true);
     await tapStart(tester);
 
     expect(find.byKey(const ValueKey('room-reconnect-scan')), findsOneWidget);
@@ -182,7 +186,7 @@ void main() {
   testWidgets('a code that is not a connection code is named as such', (
     tester,
   ) async {
-    await pumpEntry(tester, lastHost: peerId);
+    await pumpEntry(tester, peerCreated: true);
     await tapStart(tester);
 
     final surface = tester.widget<QrScannerSurface>(
@@ -222,7 +226,7 @@ void main() {
   ) async {
     final joiner = _FailingJoiner();
     getIt.registerSingleton<HotspotJoiner>(joiner);
-    await pumpEntry(tester, lastHost: peerId);
+    await pumpEntry(tester, peerCreated: true);
     await tapStart(tester);
     const credentials = HotspotCredentials(
       ssid: 'TARK',
@@ -258,7 +262,7 @@ void main() {
       tester,
     ) async {
       final wifi = ValueNotifier(false);
-      await pumpEntry(tester, lastHost: peerId, wifi: wifi);
+      await pumpEntry(tester, peerCreated: true, wifi: wifi);
       await tapStart(tester);
 
       expect(find.byKey(const ValueKey('room-reconnect-wifi')), findsOneWidget);
@@ -282,7 +286,7 @@ void main() {
     testWidgets('with Wi-Fi already on, the camera opens straight away', (
       tester,
     ) async {
-      await pumpEntry(tester, lastHost: peerId, wifi: ValueNotifier(true));
+      await pumpEntry(tester, peerCreated: true, wifi: ValueNotifier(true));
       await tapStart(tester);
 
       expect(find.byKey(const ValueKey('room-reconnect-wifi')), findsNothing);
@@ -295,12 +299,16 @@ void main() {
       await pumpEntry(tester, wifi: ValueNotifier(false));
       await tapStart(tester);
 
-      expect(find.byKey(const ValueKey('room-reconnect-show')), findsOneWidget);
+      // The harness has no hotspot, so the show side ends in its failure.
+      expect(
+        find.byKey(const ValueKey('room-reconnect-show-failed')),
+        findsOneWidget,
+      );
       expect(find.byKey(const ValueKey('room-reconnect-wifi')), findsNothing);
     });
 
     testWidgets('back from the Wi-Fi card returns to the Room', (tester) async {
-      await pumpEntry(tester, lastHost: peerId, wifi: ValueNotifier(false));
+      await pumpEntry(tester, peerCreated: true, wifi: ValueNotifier(false));
       await tapStart(tester);
       await tester.tap(find.byKey(const Key('room-reconnect-back')));
       await settle(tester);
@@ -314,11 +322,18 @@ void main() {
   ) async {
     await pumpEntry(tester);
     await tapStart(tester);
-    await tester.tap(find.byKey(const Key('room-reconnect-back')));
+    // The harness has no hotspot: "Not now" from the show side's failure.
+    await tester.pump(const Duration(seconds: 2));
+    await tester.ensureVisible(find.byKey(const Key('room-reconnect-not-now')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('room-reconnect-not-now')));
     await settle(tester);
 
     expect(find.byKey(const Key('selected-room-lobby')), findsOneWidget);
-    expect(find.byKey(const ValueKey('room-reconnect-show')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('room-reconnect-show-failed')),
+      findsNothing,
+    );
   });
 
   testWidgets('home Wi-Fi is offered only while this phone is on Wi-Fi', (
