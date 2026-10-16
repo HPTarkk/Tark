@@ -16,7 +16,6 @@ import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/localized_counter.dart';
 import '../../../../core/widget/monogram_mark.dart';
-import '../../../../core/widget/confirm_sheet.dart';
 import '../../domain/entity/room.dart';
 import '../manager/room_list_cubit.dart';
 import '../widget/room_archive_sheet.dart';
@@ -196,8 +195,6 @@ class _RoomListPageState extends State<RoomListPage> {
                   _openRoom(context, saved);
                 },
                 onRename: () => _renameRoom(context, saved),
-                onArchive: () => _archiveRoom(context, saved),
-                onLeave: () => _leaveRoom(context, saved),
                 onDelete: () => confirmAndDeleteRoom(context, saved),
               ),
             ),
@@ -267,33 +264,6 @@ class _RoomListPageState extends State<RoomListPage> {
     await context.read<RoomListCubit>().rename(saved.room.id, name);
   }
 
-  Future<void> _archiveRoom(BuildContext context, SavedRoom saved) async {
-    final confirmed = await showConfirmSheet(
-      context,
-      title: context.getString.rooms_archive,
-      body: context.getString.rooms_archive_confirm(saved.room.name),
-      action: context.getString.rooms_archive,
-      icon: Icons.inventory_2_outlined,
-    );
-    if (confirmed && context.mounted) {
-      await context.read<RoomListCubit>().archive(saved.room.id);
-    }
-  }
-
-  Future<void> _leaveRoom(BuildContext context, SavedRoom saved) async {
-    final confirmed = await showConfirmSheet(
-      context,
-      title: context.getString.rooms_leave,
-      body: context.getString.rooms_leave_confirm(saved.room.name),
-      action: context.getString.rooms_leave,
-      icon: Icons.logout_rounded,
-      destructive: true,
-    );
-    if (confirmed && context.mounted) {
-      await context.read<RoomListCubit>().leave(saved.room.id);
-    }
-  }
-
   static Future<String?> _nameDialog(
     BuildContext context, {
     required String title,
@@ -358,8 +328,6 @@ class _RoomCard extends StatelessWidget {
     required this.busy,
     required this.onOpen,
     required this.onRename,
-    required this.onArchive,
-    required this.onLeave,
     required this.onDelete,
   });
 
@@ -368,8 +336,6 @@ class _RoomCard extends StatelessWidget {
   final bool busy;
   final VoidCallback onOpen;
   final VoidCallback onRename;
-  final VoidCallback onArchive;
-  final VoidCallback onLeave;
   final VoidCallback onDelete;
 
   static final _radius = BorderRadius.circular(24);
@@ -445,10 +411,7 @@ class _RoomCard extends StatelessWidget {
                   _RoomMenu(
                     saved: saved,
                     busy: busy,
-                    archived: archived,
                     onRename: onRename,
-                    onArchive: onArchive,
-                    onLeave: onLeave,
                     onDelete: onDelete,
                   ),
                 ],
@@ -593,19 +556,13 @@ class _RoomMenu extends StatelessWidget {
   const _RoomMenu({
     required this.saved,
     required this.busy,
-    required this.archived,
     required this.onRename,
-    required this.onArchive,
-    required this.onLeave,
     required this.onDelete,
   });
 
   final SavedRoom saved;
   final bool busy;
-  final bool archived;
   final VoidCallback onRename;
-  final VoidCallback onArchive;
-  final VoidCallback onLeave;
   final VoidCallback onDelete;
 
   @override
@@ -628,17 +585,12 @@ class _RoomMenu extends StatelessWidget {
             final action = await showRoomActionsSheet(
               context,
               roomName: saved.room.name,
-              archived: archived,
             );
             if (!context.mounted || action == null) return;
             ScreenLog.tap('RoomMenu ${action.name}');
             switch (action) {
               case RoomAction.rename:
                 onRename();
-              case RoomAction.archive:
-                onArchive();
-              case RoomAction.leave:
-                onLeave();
               case RoomAction.delete:
                 onDelete();
             }

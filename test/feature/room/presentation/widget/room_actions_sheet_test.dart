@@ -5,7 +5,6 @@ import 'package:tark/feature/room/presentation/widget/room_actions_sheet.dart';
 
 Widget _app({
   required ValueChanged<RoomAction?> onResult,
-  bool archived = false,
   bool reduced = false,
 }) => MaterialApp(
   locale: const Locale('en'),
@@ -20,11 +19,7 @@ Widget _app({
       builder: (context) => TextButton(
         child: const Text('open'),
         onPressed: () async => onResult(
-          await showRoomActionsSheet(
-            context,
-            roomName: 'Northbound',
-            archived: archived,
-          ),
+          await showRoomActionsSheet(context, roomName: 'Northbound'),
         ),
       ),
     ),
@@ -71,16 +66,17 @@ void main() {
       expect(find.byKey(const Key('room-actions-sheet')), findsNothing);
     });
   }
-  testWidgets('archived room omits archive and reduced motion completes', (
+  testWidgets('offers only rename and delete; reduced motion completes', (
     tester,
   ) async {
     final results = <RoomAction?>[];
-    await tester.pumpWidget(
-      _app(onResult: results.add, archived: true, reduced: true),
-    );
+    await tester.pumpWidget(_app(onResult: results.add, reduced: true));
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
+    // Archive and Leave were retired: Delete is the single way out.
     expect(find.byKey(const Key('room-action-archive')), findsNothing);
+    expect(find.byKey(const Key('room-action-leave')), findsNothing);
+    expect(find.byKey(const Key('room-action-delete')), findsOneWidget);
     await tester.tap(find.byKey(const Key('room-action-rename')));
     await tester.pumpAndSettle();
     expect(results, [RoomAction.rename]);

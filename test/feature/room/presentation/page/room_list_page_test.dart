@@ -204,7 +204,7 @@ void main() {
           expect(find.byKey(const Key('room-actions-sheet')), findsOneWidget);
           expect(repository.selected, second.room.id);
           expect(repository.transportStarts, 0);
-          for (final action in ['rename', 'archive', 'leave', 'delete']) {
+          for (final action in ['rename', 'delete']) {
             final row = find.byKey(Key('room-action-$action'));
             await tester.ensureVisible(row);
             expect(tester.getSize(row).height, greaterThanOrEqualTo(48));

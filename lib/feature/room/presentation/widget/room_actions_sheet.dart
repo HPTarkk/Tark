@@ -9,14 +9,19 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/monogram_mark.dart';
 import '../../../../core/widget/sheet_shell.dart';
 
-enum RoomAction { rename, archive, leave, delete }
+/// What a saved Room's menu offers: rename it, or delete it from this phone.
+///
+/// Archive and Leave used to sit between the two. Leave only marked the local
+/// seat inactive and kept a dead card in the list, so Delete does the same job
+/// without the leftover; Archive was a filing step few people used. Rooms that
+/// were archived before stay reachable (and restorable) from the archive.
+enum RoomAction { rename, delete }
 
 /// Room management uses the same floating panel as the archive and confirmations.
 /// Wait for the panel to leave before opening the chosen action's next surface.
 Future<RoomAction?> showRoomActionsSheet(
   BuildContext context, {
   required String roomName,
-  bool archived = false,
 }) async {
   final transition =
       BottomSheet.createAnimationController(Navigator.of(context))
@@ -40,7 +45,7 @@ Future<RoomAction?> showRoomActionsSheet(
       isScrollControlled: true,
       barrierColor: Colors.black.withValues(alpha: 0.62),
       transitionAnimationController: transition,
-      builder: (_) => _RoomActions(roomName: roomName, archived: archived),
+      builder: (_) => _RoomActions(roomName: roomName),
     );
     if (transition.status != AnimationStatus.dismissed) {
       await dismissed.future;
@@ -52,10 +57,9 @@ Future<RoomAction?> showRoomActionsSheet(
 }
 
 class _RoomActions extends StatelessWidget {
-  const _RoomActions({required this.roomName, required this.archived});
+  const _RoomActions({required this.roomName});
 
   final String roomName;
-  final bool archived;
 
   @override
   Widget build(BuildContext context) {
@@ -125,17 +129,6 @@ class _RoomActions extends StatelessWidget {
               action: RoomAction.rename,
               label: strings.rooms_rename,
               icon: Icons.edit_outlined,
-            ),
-            if (!archived)
-              _ActionRow(
-                action: RoomAction.archive,
-                label: strings.rooms_archive,
-                icon: Icons.inventory_2_outlined,
-              ),
-            _ActionRow(
-              action: RoomAction.leave,
-              label: strings.rooms_leave,
-              icon: Icons.logout_rounded,
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),

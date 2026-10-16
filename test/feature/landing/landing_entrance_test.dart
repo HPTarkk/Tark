@@ -132,6 +132,18 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('home does not point at connection settings', (tester) async {
+    await start(tester, reduced: true);
+    await frames(tester, 1020);
+    await tester.pump();
+    // The transport is chosen for each room as it is entered; the old
+    // "Wi-Fi / Hotspot" shortcut under the card only sent people to settings
+    // they did not need yet.
+    expect(find.text('WI-FI / HOTSPOT'), findsNothing);
+    expect(find.byIcon(Icons.wifi_rounded), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('small Persian screen with large text can complete and scroll', (
     tester,
   ) async {
