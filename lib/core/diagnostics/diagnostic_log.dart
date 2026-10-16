@@ -168,7 +168,34 @@ abstract final class DiagnosticLog {
     });
     _flushTimer?.cancel();
     _flushTimer = Timer.periodic(_flushInterval, (_) => unawaited(flush()));
+    unawaited(_noteLastExit());
     unawaited(flush());
+  }
+
+  /// Says how the previous run ended, when Android knows. A log that just
+  /// stops cannot tell a crash from a phone that killed the app for memory.
+  static Future<void> _noteLastExit() async {
+    final exit = await DiagnosticsBridge.lastExit();
+    if (exit == null) return;
+    final reason = exit['reason'];
+    if (reason != null) {
+      final at = exit['at'];
+      final when = at is int
+          ? DateTime.fromMillisecondsSinceEpoch(at).toIso8601String()
+          : 'unknown';
+      _append(
+        'app: previous run ended reason=$reason at=$when '
+        'status=${exit['status']} importance=${exit['importance']} '
+        'pssKb=${exit['pssKb']}',
+      );
+    }
+    final crash = exit['crash'];
+    if (crash is String && crash.isNotEmpty) {
+      _append('app: previous run crashed in native code');
+      for (final line in crash.split('\n')) {
+        _append('app:   $line');
+      }
+    }
   }
 
   /// Moves the ceiling to [bytes] (clamped into [LogBudget]'s range) and

@@ -229,4 +229,24 @@ void main() {
     expect(plan.kind, RoomTransportKind.hotspot);
     expect(plan.hotspotHost, const RoomMemberId('b'));
   });
+
+  test('a battery tick does not split the vote between two phones', () {
+    // Each phone sees its own fresh reading and the other's last advertised
+    // one. Within a band the order falls to the member id, the same on both.
+    final onA = RoomTransportPlanner.plan(
+      RoomTransportEnvironment(
+        sharedLanUsable: false,
+        epoch: 1,
+        candidates: [candidate('a', battery: 71), candidate('b', battery: 72)],
+      ),
+    );
+    final onB = RoomTransportPlanner.plan(
+      RoomTransportEnvironment(
+        sharedLanUsable: false,
+        epoch: 1,
+        candidates: [candidate('a', battery: 72), candidate('b', battery: 71)],
+      ),
+    );
+    expect(onA.hotspotHost, onB.hotspotHost);
+  });
 }

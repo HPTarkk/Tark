@@ -103,4 +103,50 @@ void main() {
     expect(next.epoch, 2);
     expect(next.plan?.hotspotHost, joiner);
   });
+
+  test('a connected Start can be ended so the next one plans afresh', () {
+    final coordinator = RoomConnectionCoordinator();
+    final first = coordinator.requestStart(
+      requester: owner,
+      sharedLanUsable: true,
+      candidates: const [],
+    );
+    coordinator.reportTransportReady(epoch: first.epoch);
+    coordinator.reportPeerProof(epoch: first.epoch);
+    expect(coordinator.state.phase, RoomConnectionPhase.connected);
+
+    // Cancel leaves a live call alone, and a Start while connected is the
+    // same attempt: that is what kept every later Start refused.
+    coordinator.cancel(epoch: first.epoch);
+    expect(
+      coordinator
+          .requestStart(
+            requester: owner,
+            sharedLanUsable: true,
+            candidates: const [],
+          )
+          .isActive,
+      isFalse,
+    );
+
+    coordinator.end(epoch: first.epoch);
+    final next = coordinator.requestStart(
+      requester: owner,
+      sharedLanUsable: true,
+      candidates: const [],
+    );
+    expect(next.isActive, isTrue);
+    expect(next.epoch, first.epoch + 1);
+  });
+
+  test('ending an old epoch leaves the current attempt alone', () {
+    final coordinator = RoomConnectionCoordinator();
+    final first = coordinator.requestStart(
+      requester: owner,
+      sharedLanUsable: true,
+      candidates: const [],
+    );
+    coordinator.end(epoch: first.epoch - 1);
+    expect(coordinator.state.isActive, isTrue);
+  });
 }

@@ -172,10 +172,20 @@ abstract final class RoomTransportPlanner {
         if (a.prefersHotspotHost != b.prefersHotspotHost) {
           return a.prefersHotspotHost ? -1 : 1;
         }
-        final battery = b.batteryPercent.compareTo(a.batteryPercent);
+        final battery = _batteryBand(b).compareTo(_batteryBand(a));
         if (battery != 0) return battery;
         return a.memberId.value.compareTo(b.memberId.value);
       });
     return ordered.first;
   }
+
+  /// Battery in bands of twenty points, not exact percent.
+  ///
+  /// Each phone votes with its own fresh reading and the other phone's last
+  /// advertised one. Compared to the percent, a phone that had just ticked
+  /// down won the vote on its own screen and lost it on the other, and both
+  /// raised an access point (2026-10-16). A band only flips at its edge, so
+  /// the two views now agree unless a reading crosses one mid-heartbeat.
+  static int _batteryBand(RoomTransportCandidate candidate) =>
+      candidate.batteryPercent.clamp(0, 99) ~/ 20;
 }

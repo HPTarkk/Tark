@@ -147,6 +147,30 @@ final class RoomConnectionCoordinator {
 
   /// Cancelling owns one epoch only. A delayed native completion from that
   /// epoch is ignored by [reportTransportReady]/[reportPeerProof].
+  /// Ends the attempt for [epoch] whether it is still starting or already
+  /// connected, so the next Start plans afresh.
+  ///
+  /// [cancel] leaves a connected attempt alone, and [requestStart] answers a
+  /// connected one with itself. That is right while the call is up. Once its
+  /// session has been closed (a move off the house Wi-Fi, a switch to
+  /// Bluetooth, a retry), it left every later Start refused for the rest of
+  /// the screen's life: `no_verified_transport_plan` on both phones, the
+  /// Bluetooth link up and never confirmed (2026-10-16).
+  RoomConnectionState end({required int epoch}) {
+    if (epoch != _state.epoch) return _state;
+    if (!_state.isActive && _state.phase != RoomConnectionPhase.connected) {
+      return _state;
+    }
+    _state = RoomConnectionState(
+      epoch: _state.epoch,
+      phase: RoomConnectionPhase.cancelled,
+      startRequestedBy: _state.startRequestedBy,
+      plan: _state.plan,
+      failure: RoomConnectionFailure.cancelled,
+    );
+    return _state;
+  }
+
   RoomConnectionState cancel({required int epoch}) {
     if (epoch != _state.epoch || !_state.isActive) return _state;
     _state = RoomConnectionState(

@@ -60,4 +60,16 @@ abstract final class DiagnosticsBridge {
       return false;
     }
   }
+
+  /// How the previous run ended, once per ending: Android's exit reason and,
+  /// for a crash in the app's own Kotlin, its stack. Null when there is
+  /// nothing new to say.
+  static Future<Map<String, Object?>?> lastExit() async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await _channel.invokeMapMethod<String, Object?>('lastExit');
+    } catch (_) {
+      return null;
+    }
+  }
 }

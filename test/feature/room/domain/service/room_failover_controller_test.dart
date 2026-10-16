@@ -105,7 +105,7 @@ void main() {
     final controller = RoomFailoverController(initialEpoch: 6);
     controller.failover(
       sharedLanUsable: false,
-      candidates: [candidate('new-host', battery: 80)],
+      candidates: [candidate('new-host', battery: 60)],
       reason: RoomFailoverReason.hostLost,
     );
 
@@ -113,7 +113,7 @@ void main() {
       sharedLanUsable: false,
       candidates: [
         candidate('old-host', battery: 90),
-        candidate('new-host', battery: 80),
+        candidate('new-host', battery: 60),
       ],
       reason: RoomFailoverReason.manualRetry,
     );

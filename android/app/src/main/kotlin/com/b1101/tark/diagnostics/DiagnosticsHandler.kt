@@ -1,8 +1,11 @@
 package com.b1101.tark.diagnostics
 
 import android.app.Activity
+import android.app.ActivityManager
+import android.app.ApplicationExitInfo
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import androidx.core.content.FileProvider
 import io.flutter.plugin.common.MethodCall
@@ -17,6 +20,7 @@ import java.io.File
  * Methods (channel "tark/diagnostics"):
  *   logsDirectory() -> String   app-private directory the log lives in
  *   shareFile(path, mimeType, subject) -> Bool   true if a share sheet opened
+ *   lastExit() -> Map?   how the previous run ended, once, or null
  *
  * ## Why FileProvider
  *
@@ -41,8 +45,62 @@ class DiagnosticsHandler(
                     subject = call.argument<String>("subject").orEmpty(),
                 ),
             )
+            "lastExit" -> result.success(lastExit())
             else -> result.notImplemented()
         }
+    }
+
+    /**
+     * How the previous run of the app ended, reported once.
+     *
+     * A run that died mid-call left a log that simply stopped, with nothing
+     * to say whether it crashed, froze or was killed for memory (2026-10-16:
+     * the hosting phone's log ended seconds after the other phone joined).
+     * Android keeps the reason (API 30+); a crash in our own Kotlin also
+     * leaves its stack in [CRASH_FILE]. Only class and frame names are kept:
+     * an exception's message can carry a network name.
+     */
+    private fun lastExit(): Map<String, Any?>? {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val out = mutableMapOf<String, Any?>()
+        val crash = File(context.filesDir, CRASH_FILE)
+        if (crash.exists()) {
+            out["crash"] = runCatching { crash.readText().take(4000) }.getOrNull()
+            crash.delete()
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val manager = context.getSystemService(ActivityManager::class.java)
+            val info = runCatching {
+                manager?.getHistoricalProcessExitReasons(context.packageName, 0, 1)
+                    ?.firstOrNull()
+            }.getOrNull()
+            if (info != null && info.timestamp > prefs.getLong(KEY_REPORTED, 0L)) {
+                prefs.edit().putLong(KEY_REPORTED, info.timestamp).apply()
+                out["reason"] = reasonName(info.reason)
+                out["at"] = info.timestamp
+                out["status"] = info.status
+                out["importance"] = info.importance
+                out["pssKb"] = info.pss
+            }
+        }
+        return if (out.isEmpty()) null else out
+    }
+
+    private fun reasonName(reason: Int): String = when (reason) {
+        ApplicationExitInfo.REASON_ANR -> "anr"
+        ApplicationExitInfo.REASON_CRASH -> "crash"
+        ApplicationExitInfo.REASON_CRASH_NATIVE -> "crash_native"
+        ApplicationExitInfo.REASON_DEPENDENCY_DIED -> "dependency_died"
+        ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "excessive_resource_usage"
+        ApplicationExitInfo.REASON_EXIT_SELF -> "exit_self"
+        ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "initialization_failure"
+        ApplicationExitInfo.REASON_LOW_MEMORY -> "low_memory"
+        ApplicationExitInfo.REASON_OTHER -> "other"
+        ApplicationExitInfo.REASON_PERMISSION_CHANGE -> "permission_change"
+        ApplicationExitInfo.REASON_SIGNALED -> "signaled"
+        ApplicationExitInfo.REASON_USER_REQUESTED -> "user_requested"
+        ApplicationExitInfo.REASON_USER_STOPPED -> "user_stopped"
+        else -> "unknown($reason)"
     }
 
     private fun share(path: String, mimeType: String, subject: String): Boolean {
@@ -92,5 +150,41 @@ class DiagnosticsHandler(
 
     companion object {
         private const val TAG = "TarkDiagnostics"
+        private const val PREFS = "tark_diagnostics"
+        private const val KEY_REPORTED = "last_exit_reported"
+        private const val CRASH_FILE = "last-crash.txt"
+
+        @Volatile
+        private var installed = false
+
+        /**
+         * Keeps the stack of a Kotlin crash for the next run's log, then lets
+         * the crash go on as before.
+         */
+        fun installCrashRecorder(context: Context) {
+            if (installed) return
+            installed = true
+            val app = context.applicationContext
+            val previous = Thread.getDefaultUncaughtExceptionHandler()
+            Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+                runCatching {
+                    File(app.filesDir, CRASH_FILE).writeText(describe(thread, error))
+                }
+                previous?.uncaughtException(thread, error)
+            }
+        }
+
+        private fun describe(thread: Thread, error: Throwable): String {
+            val lines = mutableListOf("thread=${thread.name}")
+            var cause: Throwable? = error
+            var depth = 0
+            while (cause != null && depth < 4) {
+                lines += (if (depth == 0) "" else "caused by ") + cause.javaClass.name
+                cause.stackTrace.take(12).forEach { lines += "  at $it" }
+                cause = cause.cause
+                depth++
+            }
+            return lines.joinToString("\n")
+        }
     }
 }

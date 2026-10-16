@@ -91,6 +91,9 @@ void main() async {
   // falls back to PCM16, so this must never block or crash startup.
   await OpusAudioCodec.ensureInitialized();
   await configureDependencies();
+  // The "I should host" this phone sends is the same one it votes with.
+  TransportCapabilityReader.hostingPreference = () async =>
+      (await GetIt.instance<HotspotHost>().wifiAdvice()).concurrent;
   // The signed-in state, from secure storage only: no network before the
   // first frame. Then pushes a profile edit made offline last time, if any.
   // Both are no-ops on builds without sign-in.

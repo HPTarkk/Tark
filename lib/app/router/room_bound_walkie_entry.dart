@@ -1196,8 +1196,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     _abandonReadinessWaits();
     _announcer?.stop();
     _announcer = null;
-    final epoch = _coordinator.state.epoch;
-    if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
+    _endCoordinator();
     unawaited(_binding?.close() ?? Future<void>.value());
   }
 
@@ -1388,8 +1387,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     _activeStart = null;
     _announcer?.stop();
     _announcer = null;
-    final epoch = _coordinator.state.epoch;
-    if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
+    _endCoordinator();
     final waiter = _scanWaiter;
     _scanWaiter = null;
     if (waiter != null && !waiter.isCompleted) waiter.complete(null);
@@ -1439,14 +1437,16 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     setState(() => _reconnectModel = update(model));
   }
 
-  Future<RoomMemberId?> _electedHost(SavedRoom room) async {
-    try {
-      return await _hotspotHistory.electHost(room);
-    } catch (e) {
-      Logger.log('Hotspot history read failed: $e');
-      return RoomHotspotHistory.creatorOf(room);
-    }
-  }
+  /// Which phone shows its code when the two reconnect: the Room's creator,
+  /// worked out the same way on every phone from the Room itself.
+  ///
+  /// Not who hosted last. Each phone kept its own record of that, and after a
+  /// move both had written themselves down, so both showed a code and nobody
+  /// scanned, or one opened its camera at a phone showing nothing
+  /// (2026-10-16). The other phone's switch button is still there when the
+  /// creator cannot host.
+  Future<RoomMemberId?> _electedHost(SavedRoom room) async =>
+      RoomHotspotHistory.creatorOf(room);
 
   /// The person this phone is connecting with: the elected host when that is
   /// someone else, otherwise the first other member.
@@ -1704,10 +1704,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
                   : showCode
                   ? s.carriermove_guided_show(name)
                   : s.carriermove_guided_scan(name);
-              final epoch = _coordinator.state.epoch;
-              if (_coordinator.state.isActive) {
-                _coordinator.cancel(epoch: epoch);
-              }
+              _endCoordinator();
               await binding.close();
               if (!mounted) return _EntryState.lobby(room);
               _codeOnly = true;
@@ -2154,8 +2151,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   ) async {
     Logger.diagnostic('carrier_move: moving to bluetooth by request');
     binding.carrierPromotion?.standDown();
-    final epoch = _coordinator.state.epoch;
-    if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
+    _endCoordinator();
     await binding.close();
     clear();
     if (!mounted) return _EntryState.lobby(room);
@@ -2283,6 +2279,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     });
     return choice.future;
   }
+
+  /// Ends the current Start, connected or not, so the next one plans afresh.
+  /// Every caller is leaving the session it belonged to.
+  void _endCoordinator() => _coordinator.end(epoch: _coordinator.state.epoch);
 
   Future<_EntryState> _verifiedLiveAttempt(
     SavedRoom room, {
@@ -2450,8 +2450,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       );
       Logger.log('Room verified live entry failed: $e');
       _releaseAnnouncer(announcer, current: readinessEpoch == _readinessEpoch);
-      final epoch = _coordinator.state.epoch;
-      if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
+      _endCoordinator();
       if (readinessEpoch == _readinessEpoch) {
         try {
           await binding.close();
@@ -2939,8 +2938,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     _reconnectRoom = null;
     _announcer?.stop();
     _announcer = null;
-    final epoch = _coordinator.state.epoch;
-    if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
+    _endCoordinator();
     unawaited(_binding?.close() ?? Future<void>.value());
     setState(() {
       _attemptRoom = null;
@@ -3019,8 +3017,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     // the socket and this is a no-op.
     _announcer?.stop();
     _announcer = null;
-    final epoch = _coordinator.state.epoch;
-    if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
+    _endCoordinator();
     unawaited(_linkChanges?.cancel() ?? Future<void>.value());
     unawaited(_fallbackWatch?.cancel() ?? Future<void>.value());
     unawaited(_fallbackHandover?.cancel() ?? Future<void>.value());

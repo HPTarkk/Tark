@@ -34,6 +34,7 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        DiagnosticsHandler.installCrashRecorder(applicationContext)
 
         val handler = BluetoothServerHandler(
             applicationContext,
