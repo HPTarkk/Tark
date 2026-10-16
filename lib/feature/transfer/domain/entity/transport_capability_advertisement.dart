@@ -13,6 +13,7 @@ final class TransportCapabilityAdvertisement extends Equatable {
     required this.backgroundReady,
     required this.batteryPercent,
     this.prefersHotspotHost = false,
+    this.hostingAccessPoint = false,
   }) : assert(batteryPercent >= 0 && batteryPercent <= 100);
 
   final bool canHostHotspot;
@@ -21,6 +22,9 @@ final class TransportCapabilityAdvertisement extends Equatable {
   final int batteryPercent;
   final bool prefersHotspotHost;
 
+  /// This phone is holding an access point up right now.
+  final bool hostingAccessPoint;
+
   @override
   List<Object?> get props => [
     canHostHotspot,
@@ -28,5 +32,6 @@ final class TransportCapabilityAdvertisement extends Equatable {
     backgroundReady,
     batteryPercent,
     prefersHotspotHost,
+    hostingAccessPoint,
   ];
 }

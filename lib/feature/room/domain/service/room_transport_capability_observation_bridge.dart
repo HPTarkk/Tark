@@ -44,6 +44,7 @@ final class RoomTransportCapabilityObservationBridge {
       batteryPercent: capability.batteryPercent,
       at: observation.observedAt,
       prefersHotspotHost: capability.prefersHotspotHost,
+      hostingAccessPoint: capability.hostingAccessPoint,
     );
   }
 

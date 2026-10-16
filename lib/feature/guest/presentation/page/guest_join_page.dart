@@ -111,6 +111,7 @@ class _GuestJoinPageState extends State<GuestJoinPage> {
                           28,
                         ),
                         child: SceneTurn(
+                          motion: SceneMotion.through,
                           scene: _phaseKey,
                           fill: false,
                           child: _body(context),

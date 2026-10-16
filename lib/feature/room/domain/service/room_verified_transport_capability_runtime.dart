@@ -66,6 +66,7 @@ final class RoomVerifiedTransportCapabilityRuntime {
     required int batteryPercent,
     required DateTime at,
     bool prefersHotspotHost = false,
+    bool hostingAccessPoint = false,
   }) => capability.observePeer(
     peerKey: peerKey,
     canHostHotspot: canHostHotspot,
@@ -74,6 +75,7 @@ final class RoomVerifiedTransportCapabilityRuntime {
     batteryPercent: batteryPercent,
     at: at,
     prefersHotspotHost: prefersHotspotHost,
+    hostingAccessPoint: hostingAccessPoint,
   );
 
   void observeLocal({
@@ -83,6 +85,7 @@ final class RoomVerifiedTransportCapabilityRuntime {
     required int batteryPercent,
     required DateTime at,
     bool prefersHotspotHost = false,
+    bool hostingAccessPoint = false,
   }) => capability.observeLocal(
     canHostHotspot: canHostHotspot,
     bluetoothSupported: bluetoothSupported,
@@ -90,6 +93,7 @@ final class RoomVerifiedTransportCapabilityRuntime {
     batteryPercent: batteryPercent,
     at: at,
     prefersHotspotHost: prefersHotspotHost,
+    hostingAccessPoint: hostingAccessPoint,
   );
 
   Future<RoomFailoverAttempt?> beginFailover({

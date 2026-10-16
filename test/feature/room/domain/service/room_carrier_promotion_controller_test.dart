@@ -41,12 +41,14 @@ void main() {
     RoomMemberId id, {
     bool canHostHotspot = true,
     int batteryPercent = 80,
+    bool hostingAccessPoint = false,
   }) => RoomTransportCandidate(
     memberId: id,
     canHostHotspot: canHostHotspot,
     bluetoothSupported: true,
     backgroundReady: true,
     batteryPercent: batteryPercent,
+    hostingAccessPoint: hostingAccessPoint,
   );
 
   RoomCarrierPromotionController build({
@@ -58,6 +60,7 @@ void main() {
     required _FakeHandoverExchange exchange,
     required List<RoomTransportCandidate> Function() candidates,
     DateTime Function()? clock,
+    Future<HotspotJoinResult> Function(HotspotCredentials)? followHost,
   }) => RoomCarrierPromotionController(
     localMemberId: localMemberId,
     roomId: roomId,
@@ -70,7 +73,221 @@ void main() {
     identity: identity,
     crypto: crypto,
     clock: clock,
+    followHost: followHost,
   );
+
+  group('a phone joined to the other\'s access point agrees it is on it', () {
+    test(
+      'the host\'s word makes the carrier owned, so nothing moves',
+      () async {
+        // 2026-10-16: left the flow and came back while still joined to the
+        // other phone's hotspot. The host went straight to the call; this
+        // phone read its Wi-Fi as a router and set off to move the pair.
+        final now = DateTime.utc(2026, 10, 16, 11);
+        final host = _FakeHotspotHost();
+        final controller = build(
+          localMemberId: followerMember,
+          identity: followerIdentity,
+          modeStore: _FakeModeStore(TransferMode.wifi),
+          hotspotHost: host,
+          keeper: _FakeLinkKeeper(),
+          exchange: _FakeHandoverExchange(),
+          candidates: () => [
+            candidate(hostMember, hostingAccessPoint: true),
+            candidate(followerMember),
+          ],
+          clock: () => now,
+        );
+        addTearDown(controller.dispose);
+
+        expect(controller.peerCarriesRoom, isTrue);
+        expect(controller.heardFrom(hostMember), isTrue);
+        expect(
+          await controller.promoteNow(),
+          RoomCarrierPromotionStart.notNeeded,
+        );
+        expect(host.starts, 0);
+      },
+    );
+
+    test('its announcement is taken as the network already joined', () async {
+      final now = DateTime.utc(2026, 10, 16, 11);
+      final hostExchange = _FakeHandoverExchange();
+      final hostKeeper = _FakeLinkKeeper()
+        ..adopted = const HotspotCredentials(ssid: 'Tark-AP', passphrase: 'pw')
+        ..linkState = HotspotLinkState.up;
+      final hostSide = build(
+        localMemberId: hostMember,
+        identity: hostIdentity,
+        modeStore: _FakeModeStore(TransferMode.hotspot),
+        hotspotHost: _FakeHotspotHost()..hosting = true,
+        keeper: hostKeeper,
+        exchange: hostExchange,
+        candidates: () => [candidate(hostMember), candidate(followerMember)],
+        clock: () => now,
+      );
+      addTearDown(hostSide.dispose);
+      hostSide.start();
+      await pumpEventQueue();
+
+      var joins = 0;
+      final keeper = _FakeLinkKeeper();
+      final follower = build(
+        localMemberId: followerMember,
+        identity: followerIdentity,
+        modeStore: _FakeModeStore(TransferMode.hotspot),
+        hotspotHost: _FakeHotspotHost(),
+        keeper: keeper,
+        exchange: _FakeHandoverExchange(),
+        candidates: () => [
+          candidate(hostMember, hostingAccessPoint: true),
+          candidate(followerMember),
+        ],
+        clock: () => now,
+        followHost: (_) async {
+          joins++;
+          return HotspotJoinResult.joined;
+        },
+      );
+      addTearDown(follower.dispose);
+
+      await follower.applyAnnouncement(hostExchange.provider!.call()!);
+      expect(joins, 0);
+      expect(keeper.adopted?.ssid, 'Tark-AP');
+    });
+  });
+
+  group('a phone holding the access point keeps announcing it', () {
+    const held = HotspotCredentials(ssid: 'Tark-Held', passphrase: 'held-pw');
+
+    RoomCarrierPromotionController holder(
+      DateTime Function() clock, {
+      List<RoomTransportCandidate> Function()? roster,
+      _FakeHandoverExchange? exchange,
+    }) {
+      final keeper = _FakeLinkKeeper()
+        ..adopted = held
+        ..linkState = HotspotLinkState.up;
+      return build(
+        localMemberId: hostMember,
+        identity: hostIdentity,
+        modeStore: _FakeModeStore(TransferMode.hotspot),
+        hotspotHost: _FakeHotspotHost()..hosting = true,
+        keeper: keeper,
+        exchange: exchange ?? _FakeHandoverExchange(),
+        candidates:
+            roster ?? () => [candidate(hostMember), candidate(followerMember)],
+        clock: clock,
+      );
+    }
+
+    test(
+      'a peer left on a borrowed network is told where to go, and goes',
+      () async {
+        // 2026-10-16: the joiner was moved to home Wi-Fi by Android, found the
+        // host again over the router, elected it, and waited for an
+        // announcement every minute for the rest of the call. The host read its
+        // own carrier as owned and never said a word.
+        final now = DateTime.utc(2026, 10, 16, 10, 30);
+        final hostExchange = _FakeHandoverExchange();
+        final host = holder(() => now, exchange: hostExchange);
+        addTearDown(host.dispose);
+        host.start();
+        await pumpEventQueue();
+        final announced = hostExchange.provider?.call();
+        expect(announced, isNotNull);
+        expect(host.status.stage, RoomCarrierStage.settled);
+
+        final followed = <HotspotCredentials>[];
+        final followerMode = _FakeModeStore(TransferMode.wifi);
+        final follower = build(
+          localMemberId: followerMember,
+          identity: followerIdentity,
+          modeStore: followerMode,
+          hotspotHost: _FakeHotspotHost(),
+          keeper: _FakeLinkKeeper(),
+          exchange: _FakeHandoverExchange(),
+          candidates: () => [candidate(hostMember), candidate(followerMember)],
+          clock: () => now,
+          followHost: (credentials) async {
+            followed.add(credentials);
+            return HotspotJoinResult.joined;
+          },
+        );
+        addTearDown(follower.dispose);
+
+        expect(await follower.applyAnnouncement(announced!), isTrue);
+        expect(followed.single.ssid, 'Tark-Held');
+        expect(followerMode.mode, TransferMode.hotspot);
+      },
+    );
+
+    test('a peer already on that network stays where it is', () async {
+      final now = DateTime.utc(2026, 10, 16, 10, 30);
+      final hostExchange = _FakeHandoverExchange();
+      final host = holder(() => now, exchange: hostExchange);
+      addTearDown(host.dispose);
+      host.start();
+      await pumpEventQueue();
+
+      var joins = 0;
+      final follower = build(
+        localMemberId: followerMember,
+        identity: followerIdentity,
+        modeStore: _FakeModeStore(TransferMode.hotspot),
+        hotspotHost: _FakeHotspotHost(),
+        keeper: _FakeLinkKeeper()..adopted = held,
+        exchange: _FakeHandoverExchange(),
+        candidates: () => [candidate(hostMember), candidate(followerMember)],
+        clock: () => now,
+        followHost: (_) async {
+          joins++;
+          return HotspotJoinResult.joined;
+        },
+      );
+      addTearDown(follower.dispose);
+
+      expect(
+        await follower.applyAnnouncement(hostExchange.provider!.call()!),
+        isFalse,
+      );
+      expect(joins, 0);
+    });
+
+    test('nothing is announced to a Room of one', () async {
+      final now = DateTime.utc(2026, 10, 16, 10, 30);
+      final exchange = _FakeHandoverExchange();
+      final host = holder(
+        () => now,
+        exchange: exchange,
+        roster: () => [candidate(hostMember)],
+      );
+      addTearDown(host.dispose);
+      host.start();
+      await pumpEventQueue();
+      expect(exchange.provider?.call(), isNull);
+    });
+
+    test('the announcement is signed again before it goes stale', () async {
+      var now = DateTime.utc(2026, 10, 16, 10, 30);
+      final exchange = _FakeHandoverExchange();
+      final host = holder(() => now, exchange: exchange);
+      addTearDown(host.dispose);
+      host.start();
+      await pumpEventQueue();
+      final first = exchange.provider!.call();
+      now = now.add(const Duration(seconds: 90));
+      host.evaluate();
+      await pumpEventQueue();
+      final second = exchange.provider!.call();
+      expect(second, isNot(first));
+      expect(
+        RoomCarrierHandover.decode(second!).generation,
+        RoomCarrierHandover.decode(first!).generation,
+      );
+      expect(RoomCarrierHandover.decode(second).isFresh(now), isTrue);
+    });
+  });
 
   group('a network the Room already owns is never promoted off', () {
     test(
@@ -940,8 +1157,10 @@ class _FakeLinkKeeper implements HotspotLinkKeeper {
   @override
   Stream<HotspotLinkState> get states => const Stream<HotspotLinkState>.empty();
 
+  HotspotLinkState linkState = HotspotLinkState.idle;
+
   @override
-  HotspotLinkState get state => HotspotLinkState.idle;
+  HotspotLinkState get state => linkState;
 
   @override
   Future<void> release() async {}

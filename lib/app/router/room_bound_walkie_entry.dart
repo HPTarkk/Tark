@@ -392,6 +392,21 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     return true;
   }
 
+  /// Waits up to [within] for [peer]'s capabilities, then answers whether it
+  /// says it is the access point this phone is on.
+  Future<bool> _peerCarriesRoom(
+    RoomCarrierPromotionController mover,
+    RoomMemberId peer, {
+    Duration within = const Duration(milliseconds: 2500),
+  }) async {
+    final deadline = DateTime.now().add(within);
+    while (mounted && !mover.heardFrom(peer)) {
+      if (!DateTime.now().isBefore(deadline)) return false;
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+    }
+    return mounted && mover.peerCarriesRoom;
+  }
+
   /// Whether the Wi-Fi this phone is on is a hotspot a Tarkk hand-off
   /// joined (or this phone's own), rather than some router it found itself on.
   bool get _onArrangedHotspot {
@@ -1586,6 +1601,19 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     // in-channel move, which waits for everyone to arrive first.
     if (proven.length != 1) return live;
     final peer = proven.values.single;
+    // The other phone may be the network: holding its access point up with
+    // this phone joined to it, which from here looks like any Wi-Fi. Its
+    // capabilities say so; give them a moment to arrive before setting off
+    // to move a pair that is already where a move would take it.
+    if (await _peerCarriesRoom(mover, peer.memberId)) {
+      Logger.diagnostic(
+        'room: on the other phone\'s own access point — no move needed',
+      );
+      await _modeStore?.setMode(TransferMode.hotspot);
+      mover.onCarrierChanged();
+      return live;
+    }
+    if (!mounted) return live;
     final peerMember = room.room.members
         .where((member) => member.id == peer.memberId)
         .firstOrNull;
@@ -3132,7 +3160,14 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       scene = 'entry';
       depth = 0;
     }
-    return SceneTurn(scene: scene, depth: depth, child: _resolved(context));
+    // Stepping between the lobby, a move and reconnecting is moving through
+    // the flow: a shared-axis step, like the pages around it.
+    return SceneTurn(
+      scene: scene,
+      depth: depth,
+      motion: SceneMotion.axis,
+      child: _resolved(context),
+    );
   }
 
   Widget _resolved(BuildContext context) {
@@ -3211,6 +3246,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         SceneTurn(
           scene: scene == null ? 'no-move' : 'move',
           depth: scene == null ? 0 : 1,
+          motion: SceneMotion.through,
           child: scene ?? const SizedBox.shrink(),
         ),
       ],
@@ -3269,9 +3305,14 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     future: _entry,
     builder: (context, snapshot) {
       final (scene, depth) = _entrySceneOf(snapshot);
+      // A step through the flow, except out of the brief wait while the
+      // Room loads: the page is still sliding in then, and the lobby simply
+      // grows up out of the wait instead of being thrown in sideways.
       return SceneTurn(
         scene: scene,
         depth: depth,
+        motion: SceneMotion.axis,
+        quietFrom: const {'waiting'},
         child: _entryBody(context, snapshot),
       );
     },

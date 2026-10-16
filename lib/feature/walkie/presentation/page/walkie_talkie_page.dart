@@ -21,6 +21,7 @@ import '../../../../core/widget/confirm_sheet.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../../../../core/widget/version_badge.dart';
 import '../../../room/presentation/widget/carrier_handover_note.dart';
+import '../../../room/presentation/widget/carrier_move_scene.dart';
 import '../../../room/presentation/widget/room_visuals.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
@@ -139,67 +140,70 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
   Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const WalkieHeader(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                // The Room lobby's entrance: one shared controller, each
-                // section rising a little after the one above it.
-                child: StaggeredEntrance(
-                  builder: (context, children) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: children,
+      // The Room moving onto its own network opens over the whole call.
+      body: CarrierMoveScene(
+        child: SafeArea(
+          child: Column(
+            children: [
+              const WalkieHeader(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  // The Room lobby's entrance: one shared controller, each
+                  // section rising a little after the one above it.
+                  child: StaggeredEntrance(
+                    builder: (context, children) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: children,
+                    ),
+                    children: [
+                      _buildIdentityCard(context),
+                      const SizedBox(height: 16),
+                      const VisualizerSection(),
+                      const SizedBox(height: 16),
+                      const BackgroundPermissionBanner(),
+                      // Above the link banner and the mic control: when this
+                      // fires it is about to change what the channel is running
+                      // over, which is context for everything below it.
+                      const CarrierHandoverNote(),
+                      _buildLinkBanner(),
+                      // Above the mic card on purpose: every issue it can show
+                      // is a reason the control below is lying about being
+                      // live, so it has to be read first.
+                      const ChannelIssueBanner(),
+                      // Self-mute: the one control a hands-free rider needs
+                      // in-channel — go silent without leaving. Sits where
+                      // the old TX/RX chips were; that status now lives in
+                      // the visualizer's pill above.
+                      const MicControl(),
+                      // Renders nothing where playback capture is
+                      // unsupported (iOS, Android < 10) — spacing lives
+                      // inside the section so nothing doubles up here.
+                      const MusicCastSection(),
+                      const SizedBox(height: 20),
+                      _buildPeerDepartureBanner(),
+                      const UserList(),
+                    ],
                   ),
+                ),
+              ),
+              _buildLeaveButton(context),
+              // Pinned below the scroll view rather than inside it: the whole
+              // promise of the help sheet is that it's reachable the moment
+              // something feels wrong, and a user who has to go looking for it
+              // has already been stuck for longer than they should have been.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 16, 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildIdentityCard(context),
-                    const SizedBox(height: 16),
-                    const VisualizerSection(),
-                    const SizedBox(height: 16),
-                    const BackgroundPermissionBanner(),
-                    // Above the link banner and the mic control: when this
-                    // fires it is about to change what the channel is running
-                    // over, which is context for everything below it.
-                    const CarrierHandoverNote(),
-                    _buildLinkBanner(),
-                    // Above the mic card on purpose: every issue it can show
-                    // is a reason the control below is lying about being
-                    // live, so it has to be read first.
-                    const ChannelIssueBanner(),
-                    // Self-mute: the one control a hands-free rider needs
-                    // in-channel — go silent without leaving. Sits where
-                    // the old TX/RX chips were; that status now lives in
-                    // the visualizer's pill above.
-                    const MicControl(),
-                    // Renders nothing where playback capture is
-                    // unsupported (iOS, Android < 10) — spacing lives
-                    // inside the section so nothing doubles up here.
-                    const MusicCastSection(),
-                    const SizedBox(height: 20),
-                    _buildPeerDepartureBanner(),
-                    const UserList(),
+                    const ChannelHelpButton(),
+                    VersionBadge(color: AppColors.textSecondary.withAlpha(60)),
                   ],
                 ),
               ),
-            ),
-            _buildLeaveButton(context),
-            // Pinned below the scroll view rather than inside it: the whole
-            // promise of the help sheet is that it's reachable the moment
-            // something feels wrong, and a user who has to go looking for it
-            // has already been stuck for longer than they should have been.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 16, 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const ChannelHelpButton(),
-                  VersionBadge(color: AppColors.textSecondary.withAlpha(60)),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

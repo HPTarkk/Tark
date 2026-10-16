@@ -20,6 +20,21 @@ void main() {
     expect(TransportCapabilityAdvertisementWire.decode(encoded, 0), value);
   });
 
+  test('the hosting flag round trips, and is clear unless hosting', () {
+    const hosting = TransportCapabilityAdvertisement(
+      canHostHotspot: true,
+      bluetoothSupported: true,
+      backgroundReady: true,
+      batteryPercent: 50,
+      hostingAccessPoint: true,
+    );
+    final encoded = TransportCapabilityAdvertisementWire.encode(hosting);
+    expect(TransportCapabilityAdvertisementWire.decode(encoded, 0), hosting);
+    // Older builds reject unknown flags, so a phone that is not hosting must
+    // send exactly the bytes it always did.
+    expect(TransportCapabilityAdvertisementWire.encode(value)[2] & 0x10, 0);
+  });
+
   test('decodes from a trailing offset without consuming earlier bytes', () {
     final trailer = TransportCapabilityAdvertisementWire.encode(value);
     final packet = Uint8List.fromList([1, 2, 3, ...trailer, 99]);

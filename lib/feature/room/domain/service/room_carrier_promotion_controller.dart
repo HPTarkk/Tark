@@ -246,6 +246,15 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
   /// the announcement has to travel over. See [_raiseAndAnnounce].
   bool _hostingUnsafe = false;
   String? _announcement;
+
+  /// The network [_announcement] names and when it was signed, so a held
+  /// access point is re-announced when it changes or before peers would
+  /// reject the announcement as stale.
+  String? _announcedSsid;
+  DateTime? _announcedAt;
+
+  /// Whether a standing announcement is being signed.
+  bool _announcingHeld = false;
   bool _disposed = false;
 
   /// Set by [promoteNow]: the Room is being moved before its channel opens,
@@ -349,9 +358,35 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
   /// Wi-Fi, no promotion ever attempted). The leftover is put to use instead:
   /// see [_leftoverAccessPoint].
   RoomCarrierDurability get _durability =>
-      hotspotHost.isHosting && !(_eager && modeStore.mode == TransferMode.wifi)
+      (hotspotHost.isHosting &&
+              !(_eager && modeStore.mode == TransferMode.wifi)) ||
+          peerCarriesRoom
       ? RoomCarrierDurability.owned
       : RoomCarrierPromotionPlanner.durabilityOf(_kindFor(modeStore.mode));
+
+  /// Whether another member says it is holding up the access point and is on
+  /// no other Wi-Fi, so the Wi-Fi this phone hears it on can only be that
+  /// access point: the Room's own network, whatever this phone recorded.
+  ///
+  /// A phone joined to the other's hotspot cannot tell it from a router — it
+  /// is just Wi-Fi — and after leaving and coming back in, nothing on this
+  /// phone remembered how it got there. The host went straight to the call
+  /// and this one set off moving the pair off "the router" (2026-10-16).
+  /// The host's own word, signed into the Room like every capability, is
+  /// what makes the two agree.
+  bool get peerCarriesRoom => candidates().any(
+    (candidate) =>
+        candidate.memberId != localMemberId && candidate.hostingAccessPoint,
+  );
+
+  bool _carries(RoomMemberId member) => candidates().any(
+    (candidate) => candidate.memberId == member && candidate.hostingAccessPoint,
+  );
+
+  /// Whether [member]'s capabilities have arrived, so what they say about the
+  /// network can be relied on.
+  bool heardFrom(RoomMemberId member) =>
+      candidates().any((candidate) => candidate.memberId == member);
 
   static RoomTransportKind? _kindFor(TransferMode mode) => switch (mode) {
     TransferMode.wifi => RoomTransportKind.sharedLan,
@@ -373,6 +408,7 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
       return;
     }
     if (_following) return;
+    _keepAnnouncingHeldAccessPoint(durability);
     final decision = _decide(durability);
 
     if (!decision.shouldPromote) {
@@ -545,6 +581,8 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
     _eager = false;
     _abandonHandover();
     _announcement = null;
+    _announcedSsid = null;
+    _announcedAt = null;
     _publish(_settled(_durability));
   }
 
@@ -645,6 +683,8 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
       // has to travel over the borrowed carrier, and switching first would
       // take this phone off the very network it needs to speak on.
       _announcement = handover.encode();
+      _announcedSsid = credentials.ssid;
+      _announcedAt = issuedAt;
       _generation = generation;
       _handoverSince = null;
       _publish(
@@ -692,6 +732,89 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
     return credentials;
   }
 
+  /// How old a standing announcement may get before it is signed again,
+  /// well inside [RoomCarrierHandover.freshness].
+  static const _reannounceAfter = Duration(seconds: 60);
+
+  /// A phone holding the Room's access point keeps telling the others where
+  /// it is.
+  ///
+  /// A phone that is hosting reads its carrier as owned, so it never runs the
+  /// promotion below, and the announcement used to come only from that
+  /// promotion. A peer that ended up on a borrowed network beside it (Android
+  /// moved it to home Wi-Fi, and the reconnect found the host over the
+  /// router) elected this phone, waited for an announcement that was never
+  /// going to come, gave up after [handoverDeadline], and tried again every
+  /// minute for the rest of the call (2026-10-16: "promoting to generation 1,
+  /// host is a peer" and "produced nothing in 45s" in turn, with the host's
+  /// access point up the whole time). So while there is a peer to hear it,
+  /// the held access point is announced on every ping: a peer already on it
+  /// recognises its own network and stays, and a peer that is not follows.
+  void _keepAnnouncingHeldAccessPoint(RoomCarrierDurability durability) {
+    if (_stoodDown || _raising || _announcingHeld) return;
+    if (durability != RoomCarrierDurability.owned) return;
+    if (identity == null || !hotspotHost.isHosting) return;
+    if (hotspotLinkKeeper.state != HotspotLinkState.up) return;
+    final credentials = hotspotLinkKeeper.credentials;
+    if (credentials == null) return;
+    if (candidates().every((c) => c.memberId == localMemberId)) return;
+    final sameNetwork =
+        _announcement != null && _announcedSsid == credentials.ssid;
+    final signedAt = _announcedAt;
+    if (sameNetwork &&
+        signedAt != null &&
+        _clock().difference(signedAt) < _reannounceAfter) {
+      return;
+    }
+    unawaited(_announceHeld(credentials, renew: sameNetwork));
+  }
+
+  Future<void> _announceHeld(
+    HotspotCredentials credentials, {
+    required bool renew,
+  }) async {
+    final material = identity;
+    if (material == null) return;
+    _announcingHeld = true;
+    // The same network keeps its generation, so a peer already on it does
+    // not move again; a new one is a new generation, so a peer still on the
+    // old one follows.
+    final generation = renew ? _generation : _generation + 1;
+    try {
+      final issuedAt = _clock().toUtc();
+      final signature = await _crypto.signCarrierHandover(
+        certificate: material.certificate,
+        member: material.memberKeyPair,
+        generation: generation,
+        ssid: credentials.ssid,
+        passphrase: credentials.passphrase,
+        issuedAt: issuedAt,
+      );
+      if (_disposed || _raising) return;
+      _announcement = RoomCarrierHandover(
+        certificate: material.certificate,
+        generation: generation,
+        ssid: credentials.ssid,
+        passphrase: credentials.passphrase,
+        issuedAt: issuedAt,
+        hostSignature: signature,
+      ).encode();
+      _announcedSsid = credentials.ssid;
+      _announcedAt = issuedAt;
+      if (!renew) {
+        _generation = generation;
+        Logger.diagnostic(
+          'carrier: holding the access point — announcing generation '
+          '$generation to peers',
+        );
+      }
+    } catch (error) {
+      Logger.log('carrier: could not announce the held access point: $error');
+    } finally {
+      _announcingHeld = false;
+    }
+  }
+
   Future<bool> _canAnnounceWhileHosting() async {
     try {
       final advice = await hotspotHost.wifiAdvice();
@@ -736,6 +859,8 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
         issuedAt: issuedAt,
         hostSignature: signature,
       ).encode();
+      _announcedSsid = credentials.ssid;
+      _announcedAt = issuedAt;
       _generation = generation;
       _plannedGeneration = generation;
       _publish(
@@ -801,6 +926,33 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
     if (handover.generation <= _generation) return false;
 
     if (_stoodDown) return false;
+
+    // Already on the network it names: the host is re-announcing what this
+    // phone joined. Record the generation and stay put — joining again would
+    // drop and re-take the very connection the call is running on.
+    final held = hotspotLinkKeeper.credentials;
+    final onIt =
+        modeStore.mode == TransferMode.hotspot &&
+        (held != null
+            ? held.ssid == handover.ssid
+            : _carries(handover.hostMemberId));
+    if (onIt) {
+      // Joined some other way (an earlier session, the OS): now the
+      // credentials are known, so a drop can be rejoined.
+      if (held == null) {
+        hotspotLinkKeeper.adopt(
+          HotspotCredentials(
+            ssid: handover.ssid,
+            passphrase: handover.passphrase,
+          ),
+        );
+      }
+      _generation = handover.generation;
+      _plannedGeneration = handover.generation;
+      _handoverSince = null;
+      if (_status.isHandingOver) _publish(_settled(_durability));
+      return false;
+    }
 
     Logger.diagnostic(
       'carrier: following generation ${handover.generation} to the host',

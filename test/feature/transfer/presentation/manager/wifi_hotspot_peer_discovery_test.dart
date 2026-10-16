@@ -47,6 +47,31 @@ void main() {
     messenger.setMockMethodCallHandler(permissions, null);
   });
 
+  test(
+    'hosting again while our access point is up shares that same one',
+    () async {
+      // 2026-10-16: a reconnect re-raised the hotspot, Android gave it a new
+      // name and password, and the phone trying to get back onto the old one
+      // never could.
+      final pair = _Pair();
+      addTearDown(pair.dispose);
+      const earlier = HotspotCredentials(
+        ssid: 'Tarkk-Earlier',
+        passphrase: 'pw-1',
+      );
+      pair.host.hotspot.hosting = true;
+      pair.host.keeper
+        ..held = earlier
+        ..linkState = HotspotLinkState.up;
+
+      await pair.host.cubit.chooseRole(HotspotRole.host);
+
+      expect(pair.host.hotspot.starts, 0);
+      expect(pair.host.hotspot.stops, 0);
+      expect(pair.host.cubit.state.credentials, earlier);
+    },
+  );
+
   test('two phones discover each other from one network QR without '
       'either phone entering the call first', () async {
     final pair = _Pair();
@@ -181,7 +206,7 @@ class _Endpoint {
       _SilentSfx(),
       wakeLock,
       roles,
-      _Keeper(),
+      keeper,
       membership,
       _Modes(),
     );
@@ -192,6 +217,7 @@ class _Endpoint {
   final hotspot = _Host();
   final joiner = _Joiner();
   final wakeLock = _WakeLock();
+  final keeper = _Keeper();
   late final _PipeWifi wifi;
   late final WifiHotspotCubit cubit;
 
@@ -275,9 +301,17 @@ class _Host implements HotspotHost {
   );
   final stopped = StreamController<void>.broadcast();
   int stops = 0;
+  int starts = 0;
+  bool hosting = false;
 
   @override
-  Future<HotspotCredentials> start() async => credentials;
+  bool get isHosting => hosting;
+  @override
+  Future<HotspotCredentials> start() async {
+    starts++;
+    return credentials;
+  }
+
   @override
   Future<void> stop() async => stops++;
   @override
@@ -320,8 +354,15 @@ class _Roles implements SessionRoleStore {
 }
 
 class _Keeper implements HotspotLinkKeeper {
+  HotspotCredentials? held;
+  HotspotLinkState linkState = HotspotLinkState.idle;
+
   @override
-  void adopt(HotspotCredentials credentials) {}
+  HotspotLinkState get state => linkState;
+  @override
+  HotspotCredentials? get credentials => held;
+  @override
+  void adopt(HotspotCredentials credentials) => held = credentials;
   @override
   Future<void> release() async {}
   @override

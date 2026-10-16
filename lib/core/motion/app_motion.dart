@@ -320,10 +320,15 @@ class PhaseSwitcher extends StatelessWidget {
   const PhaseSwitcher({
     required this.child,
     this.alignment = Alignment.topCenter,
+    this.motion = SceneMotion.through,
     super.key,
   });
 
   final Widget child;
+
+  /// A phase changing in place fades through by default; a page whose phases
+  /// are steps through a flow passes [SceneMotion.axis].
+  final SceneMotion motion;
 
   /// Where the outgoing and incoming phases are pinned while they overlap.
   final AlignmentGeometry alignment;
@@ -333,6 +338,7 @@ class PhaseSwitcher extends StatelessWidget {
     scene: child.key ?? child.runtimeType,
     fill: false,
     alignment: alignment,
+    motion: motion,
     child: child,
   );
 }

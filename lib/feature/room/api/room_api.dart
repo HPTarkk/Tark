@@ -26,7 +26,11 @@ export '../domain/service/room_bluetooth_rendezvous.dart'
     show RoomBluetoothRendezvous;
 export '../domain/service/room_carrier_migration.dart';
 export '../domain/service/room_carrier_promotion_controller.dart'
-    show RoomCarrierMoveFailure, RoomCarrierMover, RoomCarrierStatus;
+    show
+        RoomCarrierMoveFailure,
+        RoomCarrierMover,
+        RoomCarrierPromotionController,
+        RoomCarrierStatus;
 export '../domain/service/room_connection_trace.dart' show RoomConnectionTrace;
 export '../domain/service/room_hotspot_fallback_detector.dart'
     show RoomHotspotFallbackDetector;

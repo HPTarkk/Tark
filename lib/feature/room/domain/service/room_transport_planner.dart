@@ -18,6 +18,7 @@ final class RoomTransportCandidate {
     required this.backgroundReady,
     required this.batteryPercent,
     this.prefersHotspotHost = false,
+    this.hostingAccessPoint = false,
   }) : assert(batteryPercent >= 0 && batteryPercent <= 100);
 
   final RoomMemberId memberId;
@@ -32,6 +33,11 @@ final class RoomTransportCandidate {
   /// and unsurprising, but an ineligible creator is skipped like any other
   /// candidate and verified capability evidence remains authoritative.
   final bool prefersHotspotHost;
+
+  /// Whether this member is holding up the access point the Room is on right
+  /// now, as it says itself. A phone on that access point cannot tell it from
+  /// a router, so this is how both phones agree on what they are standing on.
+  final bool hostingAccessPoint;
 }
 
 final class RoomTransportEnvironment {

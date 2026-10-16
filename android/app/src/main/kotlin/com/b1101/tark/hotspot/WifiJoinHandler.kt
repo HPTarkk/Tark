@@ -86,6 +86,9 @@ class WifiJoinHandler(
 
     /** When [reclaimLegacy] last asked for the AP back, for its debounce. */
     private var lastReclaimAt: Long = 0L
+
+    /** Follow-up reclaims left after the one [reclaimLegacy] just made. */
+    private var reclaimRetriesLeft = 0
     private var lostAnnouncement: Runnable? = null
     private var pendingJoin: PendingJoin? = null
     private var associationProbe: Runnable? = null
@@ -480,6 +483,7 @@ class WifiJoinHandler(
                     return
                 }
                 Log.i(TAG, "keeper: joined AP returned — re-pinning the process")
+                reclaimRetriesLeft = 0
                 bind(network)
                 mainHandler.post { eventSink?.success(mapOf("event" to "rebound")) }
             }
@@ -492,6 +496,7 @@ class WifiJoinHandler(
                 scheduleLostAnnouncement()
                 // Posted, not inline: the radio reports the new association a
                 // moment after the old Network is lost.
+                reclaimRetriesLeft = RECLAIM_RETRIES
                 mainHandler.postDelayed({ reclaimLegacy() }, RECLAIM_DELAY_MS)
             }
         }
@@ -758,6 +763,7 @@ class WifiJoinHandler(
         }
         releaseSpecifier()
         stopKeeper()
+        reclaimRetriesLeft = 0
         removeSuggestions()
         forgetLegacyNetworks(keepSsid = null)
         joinedSsid = null
@@ -846,14 +852,25 @@ class WifiJoinHandler(
      * network, and the lost announcement already scheduled reports it.
      */
     @Suppress("DEPRECATION")
-    private fun reclaimLegacy() {
+    private fun reclaimLegacy(retry: Boolean = false) {
         val netId = legacyNetId
         if (netId == -1 || boundNetwork != null) return
         val current = connectedNetId()
         if (current == netId) return
         val now = SystemClock.elapsedRealtime()
-        if (now - lastReclaimAt < RECLAIM_DEBOUNCE_MS) return
+        if (!retry && now - lastReclaimAt < RECLAIM_DEBOUNCE_MS) return
         lastReclaimAt = now
+        // One ask is not enough. Android 9 can take the radio for its saved
+        // home network a few seconds *after* the reclaim was accepted — the
+        // reclaim landed while the radio was between networks (moved=false),
+        // and the network selector then went for the one with internet
+        // (2026-10-16, Galaxy S8). Look again shortly and ask again, a few
+        // times, while the AP is still worth getting back to; the keeper's
+        // rebind ends the retries the moment it is.
+        if (reclaimRetriesLeft > 0) {
+            reclaimRetriesLeft--
+            mainHandler.postDelayed({ reclaimLegacy(retry = true) }, RECLAIM_RETRY_MS)
+        }
         val moved = current != -1
         Log.w(TAG, "legacy: radio left the host AP (moved=$moved) — selecting it again")
         val asked = runCatching {
@@ -876,5 +893,7 @@ class WifiJoinHandler(
         private const val LEGACY_POLL_INTERVAL_MS = 500L
         private const val RECLAIM_DELAY_MS = 1_500L
         private const val RECLAIM_DEBOUNCE_MS = 10_000L
+        private const val RECLAIM_RETRY_MS = 5_000L
+        private const val RECLAIM_RETRIES = 4
     }
 }

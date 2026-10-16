@@ -144,6 +144,7 @@ class HotspotJoinFlow extends StatelessWidget {
             child: SizedBox(
               height: 84,
               child: SceneTurn(
+                motion: SceneMotion.through,
                 scene: headerScene,
                 depth: depth,
                 alignment: Alignment.center,
@@ -156,6 +157,7 @@ class HotspotJoinFlow extends StatelessWidget {
         // The body turns with the header, as one object, rather than
         // swapping under it.
         SceneTurn(
+          motion: SceneMotion.through,
           scene: state.joinPhase,
           depth: depth,
           fill: false,

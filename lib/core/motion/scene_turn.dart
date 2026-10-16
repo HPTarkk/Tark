@@ -4,20 +4,34 @@ import 'package:flutter/material.dart';
 
 import 'app_motion.dart';
 
-/// Turns one state of a screen into the next as a single object, instead of
-/// fading one out and the other in.
+/// How a [SceneTurn] moves from one state to the next. Each fits a different
+/// kind of change, so a screen picks the one that says what is happening.
+enum SceneMotion {
+  /// The card turns over on its vertical axis: the same object showing its
+  /// other face. For a swap between two equal sides (show a code / scan
+  /// one), never for going deeper into a flow.
+  turn,
+
+  /// Shared axis: the leaving state slides back and fades, the next one
+  /// comes in from the reading end. For stepping forward or back through a
+  /// flow (lobby, connecting, the call), matching the page transitions.
+  axis,
+
+  /// Fade through: the leaving state fades out, the next one grows up out of
+  /// it. For a change of state in place (a wait becoming a result, a phase
+  /// inside one page).
+  through,
+}
+
+/// Moves one state of a screen into the next as one continuous motion,
+/// chosen to fit the change ([SceneMotion]): a turn for two equal sides, a
+/// shared-axis step through a flow, a fade-through for a change in place.
 ///
-/// The state that is leaving turns away on its vertical axis, settling back
-/// a little and dimming as it goes edge-on; the arriving one turns in from
-/// the other side and comes up out of the same dim, and its lines re-flow in
-/// a short stagger ([SceneReflow]). It is the move the code / scan swap makes
-/// on the reconnect screen, without that screen's flying brackets, so every
-/// change of state in a connection reads as the same kind of motion.
-///
-/// [scene] names the state: a new value turns, the same value updates in
+/// The arriving state's lines re-flow in a short stagger ([SceneReflow]).
+/// [scene] names the state: a new value moves, the same value updates in
 /// place and keeps its state. [depth] says which way: a deeper state (the
-/// lobby to a connection, a connection to the call) turns towards the
-/// reading end, a shallower one back; equal depths turn forward. Mirrors in
+/// lobby to a connection, a connection to the call) moves towards the
+/// reading end, a shallower one back; equal depths move forward. Mirrors in
 /// right-to-left.
 ///
 /// Under reduced motion it is a plain, short crossfade.
@@ -31,8 +45,17 @@ class SceneTurn extends StatefulWidget {
     this.depth = 0,
     this.fill = true,
     this.alignment = Alignment.topCenter,
+    this.motion = SceneMotion.turn,
+    this.quietFrom = const {},
     super.key,
   });
+
+  /// The kind of change this is.
+  final SceneMotion motion;
+
+  /// Scenes that are only a wait: leaving one of them is always a
+  /// [SceneMotion.through], so content arriving is never thrown in sideways.
+  final Set<Object> quietFrom;
 
   /// The state [child] shows.
   final Object scene;
@@ -72,10 +95,20 @@ class _SceneTurnState extends State<SceneTurn>
   /// +1 turning forward, -1 back.
   double _direction = 1;
 
-  late final Animation<double> _arrival = CurvedAnimation(
+  /// The motion of the change running now.
+  SceneMotion _motion = SceneMotion.turn;
+
+  late final Animation<double> _arrivalAfterTurn = CurvedAnimation(
     parent: _t,
     curve: const Interval(0.5, 1),
   );
+  late final Animation<double> _arrivalEarly = CurvedAnimation(
+    parent: _t,
+    curve: const Interval(0.3, 1),
+  );
+
+  Animation<double> get _arrival =>
+      _motion == SceneMotion.turn ? _arrivalAfterTurn : _arrivalEarly;
 
   @override
   void initState() {
@@ -97,9 +130,16 @@ class _SceneTurnState extends State<SceneTurn>
     _outgoingScene = old.scene;
     _outgoing = old.child;
     _direction = widget.depth < old.depth ? -1 : 1;
+    _motion = widget.quietFrom.contains(old.scene)
+        ? SceneMotion.through
+        : widget.motion;
     _t.duration = AppMotion.reduced(context)
         ? AppMotion.card
-        : SceneTurn.duration;
+        : switch (_motion) {
+            SceneMotion.turn => SceneTurn.duration,
+            SceneMotion.axis => const Duration(milliseconds: 480),
+            SceneMotion.through => const Duration(milliseconds: 420),
+          };
     _t.forward(from: 0);
   }
 
@@ -129,6 +169,25 @@ class _SceneTurnState extends State<SceneTurn>
           if (_t.isAnimating || t < 1) {
             if (reduced) {
               opacity = incoming ? t : 1 - t;
+            } else if (_motion != SceneMotion.turn) {
+              // Out over the first third, in over the rest; the two overlap
+              // only where both are nearly clear.
+              final out = _span(t, 0, 0.35);
+              final inn = Curves.easeOutCubic.transform(_span(t, 0.25, 1));
+              visible = incoming || t < 0.35;
+              opacity = incoming
+                  ? Curves.easeOut.transform(_span(t, 0.25, 0.8))
+                  : 1 - Curves.easeIn.transform(out);
+              if (_motion == SceneMotion.axis) {
+                final travel = 36.0 * dir;
+                final dx = incoming
+                    ? travel * (1 - inn)
+                    : -travel * Curves.easeInCubic.transform(out);
+                transform = Matrix4.translationValues(dx, 0, 0);
+              } else {
+                final scale = incoming ? 0.92 + 0.08 * inn : 1 - 0.03 * out;
+                transform = Matrix4.diagonal3Values(scale, scale, 1);
+              }
             } else if (incoming && t < 0.5) {
               // In the tree, and taking taps, from the first frame; unseen
               // until its half.

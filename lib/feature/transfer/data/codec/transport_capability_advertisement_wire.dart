@@ -23,11 +23,17 @@ abstract final class TransportCapabilityAdvertisementWire {
   static const _bluetoothSupported = 1 << 1;
   static const _backgroundReady = 1 << 2;
   static const _prefersHotspotHost = 1 << 3;
+
+  /// Set only while the phone is actually hosting, so a peer on an older
+  /// build (which rejects unknown flags) loses this phone's capabilities only
+  /// for as long as it holds an access point up.
+  static const _hostingAccessPoint = 1 << 4;
   static const _knownFlags =
       _canHostHotspot |
       _bluetoothSupported |
       _backgroundReady |
-      _prefersHotspotHost;
+      _prefersHotspotHost |
+      _hostingAccessPoint;
 
   static Uint8List encode(TransportCapabilityAdvertisement value) {
     var flags = 0;
@@ -35,6 +41,7 @@ abstract final class TransportCapabilityAdvertisementWire {
     if (value.bluetoothSupported) flags |= _bluetoothSupported;
     if (value.backgroundReady) flags |= _backgroundReady;
     if (value.prefersHotspotHost) flags |= _prefersHotspotHost;
+    if (value.hostingAccessPoint) flags |= _hostingAccessPoint;
     return Uint8List.fromList([marker, version, flags, value.batteryPercent]);
   }
 
@@ -57,6 +64,7 @@ abstract final class TransportCapabilityAdvertisementWire {
       bluetoothSupported: (flags & _bluetoothSupported) != 0,
       backgroundReady: (flags & _backgroundReady) != 0,
       prefersHotspotHost: (flags & _prefersHotspotHost) != 0,
+      hostingAccessPoint: (flags & _hostingAccessPoint) != 0,
       batteryPercent: battery,
     );
   }

@@ -245,6 +245,7 @@ class _BluetoothResumePageState extends State<BluetoothResumePage>
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 28),
                     child: SceneTurn(
+                      motion: SceneMotion.through,
                       scene: _failed || _linked ? 'resume-result' : 'searching',
                       depth: _failed || _linked ? 1 : 0,
                       // Success and failure are one scene under one key, so a

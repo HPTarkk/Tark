@@ -445,6 +445,7 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
     // The camera turns over into the journey, and the journey back into a
     // fresh camera, as one card: the same turn every connection state makes.
     return SceneTurn(
+      motion: SceneMotion.through,
       scene: journey == null ? 'scanner-$_scannerGeneration' : 'journey',
       depth: journey == null ? 0 : 1,
       child: journey == null

@@ -508,6 +508,7 @@ final class _LiveFailoverSession {
       backgroundReady: capability.backgroundReady,
       batteryPercent: capability.batteryPercent,
       prefersHotspotHost: capability.prefersHotspotHost,
+      hostingAccessPoint: capability.hostingAccessPoint,
       at: DateTime.now(),
     );
   }

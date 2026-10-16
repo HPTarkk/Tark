@@ -108,6 +108,7 @@ class _RoomQrJoinIssuerPageState extends State<RoomQrJoinIssuerPage> {
       // Each step turns into the next as one card, like every other
       // connection screen, rather than cutting.
       child: SceneTurn(
+        motion: SceneMotion.axis,
         scene: _stage,
         depth: _stage.index,
         child: switch (_stage) {

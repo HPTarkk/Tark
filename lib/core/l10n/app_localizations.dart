@@ -4190,6 +4190,24 @@ abstract class AppLocalizations {
   /// **'این گوشی مرکز ارتباط اتاقه. تا وقتی اتاق بازه، اینترنت این گوشی خاموش می‌مونه.'**
   String get carrier_settled_host;
 
+  /// Carrier move scene
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاق رو برای مسیر آماده می‌کنیم'**
+  String get carrier_move_title;
+
+  /// Carrier move scene
+  ///
+  /// In fa, this message translates to:
+  /// **'آماده‌ی مسیر'**
+  String get carrier_move_done;
+
+  /// Carrier move scene
+  ///
+  /// In fa, this message translates to:
+  /// **'برگشت به تماس'**
+  String get carrier_move_hide;
+
   /// No description provided for @entry_create_room.
   ///
   /// In fa, this message translates to:

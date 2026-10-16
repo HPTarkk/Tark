@@ -2320,6 +2320,15 @@ class AppLocalizationsFa extends AppLocalizations {
       'این گوشی مرکز ارتباط اتاقه. تا وقتی اتاق بازه، اینترنت این گوشی خاموش می‌مونه.';
 
   @override
+  String get carrier_move_title => 'اتاق رو برای مسیر آماده می‌کنیم';
+
+  @override
+  String get carrier_move_done => 'آماده‌ی مسیر';
+
+  @override
+  String get carrier_move_hide => 'برگشت به تماس';
+
+  @override
   String get entry_create_room => 'ساخت اتاق';
 
   @override

@@ -2331,6 +2331,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'This phone is the hub for the room. It stays off the internet until the room closes.';
 
   @override
+  String get carrier_move_title => 'Getting the room ready for the road';
+
+  @override
+  String get carrier_move_done => 'Ready for the road';
+
+  @override
+  String get carrier_move_hide => 'Back to the call';
+
+  @override
   String get entry_create_room => 'CREATE ROOM';
 
   @override

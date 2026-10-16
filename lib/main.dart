@@ -30,6 +30,7 @@ import 'core/theme/theme_service.dart';
 import 'core/utils/logger.dart';
 import 'feature/transfer/api/transfer_api.dart';
 import 'feature/transfer/data/android_network_rebind_coordinator.dart';
+import 'feature/transfer/data/hotspot/wifi_client_address.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -94,6 +95,9 @@ void main() async {
   // The "I should host" this phone sends is the same one it votes with.
   TransportCapabilityReader.hostingPreference = () async =>
       (await GetIt.instance<HotspotHost>().wifiAdvice()).concurrent;
+  TransportCapabilityReader.hostingNow = () async =>
+      GetIt.instance<HotspotHost>().isHosting &&
+      await WifiClientAddress.current() == null;
   // The signed-in state, from secure storage only: no network before the
   // first frame. Then pushes a profile edit made offline last time, if any.
   // Both are no-ops on builds without sign-in.

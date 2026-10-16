@@ -12,6 +12,7 @@ import '../../../../core/router/route_exit.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/widget/link_established.dart';
 import '../../../../core/motion/app_motion.dart';
+import '../../../../core/motion/scene_turn.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/logger.dart';
@@ -222,8 +223,11 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage>
                 }
               }
             },
-            builder: (context, state) =>
-                PhaseSwitcher(child: _phase(context, s, state)),
+            builder: (context, state) => PhaseSwitcher(
+              // Picking a side and the steps after it are a flow.
+              motion: SceneMotion.axis,
+              child: _phase(context, s, state),
+            ),
           ),
         ),
       ),

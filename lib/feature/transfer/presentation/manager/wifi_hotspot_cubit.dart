@@ -515,6 +515,21 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     await _dropOtherSide(nowHosting: true);
     if (isClosed) return;
 
+    // An access point of ours already on the air is the network to share
+    // again, not one to replace. Android hands every new LocalOnlyHotspot a
+    // fresh name and password, so re-raising it on a reconnect took down the
+    // network the other phone was trying to get back onto: an Android 9
+    // joiner the OS had moved to home Wi-Fi kept asking for the old hotspot,
+    // which no longer existed, and the pair settled on the router instead
+    // (2026-10-16, the second connection of a session failing where the
+    // first had worked).
+    final held = _heldAccessPoint();
+    if (held != null) {
+      Logger.diagnostic('hotspot: reusing the access point already up');
+      _onHostReady(held);
+      return;
+    }
+
     // LocalOnlyHotspot needs fine location (API 26–32) or NEARBY_WIFI_DEVICES
     // (33+). On API 31–32 the fine-location request only works because COARSE
     // is declared alongside it — Android 12 ignores a fine-only request (see
@@ -587,6 +602,14 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
       state.copyWith(phase: HotspotPhase.error, errorCode: code ?? 'failed'),
     );
     _sfx.play(SfxEvent.error);
+  }
+
+  /// The credentials of an access point this app is holding up right now,
+  /// when the link keeper can vouch for them.
+  HotspotCredentials? _heldAccessPoint() {
+    if (!_hotspot.isHosting) return null;
+    if (_linkKeeper.state != HotspotLinkState.up) return null;
+    return _linkKeeper.credentials;
   }
 
   void _onHostReady(HotspotCredentials creds) {

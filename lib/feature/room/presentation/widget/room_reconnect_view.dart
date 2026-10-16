@@ -254,6 +254,7 @@ class _RoomReconnectViewState extends State<RoomReconnectView> {
         // Changes within one side turn too, the same way a whole screen does;
         // the morph with its flying brackets is kept for the side itself.
         child: SceneTurn(
+          motion: SceneMotion.through,
           scene: _stateOf(model),
           depth: model.phase == RoomReconnectPhase.connecting ? 1 : 0,
           child: model.side == RoomReconnectSide.scan && model.wifiOff

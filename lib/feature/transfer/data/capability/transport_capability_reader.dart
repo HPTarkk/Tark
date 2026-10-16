@@ -20,6 +20,13 @@ abstract final class TransportCapabilityReader {
   /// elected itself on battery, and both raised an access point (2026-10-16).
   static Future<bool> Function()? hostingPreference;
 
+  /// Whether this phone is holding an access point up and is on no other
+  /// Wi-Fi, so a peer hearing it over Wi-Fi can only be on that access point.
+  /// Set once at start-up, like [hostingPreference], and carried on every
+  /// reading so a phone joined to the access point knows the network it is
+  /// on is the Room's own rather than some router.
+  static Future<bool> Function()? hostingNow;
+
   static Future<TransportCapabilityAdvertisement?> current({
     bool? prefersHotspotHost,
   }) async {
@@ -30,6 +37,7 @@ abstract final class TransportCapabilityReader {
         raw,
         prefersHotspotHost:
             prefersHotspotHost ?? await _readHostingPreference(),
+        hostingAccessPoint: await _readHostingNow(),
       );
     } on PlatformException {
       return null;
@@ -48,10 +56,21 @@ abstract final class TransportCapabilityReader {
     }
   }
 
+  static Future<bool> _readHostingNow() async {
+    final read = hostingNow;
+    if (read == null) return false;
+    try {
+      return await read();
+    } catch (_) {
+      return false;
+    }
+  }
+
   @visibleForTesting
   static TransportCapabilityAdvertisement? decodeSnapshot(
     Map<Object?, Object?>? raw, {
     bool prefersHotspotHost = false,
+    bool hostingAccessPoint = false,
   }) {
     if (raw == null) return null;
     final canHostHotspot = raw['canHostHotspot'];
@@ -72,6 +91,7 @@ abstract final class TransportCapabilityReader {
       backgroundReady: backgroundReady,
       batteryPercent: batteryPercent,
       prefersHotspotHost: prefersHotspotHost,
+      hostingAccessPoint: hostingAccessPoint,
     );
   }
 }

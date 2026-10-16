@@ -30,6 +30,7 @@ final class RoomTransportCapabilityObserver {
     required DateTime at,
     required int attachmentGeneration,
     bool prefersHotspotHost = false,
+    bool hostingAccessPoint = false,
   }) {
     if (batteryPercent < 0 || batteryPercent > 100) return false;
     final memberId = bindings.resolve(
@@ -45,6 +46,7 @@ final class RoomTransportCapabilityObserver {
         backgroundReady: backgroundReady,
         batteryPercent: batteryPercent,
         prefersHotspotHost: prefersHotspotHost,
+        hostingAccessPoint: hostingAccessPoint,
       ),
       at: at,
       attachmentGeneration: attachmentGeneration,
@@ -63,6 +65,7 @@ final class RoomTransportCapabilityObserver {
     required DateTime at,
     required int attachmentGeneration,
     bool prefersHotspotHost = false,
+    bool hostingAccessPoint = false,
   }) {
     candidates.observe(
       RoomTransportCandidate(
@@ -72,6 +75,7 @@ final class RoomTransportCapabilityObserver {
         backgroundReady: backgroundReady,
         batteryPercent: batteryPercent,
         prefersHotspotHost: prefersHotspotHost,
+        hostingAccessPoint: hostingAccessPoint,
       ),
       at: at,
       attachmentGeneration: attachmentGeneration,
