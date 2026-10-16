@@ -2170,6 +2170,20 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   final RoomHotspotFallbackDetector _fallback = RoomHotspotFallbackDetector();
   bool _fallingBack = false;
+  bool _loggedRouterBridge = false;
+
+  /// Whether the Room's hotspot is still there to go back to: this phone is
+  /// holding it up, or is the one joined to it and still trying to get back
+  /// on.
+  bool _roomHotspotStillUp() {
+    final host = _hotspotHost;
+    if (host != null && host.isHosting) return true;
+    if (_roleStore?.role != SessionRole.joiner) return false;
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<HotspotLinkKeeper>()) return false;
+    final keeper = getIt<HotspotLinkKeeper>();
+    return keeper.credentials != null && keeper.state != HotspotLinkState.lost;
+  }
 
   /// Watches a call on a hotspot for the moment it ends up back on the house
   /// Wi-Fi without anyone choosing it: the access point dropped (Android
@@ -2208,6 +2222,24 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       return;
     }
     if (_binding?.carrierPromotion?.status.isHandingOver ?? false) return;
+    if (!_fallback.isHotspotRoute(proof.carrierRoute) &&
+        _roomHotspotStillUp()) {
+      // One phone has stepped off onto the router while the hotspot is still
+      // there for it: Android 9 leaves a network without internet for a
+      // saved one that has it, then the keeper takes it back. The router
+      // carries the call meanwhile. Tearing the hotspot down and moving
+      // again is what put the move screen up every minute (2026-10-16
+      // 18:27 and 18:31), each time onto a hotspot it would leave again.
+      if (!_loggedRouterBridge) {
+        _loggedRouterBridge = true;
+        Logger.diagnostic(
+          'carrier_move: the other phone is on the router for now — the '
+          'hotspot stays up for it to come back to',
+        );
+      }
+      return;
+    }
+    _loggedRouterBridge = false;
     if (_fallback.observe(proof.carrierRoute)) {
       unawaited(_fallBackOffRouter(room));
     }

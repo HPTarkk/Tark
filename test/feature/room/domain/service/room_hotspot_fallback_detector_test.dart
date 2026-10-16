@@ -57,4 +57,15 @@ void main() {
       isFalse,
     );
   });
+
+  test('tells a route on the hotspot from one on the router', () {
+    final detector = RoomHotspotFallbackDetector();
+    // Nothing known yet: nothing to call "off" the hotspot.
+    expect(detector.isHotspotRoute('192.168.8.155'), isTrue);
+    detector.seed('10.14.189.134');
+    expect(detector.isHotspotRoute('10.14.189.134'), isTrue);
+    expect(detector.isHotspotRoute('192.168.8.155'), isFalse);
+    // Asking does not count towards a fallback.
+    expect(detector.observe('10.14.189.134'), isFalse);
+  });
 }

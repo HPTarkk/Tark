@@ -1998,6 +1998,9 @@ class WifiTransferRepositoryImpl
   /// over the access point it holds or over some router beside it.
   Iterable<String> get recentPeerAddresses => List.unmodifiable(_peers.keys);
 
+  /// When each of those was last heard.
+  Map<String, DateTime> get peersHeardAt => Map.unmodifiable(_peers);
+
   void _rememberPeer(String address) {
     // Our own broadcast comes back to us — that's not a peer.
     if (_localAddresses.contains(address)) return;

@@ -129,10 +129,15 @@ void main() async {
   // listening stream and therefore never leaves/recreates the logical room.
   // The session role is what keeps it off a host, whose peers are on an AP the
   // framework never selects — see AndroidNetworkRebindCoordinator.
+  final wifiRepository = GetIt.instance<WifiTransferRepository>();
   final networkRebindCoordinator = AndroidNetworkRebindCoordinator(
-    GetIt.instance<WifiTransferRepository>().rebindSockets,
+    wifiRepository.rebindSockets,
     modeStore,
     GetIt.instance<SessionRoleStore>(),
+    peersHeardAt: wifiRepository is WifiTransferRepositoryImpl
+        ? () => wifiRepository.peersHeardAt
+        : null,
+    stationAddress: WifiClientAddress.current,
   );
   await networkRebindCoordinator.start();
 

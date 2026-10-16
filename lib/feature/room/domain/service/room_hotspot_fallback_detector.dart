@@ -29,6 +29,14 @@ final class RoomHotspotFallbackDetector {
     _offHotspot = 0;
   }
 
+  /// Whether [route] is on the hotspot's network, or no hotspot route is
+  /// known yet to tell.
+  bool isHotspotRoute(String? route) {
+    final known = _hotspotRoute;
+    if (known == null || route == null || route.isEmpty) return true;
+    return sameNetwork(route, known);
+  }
+
   /// Takes [route] as the hotspot's when none is known yet.
   void seed(String? route) {
     if (route == null || route.isEmpty) return;

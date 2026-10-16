@@ -53,12 +53,36 @@ final class AndroidNetworkRebindCoordinator {
     this._modes,
     this._roles, {
     AndroidNetworkBindingPort port = const PlatformAndroidNetworkBindingPort(),
-  }) : _port = port;
+    Map<String, DateTime> Function()? peersHeardAt,
+    Future<String?> Function()? stationAddress,
+    DateTime Function()? clock,
+    this.bridgeTick = const Duration(seconds: 1),
+  }) : _port = port,
+       _peersHeardAt = peersHeardAt,
+       _stationAddress = stationAddress,
+       _clock = clock ?? DateTime.now;
 
   final void Function() _rebindWifiSockets;
   final TransferModeStore _modes;
   final SessionRoleStore _roles;
   final AndroidNetworkBindingPort _port;
+
+  /// When each peer address was last heard, from the Wi-Fi transport.
+  final Map<String, DateTime> Function()? _peersHeardAt;
+
+  /// This phone's address as a client of the router, if it is one.
+  final Future<String?> Function()? _stationAddress;
+  final DateTime Function() _clock;
+
+  /// How often a host checks which side of it the other phones are on.
+  final Duration bridgeTick;
+
+  /// How recently a peer must have been heard to count as being there.
+  static const peerFresh = Duration(seconds: 3);
+
+  Timer? _bridgeTimer;
+  bool _bridging = false;
+  bool _bridgeBusy = false;
 
   StreamSubscription<AndroidNetworkSelection>? _networkSub;
   StreamSubscription<TransferMode>? _modeSub;
@@ -101,6 +125,7 @@ final class AndroidNetworkRebindCoordinator {
   Future<void> _reconcileRole(int roleGeneration) async {
     if (_disposed || !_active || roleGeneration != _roleGeneration) return;
     final modeGeneration = _modeGeneration;
+    if (!_hosting) _stopBridge();
     if (_hosting) {
       await _clearForHost(
         roleGeneration: roleGeneration,
@@ -143,11 +168,13 @@ final class AndroidNetworkRebindCoordinator {
     // (2026-10-16 13:06 and 13:18). Rebuilt here, they listen on every
     // interface, the access point's included.
     if (!_disposed && _active && roleGeneration == _roleGeneration) {
+      _bridging = false;
       _rebindWifiSockets();
       Logger.diagnostic(
         'network: hosting — released the router pin and rebuilt both UDP '
         'sockets',
       );
+      _startBridge();
     }
     if (!_disposed &&
         _active &&
@@ -166,10 +193,14 @@ final class AndroidNetworkRebindCoordinator {
     _boundNetworkGeneration = null;
 
     if (!wantsLocalWifi) {
+      _stopBridge();
       await _port.clear();
       return;
     }
-    if (_hosting) return;
+    if (_hosting) {
+      _startBridge();
+      return;
+    }
 
     final selection = await _port.current();
     if (_disposed || generation != _modeGeneration || !_active) return;
@@ -222,6 +253,107 @@ final class AndroidNetworkRebindCoordinator {
 
   bool get _hosting => _roles.role == SessionRole.host;
 
+  /// Whether a host should pin itself to the router it is also a client of:
+  /// the other phones are heard there, recently, and none on its own access
+  /// point.
+  ///
+  /// One process binding cannot serve both sides. Unpinned, a host hears
+  /// everyone but its packets to the router's subnet leave by the default
+  /// network, which on these phones is not the router: the phone still on
+  /// the router never heard the host announce its hotspot, so the move it
+  /// was waiting for never came (2026-10-16 18:23, 18:25, 18:29). Pinned, it
+  /// reaches the router and loses its access point. So it follows the other
+  /// phone: pinned while that phone is on the router, unpinned once it has
+  /// gone quiet there — which is what joining the hotspot looks like from
+  /// here — and pinned again if it comes back.
+  static bool hostNeedsRouter({
+    required Map<String, DateTime> heard,
+    required String? station,
+    required DateTime now,
+  }) {
+    final router = _subnetOf(station);
+    if (router == null) return false;
+    var onRouter = false;
+    for (final MapEntry(key: address, value: at) in heard.entries) {
+      if (now.difference(at) > peerFresh) continue;
+      final subnet = _subnetOf(address);
+      if (subnet == null) continue;
+      if (subnet != router) return false;
+      onRouter = true;
+    }
+    return onRouter;
+  }
+
+  static String? _subnetOf(String? address) {
+    if (address == null) return null;
+    final parts = address.split('.');
+    if (parts.length != 4) return null;
+    return parts.take(3).join('.');
+  }
+
+  void _startBridge() {
+    if (_peersHeardAt == null || _stationAddress == null) return;
+    _bridgeTimer ??= Timer.periodic(bridgeTick, (_) => unawaited(_bridge()));
+  }
+
+  void _stopBridge() {
+    _bridgeTimer?.cancel();
+    _bridgeTimer = null;
+    _bridging = false;
+  }
+
+  Future<void> _bridge() async {
+    if (_bridgeBusy) return;
+    if (_disposed || !_active || !_hosting) {
+      _stopBridge();
+      return;
+    }
+    _bridgeBusy = true;
+    try {
+      final roleGeneration = _roleGeneration;
+      final modeGeneration = _modeGeneration;
+      final want = hostNeedsRouter(
+        heard: _peersHeardAt!(),
+        station: await _stationAddress!(),
+        now: _clock(),
+      );
+      if (_disposed ||
+          !_active ||
+          !_hosting ||
+          roleGeneration != _roleGeneration ||
+          modeGeneration != _modeGeneration ||
+          want == _bridging) {
+        return;
+      }
+      if (want) {
+        final selection = await _port.current();
+        if (!_eligible(selection) || !_hosting || _disposed) return;
+        if (!await _port.bind(selection!)) return;
+        if (!_hosting || _disposed || roleGeneration != _roleGeneration) {
+          await _port.clear();
+          return;
+        }
+        _bridging = true;
+        _rebindWifiSockets();
+        Logger.diagnostic(
+          'network: hosting, the other phone is on the router — pinned to it '
+          'so it can hear this one',
+        );
+      } else {
+        await _port.clear();
+        if (_disposed || roleGeneration != _roleGeneration) return;
+        _bridging = false;
+        _rebindWifiSockets();
+        Logger.diagnostic(
+          'network: hosting, the other phone left the router — unpinned for '
+          'the access point',
+        );
+      }
+    } finally {
+      _bridgeBusy = false;
+    }
+  }
+
   Future<void> _adoptNetwork(
     AndroidNetworkSelection selection,
     int modeGeneration,
@@ -266,6 +398,7 @@ final class AndroidNetworkRebindCoordinator {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    _stopBridge();
     _modeGeneration++;
     _roleGeneration++;
     await _networkSub?.cancel();

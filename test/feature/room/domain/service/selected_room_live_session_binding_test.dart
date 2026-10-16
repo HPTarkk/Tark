@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/identity/session_epoch.dart';
 import 'package:tark/feature/room/data/security/room_transport_identity_lifecycle.dart';
@@ -224,6 +225,43 @@ void main() {
       expect(capabilityReads, readsAfterClose);
       expect(transfer.health.hasListener, isFalse);
       await transfer.health.close();
+    },
+  );
+
+  test(
+    'this phone keeps reading its own capabilities for as long as the session '
+    'runs, so it never drops out of its own election',
+    () {
+      fakeAsync((async) {
+        final transfer = _TransferRepository(role: SessionRole.host);
+        var capabilityReads = 0;
+        final binding = SelectedRoomLiveSessionBinding(
+          rooms: _RoomRepository(selected: roomId, saved: savedRoom()),
+          transfer: transfer,
+          modeStore: _ModeStore(TransferMode.hotspot),
+          hotspotHost: _HotspotHost(),
+          hotspotLinkKeeper: _HotspotLinkKeeper(),
+          identityStore: _IdentityStore(),
+          localCapabilityReader: () async {
+            capabilityReads += 1;
+            return null;
+          },
+        );
+        binding.open(sessionId: 'live-refresh');
+        async.flushMicrotasks();
+        expect(capabilityReads, 1);
+        // Past the registry's ten-second freshness window: still being read.
+        async.elapse(const Duration(seconds: 12));
+        expect(capabilityReads, greaterThanOrEqualTo(4));
+
+        binding.close();
+        async.flushMicrotasks();
+        final readsAfterClose = capabilityReads;
+        async.elapse(const Duration(seconds: 10));
+        expect(capabilityReads, readsAfterClose);
+        transfer.health.close();
+        async.flushMicrotasks();
+      });
     },
   );
 

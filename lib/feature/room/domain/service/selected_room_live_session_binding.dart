@@ -418,6 +418,14 @@ final class _LiveFailoverSession {
   StreamSubscription<ConnectionHealth>? _healthSubscription;
   int? _handledDownGeneration;
   bool _disposed = false;
+  Timer? _localRefresh;
+
+  /// How often this phone's own capabilities are read again. Well inside the
+  /// candidate registry's freshness window: read only when the session began,
+  /// this phone dropped out of its own election ten seconds later, and each
+  /// phone, seeing only the other, elected the other to host — both then
+  /// waited for an announcement neither would make (2026-10-16 18:27).
+  static const localRefreshEvery = Duration(seconds: 3);
 
   /// Set once the promotion controller exists, so refreshed local evidence can
   /// poke it. A second phone appearing is exactly the event that turns "a Room
@@ -464,6 +472,11 @@ final class _LiveFailoverSession {
       onDone: _requestFailover,
     );
     await _refreshLocalEvidence();
+    if (_disposed) return;
+    _localRefresh = Timer.periodic(
+      localRefreshEvery,
+      (_) => unawaited(_refreshLocalEvidence(poke: false)),
+    );
   }
 
   void _onHealth(ConnectionHealth health) {
@@ -494,14 +507,17 @@ final class _LiveFailoverSession {
     }
   }
 
-  Future<void> _refreshLocalEvidence({int? expectedGeneration}) async {
+  Future<void> _refreshLocalEvidence({
+    int? expectedGeneration,
+    bool poke = true,
+  }) async {
     final capability = await readLocalCapability();
     if (_disposed || capability == null) return;
     if (expectedGeneration != null &&
         verified.attachmentGeneration != expectedGeneration) {
       return;
     }
-    carrierPromotion?.evaluate();
+    if (poke) carrierPromotion?.evaluate();
     verified.observeLocal(
       canHostHotspot: capability.canHostHotspot,
       bluetoothSupported: capability.bluetoothSupported,
@@ -517,6 +533,7 @@ final class _LiveFailoverSession {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    _localRefresh?.cancel();
     seats.dispose();
     await _healthSubscription?.cancel();
     await _evidenceBridge?.dispose();

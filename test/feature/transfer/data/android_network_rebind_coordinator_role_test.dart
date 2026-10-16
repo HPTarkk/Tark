@@ -56,6 +56,82 @@ void main() {
     },
   );
 
+  group('a host whose peer is on the router', () {
+    final now = DateTime.utc(2026, 10, 16, 18, 23);
+
+    test('decides from where the peer was last heard', () {
+      bool needs(
+        Map<String, DateTime> heard, {
+        String? station = '192.168.8.107',
+      }) => AndroidNetworkRebindCoordinator.hostNeedsRouter(
+        heard: heard,
+        station: station,
+        now: now,
+      );
+      expect(needs({'192.168.8.155': now}), isTrue);
+      // On the access point: the router is no use to it.
+      expect(needs({'10.14.189.134': now}), isFalse);
+      expect(needs({'192.168.8.155': now, '10.14.189.134': now}), isFalse);
+      // Gone quiet on the router: it is on its way to the access point.
+      expect(
+        needs({'192.168.8.155': now.subtract(const Duration(seconds: 4))}),
+        isFalse,
+      );
+      // Not a client of any router: nothing to pin to.
+      expect(needs({'192.168.8.155': now}, station: null), isFalse);
+      expect(needs(const {}), isFalse);
+    });
+
+    test('pins while the peer is on the router, lets go once it leaves, and '
+        'pins again when it comes back', () async {
+      final modes = _ModeStore(TransferMode.wifi);
+      final roles = SessionRoleStoreImpl()..setRole(SessionRole.joiner);
+      final port = _BindingPort(currentSelection: wifi);
+      var socketRebinds = 0;
+      var heard = <String, DateTime>{'192.168.8.155': DateTime.now()};
+      final coordinator = AndroidNetworkRebindCoordinator(
+        () => socketRebinds++,
+        modes,
+        roles,
+        port: port,
+        peersHeardAt: () => heard,
+        stationAddress: () async => '192.168.8.107',
+        bridgeTick: const Duration(milliseconds: 20),
+      );
+      await coordinator.start();
+      expect(port.bindGenerations, [33]);
+
+      // Elected host for the move, the other phone still on the router.
+      roles.setRole(SessionRole.host);
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(port.clearCount, 1);
+      expect(port.bindGenerations, [33, 33]);
+
+      // It joins the access point: silent on the router, heard on the AP.
+      heard = {'10.14.189.134': DateTime.now()};
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(port.clearCount, 2);
+
+      // Android 9 drops it back onto the router.
+      heard = {'192.168.8.155': DateTime.now()};
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(port.bindGenerations, [33, 33, 33]);
+
+      // Stops hosting: the bridge stands down with it.
+      roles.setRole(SessionRole.joiner);
+      await _settle();
+      final rebindsBefore = socketRebinds;
+      heard = {'10.14.189.134': DateTime.now()};
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(port.clearCount, 2);
+      expect(socketRebinds, rebindsBefore);
+
+      await coordinator.dispose();
+      await modes.dispose();
+      await port.dispose();
+    });
+  });
+
   test('role change back to host clears a client process binding', () async {
     final modes = _ModeStore(TransferMode.hotspot);
     final roles = SessionRoleStoreImpl()..setRole(SessionRole.joiner);
