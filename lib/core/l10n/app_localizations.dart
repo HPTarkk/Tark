@@ -1811,13 +1811,13 @@ abstract class AppLocalizations {
   /// No description provided for @settings_auto_reconnect.
   ///
   /// In fa, this message translates to:
-  /// **'خودش دوباره وصل بشه'**
+  /// **'وصل شدن خودکار'**
   String get settings_auto_reconnect;
 
   /// No description provided for @settings_auto_reconnect_desc.
   ///
   /// In fa, this message translates to:
-  /// **'وقتی ارتباط قطع شد خودش برمی‌گرده، و وقتی اومدی آخرین گوشی بلوتوثیت رو هم پیدا می‌کنه.'**
+  /// **'اگه ارتباط قطع شد، خودش دوباره وصل می‌شه'**
   String get settings_auto_reconnect_desc;
 
   /// No description provided for @settings_permissions_row.
@@ -1829,7 +1829,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_permissions_row_desc.
   ///
   /// In fa, this message translates to:
-  /// **'ببین و عوض کن که برنامه به چه چیزهایی کار داره'**
+  /// **'دسترسی‌های برنامه'**
   String get settings_permissions_row_desc;
 
   /// No description provided for @settings_skip_splash.
@@ -3494,23 +3494,11 @@ abstract class AppLocalizations {
   /// **'ذخیره'**
   String get rooms_save;
 
-  /// No description provided for @rooms_archive.
-  ///
-  /// In fa, this message translates to:
-  /// **'بایگانی'**
-  String get rooms_archive;
-
   /// No description provided for @rooms_archived.
   ///
   /// In fa, this message translates to:
   /// **'بایگانی‌شده'**
   String get rooms_archived;
-
-  /// No description provided for @rooms_leave.
-  ///
-  /// In fa, this message translates to:
-  /// **'ترک اتاق'**
-  String get rooms_leave;
 
   /// No description provided for @rooms_cancel.
   ///
@@ -3613,18 +3601,6 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'{count} جای بازشده'**
   String rooms_pending_seats_other(Object count);
-
-  /// No description provided for @rooms_archive_confirm.
-  ///
-  /// In fa, this message translates to:
-  /// **'«{name}» از فهرست کنار می‌ره و عضویتش دست‌نخورده می‌مونه. هر وقت خواستی از بایگانی برش گردون.'**
-  String rooms_archive_confirm(Object name);
-
-  /// No description provided for @rooms_leave_confirm.
-  ///
-  /// In fa, this message translates to:
-  /// **'عضویتت تو «{name}» پاک بشه؟ این با تموم کردن یه جلسه‌ی زنده فرق داره.'**
-  String rooms_leave_confirm(Object name);
 
   /// No description provided for @rooms_room_semantics.
   ///
@@ -4115,7 +4091,7 @@ abstract class AppLocalizations {
   /// No description provided for @archive_delete_confirm.
   ///
   /// In fa, this message translates to:
-  /// **'«{name}» از این گوشی پاک می‌شه و دیگه برنمی‌گرده. اگه فقط می‌خوای از فهرست کنار بره، بایگانیش کن.'**
+  /// **'«{name}» از این گوشی پاک می‌شه و دیگه برنمی‌گرده.'**
   String archive_delete_confirm(Object name);
 
   /// No description provided for @archive_card_semantics.
@@ -5411,7 +5387,7 @@ abstract class AppLocalizations {
   /// No description provided for @paywall_locked_rooms.
   ///
   /// In fa, this message translates to:
-  /// **'برای داشتن بیشتر از دو اتاق فعال، پرمیوم را فعال کن. با بایگانی یک اتاق هم می‌توانی رایگان ادامه بدهی.'**
+  /// **'برای داشتن بیشتر از دو اتاق فعال، پرمیوم را فعال کن. با پاک کردن یک اتاق هم می‌توانی رایگان ادامه بدهی.'**
   String get paywall_locked_rooms;
 
   /// No description provided for @paywall_perk_rooms.
@@ -5447,7 +5423,7 @@ abstract class AppLocalizations {
   /// No description provided for @room_create_limit_hint.
   ///
   /// In fa, this message translates to:
-  /// **'دو اتاق فعال رایگان داری. برای اتاق بعدی پرمیوم را فعال کن، یا یکی از اتاق‌های قبلی را بایگانی کن.'**
+  /// **'دو اتاق فعال رایگان داری. برای اتاق بعدی پرمیوم را فعال کن، یا یکی از اتاق‌های قبلی را پاک کن.'**
   String get room_create_limit_hint;
 
   /// No description provided for @room_create_working.
@@ -5581,6 +5557,36 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'این اتصال هنوز بتاست؛ اگه قطع شد، دوباره QR رو اسکن کن.'**
   String get beta_guest_web_notice;
+
+  /// No description provided for @beta_feature_widget.
+  ///
+  /// In fa, this message translates to:
+  /// **'ویجت صفحه اصلی'**
+  String get beta_feature_widget;
+
+  /// No description provided for @beta_widget_intro_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'ویجت صفحه اصلی هنوز بتاست. کار می‌کنه، فقط هنوز به اندازه‌ی کافی تست نشده.'**
+  String get beta_widget_intro_body;
+
+  /// No description provided for @beta_widget_intro_works.
+  ///
+  /// In fa, this message translates to:
+  /// **'کار می‌کنه و رایگانه؛ راحت اضافه‌ش کن'**
+  String get beta_widget_intro_works;
+
+  /// No description provided for @beta_widget_intro_bugs.
+  ///
+  /// In fa, this message translates to:
+  /// **'ممکنه گاهی یه قدم از برنامه عقب بمونه'**
+  String get beta_widget_intro_bugs;
+
+  /// No description provided for @beta_widget_intro_steadier.
+  ///
+  /// In fa, this message translates to:
+  /// **'اگه درست کار نکرد، خود «تَرک» رو باز کن'**
+  String get beta_widget_intro_steadier;
 
   /// No description provided for @journey_scanned_title.
   ///

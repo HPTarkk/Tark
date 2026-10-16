@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/beta/beta_feature.dart';
 import '../../../../core/entitlement/subscription_service.dart';
 import '../../../../core/home_widget/home_widget_service.dart';
 import '../../../../core/l10n/extension.dart';
@@ -452,6 +453,7 @@ class _AddWidgetRowState extends State<_AddWidgetRow> {
           icon: Icons.widgets_rounded,
           label: s.settings_add_widget,
           subtitle: s.settings_widget_hint,
+          beta: BetaFeature.homeWidget,
           trailing: Icon(Icons.add_rounded, color: AppColors.amber),
           onTap: () {
             HapticFeedback.selectionClick();

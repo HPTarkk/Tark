@@ -953,18 +953,17 @@ class AppLocalizationsFa extends AppLocalizations {
   String get settings_restore_defaults_done => 'تنظیمات صدا برگشت به حالت اول.';
 
   @override
-  String get settings_auto_reconnect => 'خودش دوباره وصل بشه';
+  String get settings_auto_reconnect => 'وصل شدن خودکار';
 
   @override
   String get settings_auto_reconnect_desc =>
-      'وقتی ارتباط قطع شد خودش برمی‌گرده، و وقتی اومدی آخرین گوشی بلوتوثیت رو هم پیدا می‌کنه.';
+      'اگه ارتباط قطع شد، خودش دوباره وصل می‌شه';
 
   @override
   String get settings_permissions_row => 'دسترسی‌ها';
 
   @override
-  String get settings_permissions_row_desc =>
-      'ببین و عوض کن که برنامه به چه چیزهایی کار داره';
+  String get settings_permissions_row_desc => 'دسترسی‌های برنامه';
 
   @override
   String get settings_skip_splash => 'رد کردن صفحه خوش‌آمدگویی';
@@ -1898,13 +1897,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get rooms_save => 'ذخیره';
 
   @override
-  String get rooms_archive => 'بایگانی';
-
-  @override
   String get rooms_archived => 'بایگانی‌شده';
-
-  @override
-  String get rooms_leave => 'ترک اتاق';
 
   @override
   String get rooms_cancel => 'انصراف';
@@ -1963,16 +1956,6 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String rooms_pending_seats_other(Object count) {
     return '$count جای بازشده';
-  }
-
-  @override
-  String rooms_archive_confirm(Object name) {
-    return '«$name» از فهرست کنار می‌ره و عضویتش دست‌نخورده می‌مونه. هر وقت خواستی از بایگانی برش گردون.';
-  }
-
-  @override
-  String rooms_leave_confirm(Object name) {
-    return 'عضویتت تو «$name» پاک بشه؟ این با تموم کردن یه جلسه‌ی زنده فرق داره.';
   }
 
   @override
@@ -2271,7 +2254,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String archive_delete_confirm(Object name) {
-    return '«$name» از این گوشی پاک می‌شه و دیگه برنمی‌گرده. اگه فقط می‌خوای از فهرست کنار بره، بایگانیش کن.';
+    return '«$name» از این گوشی پاک می‌شه و دیگه برنمی‌گرده.';
   }
 
   @override
@@ -3039,7 +3022,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get paywall_locked_rooms =>
-      'برای داشتن بیشتر از دو اتاق فعال، پرمیوم را فعال کن. با بایگانی یک اتاق هم می‌توانی رایگان ادامه بدهی.';
+      'برای داشتن بیشتر از دو اتاق فعال، پرمیوم را فعال کن. با پاک کردن یک اتاق هم می‌توانی رایگان ادامه بدهی.';
 
   @override
   String get paywall_perk_rooms => 'بیشتر از دو اتاق فعال';
@@ -3060,7 +3043,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get room_create_limit_hint =>
-      'دو اتاق فعال رایگان داری. برای اتاق بعدی پرمیوم را فعال کن، یا یکی از اتاق‌های قبلی را بایگانی کن.';
+      'دو اتاق فعال رایگان داری. برای اتاق بعدی پرمیوم را فعال کن، یا یکی از اتاق‌های قبلی را پاک کن.';
 
   @override
   String get room_create_working => 'داریم اتاقت را می‌سازیم';
@@ -3138,6 +3121,23 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get beta_guest_web_notice =>
       'این اتصال هنوز بتاست؛ اگه قطع شد، دوباره QR رو اسکن کن.';
+
+  @override
+  String get beta_feature_widget => 'ویجت صفحه اصلی';
+
+  @override
+  String get beta_widget_intro_body =>
+      'ویجت صفحه اصلی هنوز بتاست. کار می‌کنه، فقط هنوز به اندازه‌ی کافی تست نشده.';
+
+  @override
+  String get beta_widget_intro_works => 'کار می‌کنه و رایگانه؛ راحت اضافه‌ش کن';
+
+  @override
+  String get beta_widget_intro_bugs => 'ممکنه گاهی یه قدم از برنامه عقب بمونه';
+
+  @override
+  String get beta_widget_intro_steadier =>
+      'اگه درست کار نکرد، خود «تَرک» رو باز کن';
 
   @override
   String get journey_scanned_title => 'دعوت خونده شد';

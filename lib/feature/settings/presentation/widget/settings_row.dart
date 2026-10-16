@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/beta/beta_badge.dart';
+import '../../../../core/beta/beta_feature.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 
@@ -17,6 +19,11 @@ class SettingsRow extends StatelessWidget {
   /// (deleting an account). Amber when null.
   final Color? tint;
 
+  /// Marks the row's feature as beta with an inline [BetaPill] after the
+  /// label. Set from the feature's [BetaFeature], never as a free-standing
+  /// flag, so graduating the feature clears every mark it left.
+  final BetaFeature? beta;
+
   const SettingsRow({
     super.key,
     required this.icon,
@@ -25,6 +32,7 @@ class SettingsRow extends StatelessWidget {
     this.subtitle,
     this.onTap,
     this.tint,
+    this.beta,
   });
 
   @override
@@ -49,13 +57,21 @@ class SettingsRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: tint ?? AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: tint ?? AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (beta != null) const BetaPill(showIcon: false),
+                  ],
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),

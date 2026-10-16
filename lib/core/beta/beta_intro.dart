@@ -347,6 +347,12 @@ class _BetaCopy {
           bugs: s.beta_guest_intro_bugs,
           steadier: s.beta_guest_intro_steadier,
         ),
+        BetaFeature.homeWidget => _BetaCopy(
+          body: s.beta_widget_intro_body,
+          works: s.beta_widget_intro_works,
+          bugs: s.beta_widget_intro_bugs,
+          steadier: s.beta_widget_intro_steadier,
+        ),
       };
 }
 
