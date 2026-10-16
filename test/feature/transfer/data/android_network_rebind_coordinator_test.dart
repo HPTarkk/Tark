@@ -201,7 +201,8 @@ void main() {
     port.releaseHeldBind(true);
     await pumpEventQueue();
 
-    expect(rebinds, 0);
+    // Once, for the unpinning: sockets made under the pin would stay on it.
+    expect(rebinds, 1);
     expect(port.clearCount, 1);
 
     await coordinator.dispose();

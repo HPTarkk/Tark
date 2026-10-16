@@ -133,9 +133,9 @@ final class RoomCarrierMigration {
     required this.proofs,
     this.previousRoute,
     DateTime Function()? clock,
-    this.moveDeadline = const Duration(seconds: 60),
-    this.hostSilence = const Duration(seconds: 10),
-    this.joinerSilence = const Duration(seconds: 30),
+    this.peerGaveUp,
+    this.moveDeadline = const Duration(seconds: 45),
+    this.peerSilence = const Duration(seconds: 25),
     this.stableProofs = 3,
     this.stableSpan = const Duration(seconds: 2),
     this.maxProofGap = const Duration(seconds: 4),
@@ -157,18 +157,25 @@ final class RoomCarrierMigration {
 
   final DateTime Function() _clock;
 
+  /// Whether the other phone says it has just given up on this move. Read
+  /// on every check; only a "yes" that follows a "no" during this run counts,
+  /// so a give-up left over from the attempt before cannot end this one.
+  final bool Function()? peerGaveUp;
+
   /// From the decision to a proven link. Generous: Android's "connect to this
-  /// network?" prompt waits for a person.
+  /// network?" prompt waits for a person. The same on both phones, and the
+  /// same as [RoomCarrierPromotionController.handoverDeadline], so neither
+  /// phone is still trying after the other has said it could not.
   final Duration moveDeadline;
 
-  /// How long a phone waiting for the host's announcement tolerates hearing
-  /// nothing at all from it over the router. A host whose Wi-Fi went down
-  /// when its hotspot came up can no longer announce, and waiting the whole
-  /// deadline for it would be a minute of spinner for nothing.
-  final Duration hostSilence;
-
-  /// How long the host waits for the other phone to reappear on its hotspot.
-  final Duration joinerSilence;
+  /// How long either phone tolerates hearing nothing at all from the other,
+  /// on any route, once the move is decided. The same on both sides: when
+  /// one phone cannot hear the other, the other cannot hear it either, so
+  /// both reach this within a heartbeat of each other. It used to be ten
+  /// seconds for the phone waiting on the host and thirty for the host, and
+  /// the person holding the second phone watched it keep trying long after
+  /// the first had given up (2026-10-16).
+  final Duration peerSilence;
 
   /// How many proofs on the new route make the link "stable".
   final int stableProofs;
@@ -203,6 +210,9 @@ final class RoomCarrierMigration {
     StreamSubscription<RoomCarrierStatus>? statusSub;
     StreamSubscription<RoomPeerProofEvidence>? proofSub;
     Timer? watchdog;
+    // Edge-triggered: the other phone's "gave up" counts only once it has
+    // been heard saying otherwise during this run.
+    var peerWasTrying = !(peerGaveUp?.call() ?? false);
 
     void finish(RoomMigrationOutcome outcome) {
       if (done.isCompleted) return;
@@ -281,6 +291,24 @@ final class RoomCarrierMigration {
 
     void check() {
       if (done.isCompleted) return;
+      // The other phone saying it could not is the end of it here too, at
+      // once: both screens turn to the same "couldn't move" together.
+      final gaveUp = peerGaveUp?.call() ?? false;
+      if (!gaveUp) {
+        peerWasTrying = true;
+      } else if (peerWasTrying) {
+        Logger.diagnostic(
+          'carrier_move: the other phone gave up — so does this one',
+        );
+        finish(
+          RoomMigrationOutcome(
+            RoomMigrationResult.needsGuidance,
+            side: side,
+            failure: RoomCarrierMoveFailure.timedOut,
+          ),
+        );
+        return;
+      }
       final decided = decidedAt;
       if (decided == null) return;
       final now = _clock();
@@ -295,26 +323,8 @@ final class RoomCarrierMigration {
         return;
       }
       final heard = lastPeerProofAt ?? decided;
-      final silent = now.difference(heard);
-      final waitingForHost =
-          side == RoomMigrationSide.joiner &&
-          mover.status.stage == RoomCarrierStage.awaitingHost;
-      if (waitingForHost && silent >= hostSilence) {
-        finish(
-          RoomMigrationOutcome(
-            RoomMigrationResult.needsGuidance,
-            side: side,
-            failure: RoomCarrierMoveFailure.timedOut,
-          ),
-        );
-        return;
-      }
-      // Once its access point is up the host's own status rests (it is on a
-      // network it owns), so "waiting" is anything past raising.
-      final hostWaiting =
-          side == RoomMigrationSide.host &&
-          mover.status.stage != RoomCarrierStage.raising;
-      if (hostWaiting && onNewRoute.isEmpty && silent >= joinerSilence) {
+      final last = heard.isAfter(decided) ? heard : decided;
+      if (onNewRoute.isEmpty && now.difference(last) >= peerSilence) {
         finish(
           RoomMigrationOutcome(
             RoomMigrationResult.needsGuidance,

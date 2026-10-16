@@ -509,6 +509,7 @@ final class _LiveFailoverSession {
       batteryPercent: capability.batteryPercent,
       prefersHotspotHost: capability.prefersHotspotHost,
       hostingAccessPoint: capability.hostingAccessPoint,
+      gaveUpMove: capability.gaveUpMove,
       at: DateTime.now(),
     );
   }

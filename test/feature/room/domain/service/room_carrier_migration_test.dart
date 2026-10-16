@@ -31,6 +31,7 @@ void main() {
     peer: peer,
     proofs: proofs.stream,
     previousRoute: '192.168.8.107',
+    peerGaveUp: () => mover.peerGaveUpMove,
     clock: () => now,
   );
 
@@ -163,15 +164,15 @@ void main() {
     });
   });
 
-  test('a host that went silent on the router hands the joiner to the '
-      'guided step without the full deadline', () {
+  test('a host that went silent hands the joiner to the guided step '
+      'without the full deadline', () {
     fakeAsync((async) {
       mover.start = RoomCarrierPromotionStart.following;
       RoomMigrationOutcome? outcome;
       build().run().then((o) => outcome = o);
       async.flushMicrotasks();
       mover.emit(RoomCarrierStage.awaitingHost);
-      advance(async, const Duration(seconds: 9));
+      advance(async, const Duration(seconds: 24));
       expect(outcome, isNull);
       advance(async, const Duration(seconds: 2));
       expect(outcome?.result, RoomMigrationResult.needsGuidance);
@@ -179,7 +180,7 @@ void main() {
     });
   });
 
-  test('the host waits for the joiner, then asks for the guided step', () {
+  test('the host waits for the joiner as long as the joiner waits for it', () {
     fakeAsync((async) {
       mover.start = RoomCarrierPromotionStart.hosting;
       RoomMigrationOutcome? outcome;
@@ -187,11 +188,193 @@ void main() {
       async.flushMicrotasks();
       mover.emit(RoomCarrierStage.moving, localIsHost: true);
       mover.emit(RoomCarrierStage.settled, localIsHost: true);
-      advance(async, const Duration(seconds: 29));
+      advance(async, const Duration(seconds: 24));
       expect(outcome, isNull);
       advance(async, const Duration(seconds: 2));
       expect(outcome?.result, RoomMigrationResult.needsGuidance);
       expect(outcome?.side, RoomMigrationSide.host);
+    });
+  });
+
+  test('the other phone giving up ends the move here at once', () {
+    fakeAsync((async) {
+      mover.start = RoomCarrierPromotionStart.hosting;
+      RoomMigrationOutcome? outcome;
+      build().run().then((o) => outcome = o);
+      async.flushMicrotasks();
+      mover.emit(RoomCarrierStage.moving, localIsHost: true);
+      advance(async, const Duration(seconds: 3));
+      expect(outcome, isNull);
+      mover.peerGaveUpMove = true;
+      advance(async, const Duration(milliseconds: 250));
+      expect(outcome?.result, RoomMigrationResult.needsGuidance);
+      expect(mover.stoodDown, isTrue);
+    });
+  });
+
+  test('a give-up left over from the last attempt does not end this one', () {
+    fakeAsync((async) {
+      mover.start = RoomCarrierPromotionStart.hosting;
+      mover.peerGaveUpMove = true;
+      RoomMigrationOutcome? outcome;
+      build().run().then((o) => outcome = o);
+      async.flushMicrotasks();
+      mover.emit(RoomCarrierStage.moving, localIsHost: true);
+      advance(async, const Duration(seconds: 5));
+      expect(outcome, isNull);
+      // The other phone starts its own attempt, then gives up on it.
+      mover.peerGaveUpMove = false;
+      advance(async, const Duration(seconds: 1));
+      expect(outcome, isNull);
+      mover.peerGaveUpMove = true;
+      advance(async, const Duration(milliseconds: 250));
+      expect(outcome?.result, RoomMigrationResult.needsGuidance);
+    });
+  });
+
+  group('two phones, one outcome', () {
+    // Both phones' moves, side by side on one clock. What each phone says
+    // about giving up reaches the other on its next heartbeat (a second),
+    // and only while [linked] — the router they still share.
+    late _Mover hostMover;
+    late _Mover joinerMover;
+    late StreamController<RoomPeerProofEvidence> hostProofs;
+    late StreamController<RoomPeerProofEvidence> joinerProofs;
+    final hostId = RoomMemberId('h' * 24);
+    RoomMigrationOutcome? hostOutcome;
+    RoomMigrationOutcome? joinerOutcome;
+    DateTime? hostEndedAt;
+    DateTime? joinerEndedAt;
+    var linked = true;
+
+    setUp(() {
+      hostMover = _Mover()..start = RoomCarrierPromotionStart.hosting;
+      joinerMover = _Mover()..start = RoomCarrierPromotionStart.following;
+      hostProofs = StreamController.broadcast(sync: true);
+      joinerProofs = StreamController.broadcast(sync: true);
+      hostOutcome = null;
+      joinerOutcome = null;
+      hostEndedAt = null;
+      joinerEndedAt = null;
+      linked = true;
+    });
+
+    void startBoth(FakeAsync async) {
+      RoomCarrierMigration(
+        mover: hostMover,
+        peer: peer,
+        proofs: hostProofs.stream,
+        previousRoute: '192.168.8.107',
+        peerGaveUp: () => hostMover.peerGaveUpMove,
+        clock: () => now,
+      ).run().then((o) {
+        hostOutcome = o;
+        hostEndedAt = now;
+      });
+      RoomCarrierMigration(
+        mover: joinerMover,
+        peer: hostId,
+        proofs: joinerProofs.stream,
+        previousRoute: '192.168.8.120',
+        peerGaveUp: () => joinerMover.peerGaveUpMove,
+        clock: () => now,
+      ).run().then((o) {
+        joinerOutcome = o;
+        joinerEndedAt = now;
+      });
+      async.flushMicrotasks();
+      hostMover.emit(RoomCarrierStage.moving, localIsHost: true);
+      hostMover.emit(RoomCarrierStage.settled, localIsHost: true);
+      joinerMover.emit(RoomCarrierStage.moving);
+    }
+
+    /// One second of both phones' heartbeats.
+    void heartbeat(FakeAsync async) {
+      if (linked) {
+        // Each phone gave up once its own move ended without moving.
+        hostMover.peerGaveUpMove =
+            joinerOutcome?.result == RoomMigrationResult.needsGuidance;
+        joinerMover.peerGaveUpMove =
+            hostOutcome?.result == RoomMigrationResult.needsGuidance;
+      }
+      advance(async, const Duration(seconds: 1));
+    }
+
+    void expectTogether() {
+      expect(hostOutcome?.result, RoomMigrationResult.needsGuidance);
+      expect(joinerOutcome?.result, RoomMigrationResult.needsGuidance);
+      final apart = hostEndedAt!.difference(joinerEndedAt!).abs();
+      expect(apart, lessThanOrEqualTo(const Duration(seconds: 2)));
+    }
+
+    test('Android turns the join down: both phones give up together', () {
+      fakeAsync((async) {
+        startBoth(async);
+        // Still on the router, each hears the other there.
+        for (var i = 0; i < 4; i++) {
+          hostProofs.add(proof('192.168.8.107'));
+          joinerProofs.add(proof('192.168.8.120', from: hostId));
+          heartbeat(async);
+        }
+        joinerMover.emit(
+          RoomCarrierStage.settled,
+          failure: RoomCarrierMoveFailure.joinDeclined,
+        );
+        async.flushMicrotasks();
+        expect(joinerOutcome?.result, RoomMigrationResult.needsGuidance);
+        for (var i = 0; i < 3 && hostOutcome == null; i++) {
+          hostProofs.add(proof('192.168.8.107'));
+          heartbeat(async);
+        }
+        expectTogether();
+      });
+    });
+
+    test('neither hears the other after the decision: both give up within a '
+        'heartbeat, whichever side they are on', () {
+      fakeAsync((async) {
+        startBoth(async);
+        linked = false;
+        for (
+          var i = 0;
+          i < 60 && (hostOutcome == null || joinerOutcome == null);
+          i++
+        ) {
+          heartbeat(async);
+        }
+        expectTogether();
+        expect(hostEndedAt, joinerEndedAt);
+      });
+    });
+
+    test('still hearing each other over the router but never on the hotspot: '
+        'the same deadline on both', () {
+      fakeAsync((async) {
+        startBoth(async);
+        for (
+          var i = 0;
+          i < 60 && (hostOutcome == null || joinerOutcome == null);
+          i++
+        ) {
+          hostProofs.add(proof('192.168.8.107'));
+          joinerProofs.add(proof('192.168.8.120', from: hostId));
+          heartbeat(async);
+        }
+        expectTogether();
+      });
+    });
+
+    test('a hotspot the two prove themselves on moves both', () {
+      fakeAsync((async) {
+        startBoth(async);
+        for (var i = 0; i < 4; i++) {
+          hostProofs.add(proof('10.42.0.7'));
+          joinerProofs.add(proof('10.42.0.1', from: hostId));
+          heartbeat(async);
+        }
+        expect(hostOutcome?.result, RoomMigrationResult.moved);
+        expect(joinerOutcome?.result, RoomMigrationResult.moved);
+      });
     });
   });
 
@@ -237,6 +420,9 @@ void main() {
 class _Mover implements RoomCarrierMover {
   RoomCarrierPromotionStart start = RoomCarrierPromotionStart.noPeers;
   bool stoodDown = false;
+
+  @override
+  bool peerGaveUpMove = false;
   final _changes = StreamController<RoomCarrierStatus>.broadcast(sync: true);
 
   @override

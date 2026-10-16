@@ -20,7 +20,11 @@ void main() {
   var joinCalls = 0;
   var leaveCalls = 0;
 
+  var clientAddress = '10.14.189.134';
+
   setUp(() {
+    clientAddress = '10.14.189.134';
+    AndroidWifiJoiner.clientAddress = () async => clientAddress;
     joinCalls = 0;
     leaveCalls = 0;
     joiner = AndroidWifiJoiner();
@@ -45,6 +49,25 @@ void main() {
     await joiner.leave();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
+  });
+
+  test('a phone the OS moved back to the router joins again', () async {
+    // 2026-10-16 13:04: Android 9 put the phone back on the home router
+    // without telling the app, and a "duplicate" join for the host's
+    // hotspot was suppressed. The phone sat on the router waiting for it.
+    nativeJoin.complete(true);
+    expect(await joiner.join(creds), HotspotJoinResult.joined);
+    await pumpEventQueue();
+    expect(joinCalls, 1);
+
+    // Still on the hotspot: the duplicate is suppressed as before.
+    expect(await joiner.join(creds), HotspotJoinResult.joined);
+    expect(joinCalls, 1);
+
+    clientAddress = '192.168.8.155';
+    expect(await joiner.join(creds), HotspotJoinResult.joined);
+    expect(joinCalls, 2);
+    expect(leaveCalls, 1);
   });
 
   test(

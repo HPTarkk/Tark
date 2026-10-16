@@ -113,6 +113,7 @@ final class RoomVerifiedTransportEvidenceBridge {
       at: observation.observedAt,
       prefersHotspotHost: capability.prefersHotspotHost,
       hostingAccessPoint: capability.hostingAccessPoint,
+      gaveUpMove: capability.gaveUpMove,
     );
   }
 

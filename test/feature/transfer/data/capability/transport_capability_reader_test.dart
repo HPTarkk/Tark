@@ -170,4 +170,16 @@ void main() {
       );
     });
   });
+
+  group('gave up on a move', () {
+    tearDown(TransportCapabilityReader.clearGaveUpMove);
+
+    test('said for a few seconds, then cleared by the next attempt', () {
+      expect(TransportCapabilityReader.gaveUpMove, isFalse);
+      TransportCapabilityReader.signalGaveUpMove();
+      expect(TransportCapabilityReader.gaveUpMove, isTrue);
+      TransportCapabilityReader.clearGaveUpMove();
+      expect(TransportCapabilityReader.gaveUpMove, isFalse);
+    });
+  });
 }

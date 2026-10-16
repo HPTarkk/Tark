@@ -76,6 +76,7 @@ final class RoomCapabilityFailoverRuntime {
     required DateTime at,
     bool prefersHotspotHost = false,
     bool hostingAccessPoint = false,
+    bool gaveUpMove = false,
   }) => observer.observePeer(
     peerKey: peerKey,
     canHostHotspot: canHostHotspot,
@@ -86,6 +87,7 @@ final class RoomCapabilityFailoverRuntime {
     attachmentGeneration: attachmentGeneration,
     prefersHotspotHost: prefersHotspotHost,
     hostingAccessPoint: hostingAccessPoint,
+    gaveUpMove: gaveUpMove,
   );
 
   void observeLocal({
@@ -96,6 +98,7 @@ final class RoomCapabilityFailoverRuntime {
     required DateTime at,
     bool prefersHotspotHost = false,
     bool hostingAccessPoint = false,
+    bool gaveUpMove = false,
   }) {
     observer.observeLocal(
       memberId: localMemberId,
@@ -107,6 +110,7 @@ final class RoomCapabilityFailoverRuntime {
       attachmentGeneration: attachmentGeneration,
       prefersHotspotHost: prefersHotspotHost,
       hostingAccessPoint: hostingAccessPoint,
+      gaveUpMove: gaveUpMove,
     );
   }
 

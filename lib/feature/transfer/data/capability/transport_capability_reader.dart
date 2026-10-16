@@ -27,6 +27,28 @@ abstract final class TransportCapabilityReader {
   /// on is the Room's own rather than some router. See [carriesOnAccessPoint].
   static Future<bool> Function()? hostingNow;
 
+  static DateTime? _gaveUpMoveUntil;
+
+  /// How long a phone keeps telling the others it gave up on a move. Long
+  /// enough for a few heartbeats to get through, short enough that a peer on
+  /// an older build (which rejects unknown flags) misses this phone's
+  /// capabilities only briefly.
+  static const gaveUpMoveFor = Duration(seconds: 12);
+
+  /// Whether this phone has just given up on moving the Room to a hotspot.
+  static bool get gaveUpMove {
+    final until = _gaveUpMoveUntil;
+    return until != null && DateTime.now().isBefore(until);
+  }
+
+  /// Tells the other phones, on every heartbeat for [gaveUpMoveFor], that the
+  /// move failed here, so they stop waiting for it and show the same screen.
+  static void signalGaveUpMove() =>
+      _gaveUpMoveUntil = DateTime.now().add(gaveUpMoveFor);
+
+  /// A new attempt starts clean.
+  static void clearGaveUpMove() => _gaveUpMoveUntil = null;
+
   /// Whether a phone [hosting] an access point carries the Room on it.
   ///
   /// On no other Wi-Fi ([station] null) it can only be heard over its own
@@ -68,6 +90,7 @@ abstract final class TransportCapabilityReader {
         prefersHotspotHost:
             prefersHotspotHost ?? await _readHostingPreference(),
         hostingAccessPoint: await _readHostingNow(),
+        gaveUpMove: gaveUpMove,
       );
     } on PlatformException {
       return null;
@@ -101,6 +124,7 @@ abstract final class TransportCapabilityReader {
     Map<Object?, Object?>? raw, {
     bool prefersHotspotHost = false,
     bool hostingAccessPoint = false,
+    bool gaveUpMove = false,
   }) {
     if (raw == null) return null;
     final canHostHotspot = raw['canHostHotspot'];
@@ -122,6 +146,7 @@ abstract final class TransportCapabilityReader {
       batteryPercent: batteryPercent,
       prefersHotspotHost: prefersHotspotHost,
       hostingAccessPoint: hostingAccessPoint,
+      gaveUpMove: gaveUpMove,
     );
   }
 }

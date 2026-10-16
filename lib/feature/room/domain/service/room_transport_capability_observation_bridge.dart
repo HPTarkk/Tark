@@ -45,6 +45,7 @@ final class RoomTransportCapabilityObservationBridge {
       at: observation.observedAt,
       prefersHotspotHost: capability.prefersHotspotHost,
       hostingAccessPoint: capability.hostingAccessPoint,
+      gaveUpMove: capability.gaveUpMove,
     );
   }
 

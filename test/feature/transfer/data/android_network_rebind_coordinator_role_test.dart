@@ -74,6 +74,8 @@ void main() {
     roles.setRole(SessionRole.host);
     await _settle();
     expect(port.clearCount, 1);
+    // Sockets made under the client pin would stay on the router.
+    expect(socketRebinds, 1);
 
     await coordinator.dispose();
     final clearsAtDispose = port.clearCount;
@@ -82,7 +84,8 @@ void main() {
     await _settle();
     expect(port.clearCount, clearsAtDispose);
     expect(port.bindGenerations, [33]);
-    expect(socketRebinds, 0);
+    // Once, when the host side unpinned the process; none after dispose.
+    expect(socketRebinds, 1);
 
     await modes.dispose();
     await port.dispose();

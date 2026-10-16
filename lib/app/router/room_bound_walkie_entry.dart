@@ -348,6 +348,14 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     final probe = _probe;
     final modeStore = _modeStore;
     if (probe == null || modeStore == null) return true;
+    // A Bluetooth link the move has just made is the link. The probe cannot
+    // see it yet (the Room's own Bluetooth socket is not the transport it
+    // asks about), so reading the radios here traded it for the home Wi-Fi:
+    // both phones then sat on "checking" listening over Wi-Fi for proof that
+    // was going over Bluetooth (2026-10-16 13:22).
+    if (_bluetoothLinkMade && modeStore.mode == TransferMode.bluetooth) {
+      return true;
+    }
     final links = await _readLinks();
     if (mounted) setState(() => _links = links);
     final pinned = honourPin
@@ -1557,6 +1565,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   /// What went wrong, while the move's scene is telling it.
   RoomMigrationFailureCopy? _migrationFailure;
 
+  /// The Bluetooth move has its link and is proving it: the link gate keeps
+  /// the transport on Bluetooth rather than reading the radios.
+  bool _bluetoothLinkMade = false;
+
   /// Moves that did not finish since this move off the router began. From
   /// [manualJoinAfterFailures] on, the person is shown how to join by hand.
   int _moveFailures = 0;
@@ -1597,7 +1609,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     bool fellBack = false,
   }) async {
     if (!_movesOffRouter || !mounted) return live;
-    if (_modeStore?.mode != TransferMode.wifi) return live;
+    final mode = _modeStore?.mode;
+    if (mode != TransferMode.wifi && mode != TransferMode.hotspot) return live;
     final binding = _binding;
     final mover = binding?.carrierPromotion;
     if (binding == null || mover == null) return live;
@@ -1610,6 +1623,21 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     // in-channel move, which waits for everyone to arrive first.
     if (proven.length != 1) return live;
     final peer = proven.values.single;
+    if (mode == TransferMode.hotspot) {
+      // Holding an access point up while the other phone is heard only over
+      // the router: the access point is a leftover nobody is on, and the
+      // other phone — which hears this one say so — is starting the move.
+      // Going to the call here instead is what left one phone talking and
+      // the other moving (2026-10-16). Both take the move, on the same
+      // screen; it reuses the access point that is already up.
+      if (!await _holdingUnusedAccessPoint()) return live;
+      if (!mounted) return live;
+      Logger.diagnostic(
+        'room: holding an access point the other phone is not on — moving '
+        'the pair onto it',
+      );
+      await _modeStore?.setMode(TransferMode.wifi);
+    }
     // The other phone may be the network: holding its access point up with
     // this phone joined to it, which from here looks like any Wi-Fi. Its
     // capabilities say so; give them a moment to arrive before setting off
@@ -1942,12 +1970,18 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       if (reason == null) {
         show(RoomMigrationStep.verifying);
         await _modeStore?.setMode(TransferMode.bluetooth);
-        final outcome = await _verifiedLiveFor(
-          room,
-          linkEstablished: true,
-          readinessTimeout: const Duration(seconds: 30),
-          moveOffRouter: false,
-        );
+        _bluetoothLinkMade = true;
+        final _EntryState outcome;
+        try {
+          outcome = await _verifiedLiveFor(
+            room,
+            linkEstablished: true,
+            readinessTimeout: const Duration(seconds: 30),
+            moveOffRouter: false,
+          );
+        } finally {
+          _bluetoothLinkMade = false;
+        }
         if (!mounted) return _EntryState.lobby(room);
         if (stoppedNow) return _stopBluetooth(room, clear);
         if (outcome.live) {
@@ -2203,6 +2237,20 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     }
   }
 
+  /// Whether this phone is holding an access point up that the other phone
+  /// is not on: the same answer it sends the others, so both phones read the
+  /// network the same way.
+  Future<bool> _holdingUnusedAccessPoint() async {
+    final host = _hotspotHost;
+    final carries = TransportCapabilityReader.hostingNow;
+    if (host == null || !host.isHosting || carries == null) return false;
+    try {
+      return !await carries();
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// One run of the move, with its progress on screen.
   Future<RoomMigrationOutcome> _runMigration({
     required RoomCarrierMover mover,
@@ -2217,20 +2265,31 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       peer: peer.memberId,
       proofs: binding.verifiedPeerProofs,
       previousRoute: peer.carrierRoute,
+      peerGaveUp: () => mover.peerGaveUpMove,
     );
+    // A new attempt: whatever this phone said about the last one is over.
+    TransportCapabilityReader.clearGaveUpMove();
     final progress = migration.progressChanges.listen((step) {
       if (mounted && identical(_migrationLanded, landed)) {
         setState(() => _migrationProgress = step);
       }
     });
     try {
-      return await migration.run(
+      final outcome = await migration.run(
         abandoned: Future.any([
           _abandonWaits.future,
           stay.future,
           close.future,
         ]),
       );
+      // Not moving, here: say so on every heartbeat for a few seconds, so
+      // the other phone stops trying at once instead of running out its own
+      // clock behind a spinner.
+      if (outcome.result == RoomMigrationResult.needsGuidance ||
+          outcome.result == RoomMigrationResult.abandoned) {
+        TransportCapabilityReader.signalGaveUpMove();
+      }
+      return outcome;
     } finally {
       await progress.cancel();
       await migration.dispose();

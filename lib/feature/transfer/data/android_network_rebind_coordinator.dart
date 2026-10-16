@@ -136,6 +136,19 @@ final class AndroidNetworkRebindCoordinator {
     _boundNetworkGeneration = null;
     _loggedHostSkip = false;
     await _port.clear();
+    // Sockets keep the network they were made on. Made while the process was
+    // pinned to the router, they stay on it after the pin goes, and a phone
+    // joining this one's access point is never heard: the move off the router
+    // timed out on the host with the other phone sitting on its hotspot
+    // (2026-10-16 13:06 and 13:18). Rebuilt here, they listen on every
+    // interface, the access point's included.
+    if (!_disposed && _active && roleGeneration == _roleGeneration) {
+      _rebindWifiSockets();
+      Logger.diagnostic(
+        'network: hosting — released the router pin and rebuilt both UDP '
+        'sockets',
+      );
+    }
     if (!_disposed &&
         _active &&
         roleGeneration != _roleGeneration &&

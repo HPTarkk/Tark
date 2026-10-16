@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/hotspot_credentials.dart';
 import '../../domain/service/hotspot_control.dart';
+import 'wifi_client_address.dart';
 
 /// Android host side of the hotspot bridge: drives `WifiManager
 /// .startLocalOnlyHotspot` over the native `tark/hotspot` channel
@@ -388,6 +390,35 @@ class AndroidWifiJoiner implements HotspotJoiner {
   /// accepted and bound. That exact sequence showed up in the 2026-09-05 field
   /// logs: accepted -> peer traffic -> a new join -> selected network release.
   static HotspotCredentials? _activeCredentials;
+
+  /// This phone's address as a Wi-Fi client, for telling whether it is still
+  /// on the hotspot it joined.
+  @visibleForTesting
+  static Future<String?> Function() clientAddress = WifiClientAddress.current;
+
+  /// The /24 this phone got on the hotspot it last joined, once known.
+  static String? _joinedSubnet;
+
+  static String? _subnetOf(String? address) {
+    final parts = address?.split('.');
+    if (parts == null || parts.length != 4) return null;
+    return parts.take(3).join('.');
+  }
+
+  /// Notes which subnet the join landed on. The address can lag the join
+  /// by a moment, so it is asked again once if it is not there yet.
+  Future<void> _rememberJoinedSubnet(int epoch) async {
+    for (var attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) await Future<void>.delayed(const Duration(seconds: 2));
+      if (epoch != _joinEpoch || _activeCredentials == null) return;
+      final subnet = _subnetOf(await clientAddress());
+      if (subnet != null) {
+        if (epoch == _joinEpoch) _joinedSubnet = subnet;
+        return;
+      }
+    }
+  }
+
   static HotspotCredentials? _joiningCredentials;
   static Future<HotspotJoinResult>? _joiningFuture;
   static Future<void>? _releaseFuture;
@@ -466,6 +497,20 @@ class AndroidWifiJoiner implements HotspotJoiner {
         continue;
       }
       if (_activeCredentials == credentials) {
+        // "Joined" is only what this object last heard. Android 9 can move
+        // the radio back to the home router without a word reaching here, and
+        // a join suppressed on that stale word left a phone on the router
+        // waiting for the host on a hotspot it had left (2026-10-16 13:04).
+        final joined = _joinedSubnet;
+        final now = _subnetOf(await clientAddress());
+        if (joined != null && now != null && now != joined) {
+          Logger.diagnostic(
+            'network: no longer on the joined hotspot — joining it again',
+          );
+          // Let go of the old request first, so Android asks afresh.
+          await leave();
+          continue;
+        }
         Logger.diagnostic(
           'network: duplicate hotspot join suppressed state=joined',
         );
@@ -497,6 +542,10 @@ class AndroidWifiJoiner implements HotspotJoiner {
       _activeCredentials = result == HotspotJoinResult.joined
           ? credentials
           : null;
+      _joinedSubnet = null;
+      if (result == HotspotJoinResult.joined) {
+        unawaited(_rememberJoinedSubnet(epoch));
+      }
     } else {
       Logger.diagnostic('network: stale hotspot join completion ignored');
       return HotspotJoinResult.declined;
@@ -609,6 +658,7 @@ class AndroidWifiJoiner implements HotspotJoiner {
     // this explicit teardown has won ownership of the state machine.
     _joinEpoch++;
     _activeCredentials = null;
+    _joinedSubnet = null;
     _joiningCredentials = null;
     _joiningFuture = null;
     Logger.diagnostic('network: selected wifi release requested');

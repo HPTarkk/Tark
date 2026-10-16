@@ -19,6 +19,7 @@ final class RoomTransportCandidate {
     required this.batteryPercent,
     this.prefersHotspotHost = false,
     this.hostingAccessPoint = false,
+    this.gaveUpMove = false,
   }) : assert(batteryPercent >= 0 && batteryPercent <= 100);
 
   final RoomMemberId memberId;
@@ -38,6 +39,11 @@ final class RoomTransportCandidate {
   /// now, as it says itself. A phone on that access point cannot tell it from
   /// a router, so this is how both phones agree on what they are standing on.
   final bool hostingAccessPoint;
+
+  /// Whether this member has just given up on moving the Room to a hotspot,
+  /// as it says itself. The other phone stops waiting for it the moment it
+  /// hears this, so both show the same "couldn't move" together.
+  final bool gaveUpMove;
 }
 
 final class RoomTransportEnvironment {

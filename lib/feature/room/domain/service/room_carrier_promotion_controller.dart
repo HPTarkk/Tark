@@ -114,6 +114,9 @@ abstract interface class RoomCarrierMover implements RoomCarrierStatusSource {
   Future<RoomCarrierPromotionStart> promoteNow();
 
   void standDown();
+
+  /// Whether the other phone says it has just given up on the move.
+  bool get peerGaveUpMove;
 }
 
 /// What [RoomCarrierPromotionController.promoteNow] found it could do.
@@ -386,6 +389,14 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
   bool get peerCarriesRoom => candidates().any(
     (candidate) =>
         candidate.memberId != localMemberId && candidate.hostingAccessPoint,
+  );
+
+  /// Whether another member says it has just given up on a move to a
+  /// hotspot. A pre-channel move ends here the moment this turns true, so
+  /// the two phones show the same "couldn't move" at the same time.
+  @override
+  bool get peerGaveUpMove => candidates().any(
+    (candidate) => candidate.memberId != localMemberId && candidate.gaveUpMove,
   );
 
   bool _carries(RoomMemberId member) => candidates().any(

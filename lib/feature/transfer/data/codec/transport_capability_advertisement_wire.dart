@@ -28,12 +28,17 @@ abstract final class TransportCapabilityAdvertisementWire {
   /// build (which rejects unknown flags) loses this phone's capabilities only
   /// for as long as it holds an access point up.
   static const _hostingAccessPoint = 1 << 4;
+
+  /// Set only for a few seconds after this phone gave up on a move, for the
+  /// same reason.
+  static const _gaveUpMove = 1 << 5;
   static const _knownFlags =
       _canHostHotspot |
       _bluetoothSupported |
       _backgroundReady |
       _prefersHotspotHost |
-      _hostingAccessPoint;
+      _hostingAccessPoint |
+      _gaveUpMove;
 
   static Uint8List encode(TransportCapabilityAdvertisement value) {
     var flags = 0;
@@ -42,6 +47,7 @@ abstract final class TransportCapabilityAdvertisementWire {
     if (value.backgroundReady) flags |= _backgroundReady;
     if (value.prefersHotspotHost) flags |= _prefersHotspotHost;
     if (value.hostingAccessPoint) flags |= _hostingAccessPoint;
+    if (value.gaveUpMove) flags |= _gaveUpMove;
     return Uint8List.fromList([marker, version, flags, value.batteryPercent]);
   }
 
@@ -65,6 +71,7 @@ abstract final class TransportCapabilityAdvertisementWire {
       backgroundReady: (flags & _backgroundReady) != 0,
       prefersHotspotHost: (flags & _prefersHotspotHost) != 0,
       hostingAccessPoint: (flags & _hostingAccessPoint) != 0,
+      gaveUpMove: (flags & _gaveUpMove) != 0,
       batteryPercent: battery,
     );
   }

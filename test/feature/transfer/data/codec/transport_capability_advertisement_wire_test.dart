@@ -35,6 +35,20 @@ void main() {
     expect(TransportCapabilityAdvertisementWire.encode(value)[2] & 0x10, 0);
   });
 
+  test('the gave-up flag round trips, and is clear unless set', () {
+    const gaveUp = TransportCapabilityAdvertisement(
+      canHostHotspot: true,
+      bluetoothSupported: true,
+      backgroundReady: true,
+      batteryPercent: 50,
+      gaveUpMove: true,
+    );
+    final encoded = TransportCapabilityAdvertisementWire.encode(gaveUp);
+    expect(encoded[2] & 0x20, 0x20);
+    expect(TransportCapabilityAdvertisementWire.decode(encoded, 0), gaveUp);
+    expect(TransportCapabilityAdvertisementWire.encode(value)[2] & 0x20, 0);
+  });
+
   test('decodes from a trailing offset without consuming earlier bytes', () {
     final trailer = TransportCapabilityAdvertisementWire.encode(value);
     final packet = Uint8List.fromList([1, 2, 3, ...trailer, 99]);
