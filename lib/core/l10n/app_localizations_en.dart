@@ -959,18 +959,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Voice settings are back to normal';
 
   @override
-  String get settings_auto_reconnect => 'Connect again by itself';
+  String get settings_auto_reconnect => 'Auto-reconnect';
 
   @override
   String get settings_auto_reconnect_desc =>
-      'Hops back on by itself when the connection drops, and picks up your last Bluetooth phone when you\'re back';
+      'Automatically reconnect when disconnected';
 
   @override
   String get settings_permissions_row => 'Permissions';
 
   @override
-  String get settings_permissions_row_desc =>
-      'See and change what the app can get at';
+  String get settings_permissions_row_desc => 'What the app can access';
 
   @override
   String get settings_skip_splash => 'Skip splash screen';
@@ -1908,13 +1907,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rooms_save => 'Save';
 
   @override
-  String get rooms_archive => 'Archive';
-
-  @override
   String get rooms_archived => 'Archived';
-
-  @override
-  String get rooms_leave => 'Leave room';
 
   @override
   String get rooms_cancel => 'Cancel';
@@ -1973,16 +1966,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String rooms_pending_seats_other(Object count) {
     return '$count open seats';
-  }
-
-  @override
-  String rooms_archive_confirm(Object name) {
-    return 'Moves “$name” out of the list with its membership intact. Bring it back from the archive whenever you want.';
-  }
-
-  @override
-  String rooms_leave_confirm(Object name) {
-    return 'Leave “$name”? This removes your membership and is different from ending a live session.';
   }
 
   @override
@@ -2281,7 +2264,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String archive_delete_confirm(Object name) {
-    return 'Deletes “$name” from this phone for good. If you only want it out of the list, archive it instead.';
+    return 'Deletes “$name” from this phone for good.';
   }
 
   @override
@@ -3069,7 +3052,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get paywall_locked_rooms =>
-      'Activate Premium for more than two active rooms. You can also archive a room to continue for free.';
+      'Activate Premium for more than two active rooms. You can also delete a room to continue for free.';
 
   @override
   String get paywall_perk_rooms => 'More than two active rooms';
@@ -3090,7 +3073,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get room_create_limit_hint =>
-      'Two active rooms are free. Activate Premium for the next one, or archive an existing room.';
+      'Two active rooms are free. Activate Premium for the next one, or delete an existing room.';
 
   @override
   String get room_create_working => 'Creating your room';
@@ -3168,6 +3151,24 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get beta_guest_web_notice =>
       'This connection is still in beta — if it drops, just scan the QR again.';
+
+  @override
+  String get beta_feature_widget => 'Home-screen widget';
+
+  @override
+  String get beta_widget_intro_body =>
+      'The home-screen widget is still in beta. It works, it just hasn\'t been road-tested enough yet.';
+
+  @override
+  String get beta_widget_intro_works =>
+      'It works, and it\'s free — go ahead and add it';
+
+  @override
+  String get beta_widget_intro_bugs =>
+      'It might fall a step behind the app now and then';
+
+  @override
+  String get beta_widget_intro_steadier => 'If it acts up, open Tarkk itself';
 
   @override
   String get journey_scanned_title => 'Got the invite';

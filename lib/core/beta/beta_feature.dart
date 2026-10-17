@@ -16,16 +16,21 @@ import '../l10n/app_localizations.dart';
 enum BetaFeature {
   /// Hosting a browser guest over the serverless WebRTC link — the Guest
   /// transport and everything it opens (the invite page, the browser app).
-  guestConnection;
+  guestConnection,
+
+  /// The home-screen channel widget and the Settings row that pins it.
+  homeWidget;
 
   /// Stable persistence id. Never rename a shipped value's key: it names the
   /// "intro already seen" flag on existing installs.
   String get key => switch (this) {
     BetaFeature.guestConnection => 'guest_connection',
+    BetaFeature.homeWidget => 'home_widget',
   };
 
   /// The feature's human name, as the beta intro and notices say it.
   String label(AppLocalizations s) => switch (this) {
     BetaFeature.guestConnection => s.beta_feature_guest,
+    BetaFeature.homeWidget => s.beta_feature_widget,
   };
 }

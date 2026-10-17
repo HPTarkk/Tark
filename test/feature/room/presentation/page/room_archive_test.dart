@@ -33,12 +33,33 @@ void main() {
 
     expect(find.byKey(const Key('rooms-archive-action')), findsNothing);
 
-    await _archiveFromMenu(tester, '1' * 32);
+    // Archiving is no longer offered from a Room's menu; Delete is the one
+    // way to take a Room out of the list.
+    await tester.tap(find.byKey(Key('room-menu-${'1' * 32}')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('room-action-archive')), findsNothing);
+    expect(find.byKey(const Key('room-action-leave')), findsNothing);
+    expect(find.byKey(const Key('room-action-delete')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('room-actions-close')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('rooms-archive-action')), findsNothing);
+  });
+
+  testWidgets('rooms archived before stay reachable from the archive', (
+    tester,
+  ) async {
+    final repository = _FakeRoomRepository(
+      rooms: [
+        _savedRoom('1' * 32, 'Weekend crew', archived: true),
+        _savedRoom('2' * 32, 'Mountain ride'),
+      ],
+    );
+    await _pump(tester, getIt, repository);
 
     expect(find.byKey(const Key('rooms-archive-action')), findsOneWidget);
-    // ...and it has left the live list, without leaving storage.
+    // ...and it stays out of the live list, without leaving storage.
     expect(find.text('Weekend crew'), findsNothing);
-    expect(repository.rooms, hasLength(1));
+    expect(repository.rooms, hasLength(2));
   });
 
   testWidgets('an archived room can be restored from the sheet', (
@@ -231,15 +252,6 @@ Future<void> _pump(
       home: RoomListPage.buildPage(),
     ),
   );
-  await tester.pumpAndSettle();
-}
-
-Future<void> _archiveFromMenu(WidgetTester tester, String id) async {
-  await tester.tap(find.byKey(Key('room-menu-$id')));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Archive').last);
-  await tester.pumpAndSettle();
-  await tester.tap(find.byKey(const Key('confirm-sheet-action')));
   await tester.pumpAndSettle();
 }
 

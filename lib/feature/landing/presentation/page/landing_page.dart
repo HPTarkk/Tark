@@ -6,9 +6,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/beta/beta_badge.dart';
-import '../../../../core/l10n/app_localizations.dart';
-import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/motion/route_arrival.dart';
 import '../../../../core/router/routes.dart';
@@ -16,7 +13,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/mesh_background.dart';
 import '../../../../core/widget/settings_icon_button.dart';
 import '../../../../core/widget/version_badge.dart';
-import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 import '../widget/landing_identity_card.dart';
 import '../widget/landing_logo.dart';
@@ -182,19 +178,19 @@ class _LandingPageState extends State<LandingPage>
                                   ),
                                 ),
                                 const Spacer(flex: 2),
+                                // The transport chip that used to sit under
+                                // the card is gone: the link is chosen for
+                                // each room as it is entered, so pointing at
+                                // its settings here only invited a detour.
+                                // The override still lives in Advanced
+                                // settings.
                                 _entrance(
                                   1,
-                                  Column(
-                                    children: [
-                                      LandingIdentityCard(
-                                        state: state,
-                                        onEdit: () => context.pushNamed(
-                                          AppRoutes.profileName,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      _TransportChip(pinned: state.pinnedMode),
-                                    ],
+                                  LandingIdentityCard(
+                                    state: state,
+                                    onEdit: () => context.pushNamed(
+                                      AppRoutes.profileName,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 20),
@@ -231,75 +227,6 @@ class _LandingPageState extends State<LandingPage>
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Transport chip ───────────────────────────────────────────────────────────
-
-/// Names the selected transport and opens the place to change it.
-class _TransportChip extends StatelessWidget {
-  final TransferMode? pinned;
-
-  const _TransportChip({required this.pinned});
-
-  String _label(AppLocalizations s, TransferMode? mode) => switch (mode) {
-    null ||
-    TransferMode.wifi ||
-    TransferMode.hotspot => s.transport_wifi_hotspot,
-    TransferMode.bluetooth => s.transport_bluetooth,
-    TransferMode.guest => s.transport_guest,
-  };
-
-  IconData _icon(TransferMode? mode) => switch (mode) {
-    null || TransferMode.wifi || TransferMode.hotspot => Icons.wifi_rounded,
-    TransferMode.bluetooth => Icons.bluetooth_rounded,
-    TransferMode.guest => Icons.qr_code_rounded,
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final s = context.getString;
-    return GestureDetector(
-      onTap: () => context.pushNamed(AppRoutes.advancedSettingsName),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(_icon(pinned), size: 14, color: AppColors.textSecondary),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                _label(s, pinned),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            if (pinned?.betaFeature != null) ...[
-              const SizedBox(width: 6),
-              const BetaPill(showIcon: false),
-            ],
-            const SizedBox(width: 4),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 14,
-              color: AppColors.textSecondary,
-            ),
-          ],
         ),
       ),
     );
