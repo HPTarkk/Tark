@@ -16,21 +16,21 @@ import '../../domain/entity/transport_capability_advertisement.dart';
 /// closed to `null`. This does not introduce a packet-v2 rewrite.
 abstract final class TransportCapabilityAdvertisementWire {
   static const marker = 0x54; // 'T' for transport capability.
-  static const version = 1;
-  static const encodedLength = 4;
+  static const version = 2;
+
+  /// marker, version, flags, battery, Android API level, then the first
+  /// install time as four big-endian bytes of seconds since the epoch.
+  static const encodedLength = 9;
 
   static const _canHostHotspot = 1 << 0;
   static const _bluetoothSupported = 1 << 1;
   static const _backgroundReady = 1 << 2;
   static const _prefersHotspotHost = 1 << 3;
 
-  /// Set only while the phone is actually hosting, so a peer on an older
-  /// build (which rejects unknown flags) loses this phone's capabilities only
-  /// for as long as it holds an access point up.
+  /// Set only while the phone is actually hosting.
   static const _hostingAccessPoint = 1 << 4;
 
-  /// Set only for a few seconds after this phone gave up on a move, for the
-  /// same reason.
+  /// Set only for a few seconds after this phone gave up on a move.
   static const _gaveUpMove = 1 << 5;
   static const _knownFlags =
       _canHostHotspot |
@@ -48,7 +48,18 @@ abstract final class TransportCapabilityAdvertisementWire {
     if (value.prefersHotspotHost) flags |= _prefersHotspotHost;
     if (value.hostingAccessPoint) flags |= _hostingAccessPoint;
     if (value.gaveUpMove) flags |= _gaveUpMove;
-    return Uint8List.fromList([marker, version, flags, value.batteryPercent]);
+    final installed = value.installedAt.clamp(0, 0xFFFFFFFF);
+    return Uint8List.fromList([
+      marker,
+      version,
+      flags,
+      value.batteryPercent,
+      value.androidSdk.clamp(0, 255),
+      (installed >> 24) & 0xFF,
+      (installed >> 16) & 0xFF,
+      (installed >> 8) & 0xFF,
+      installed & 0xFF,
+    ]);
   }
 
   /// Decodes exactly one optional record beginning at [offset].
@@ -64,6 +75,11 @@ abstract final class TransportCapabilityAdvertisementWire {
     if ((flags & ~_knownFlags) != 0) return null;
     final battery = bytes[offset + 3];
     if (battery > 100) return null;
+    final installed =
+        (bytes[offset + 5] << 24) |
+        (bytes[offset + 6] << 16) |
+        (bytes[offset + 7] << 8) |
+        bytes[offset + 8];
 
     return TransportCapabilityAdvertisement(
       canHostHotspot: (flags & _canHostHotspot) != 0,
@@ -73,6 +89,8 @@ abstract final class TransportCapabilityAdvertisementWire {
       hostingAccessPoint: (flags & _hostingAccessPoint) != 0,
       gaveUpMove: (flags & _gaveUpMove) != 0,
       batteryPercent: battery,
+      androidSdk: bytes[offset + 4],
+      installedAt: installed,
     );
   }
 }

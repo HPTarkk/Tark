@@ -81,6 +81,43 @@ void main() {
     expect(plan.hotspotHost, const RoomMemberId('member-a'));
   });
 
+  test('a battery tie goes to the newer Android, then the older install', () {
+    RoomTransportCandidate phone(String id, int sdk, int installed) =>
+        RoomTransportCandidate(
+          memberId: RoomMemberId(id),
+          canHostHotspot: true,
+          bluetoothSupported: true,
+          backgroundReady: true,
+          batteryPercent: 80,
+          androidSdk: sdk,
+          installedAt: installed,
+        );
+    RoomMemberId? elect(List<RoomTransportCandidate> candidates) =>
+        RoomTransportPlanner.plan(
+          RoomTransportEnvironment(
+            sharedLanUsable: false,
+            epoch: 1,
+            candidates: candidates,
+          ),
+        ).hotspotHost;
+
+    final s8 = phone('member-a', 28, 1000);
+    final a12 = phone('member-z', 31, 2000);
+    expect(elect([s8, a12]), const RoomMemberId('member-z'));
+    expect(elect([a12, s8]), const RoomMemberId('member-z'));
+
+    final older = phone('member-z', 31, 1000);
+    final newer = phone('member-a', 31, 2000);
+    expect(elect([older, newer]), const RoomMemberId('member-z'));
+    expect(elect([newer, older]), const RoomMemberId('member-z'));
+
+    // Unknown on either side decides nothing; the next rule does.
+    expect(
+      elect([phone('member-z', 31, 1000), phone('member-a', 0, 0)]),
+      const RoomMemberId('member-a'),
+    );
+  });
+
   test('the member who joined the room first wins a battery tie', () {
     final older = candidate(
       'member-z',

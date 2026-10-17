@@ -16,8 +16,21 @@ void main() {
   test('round trips bounded transport capability evidence', () {
     final encoded = TransportCapabilityAdvertisementWire.encode(value);
 
-    expect(encoded, hasLength(4));
+    expect(encoded, hasLength(9));
     expect(TransportCapabilityAdvertisementWire.decode(encoded, 0), value);
+  });
+
+  test('the Android version and install time round trip', () {
+    const known = TransportCapabilityAdvertisement(
+      canHostHotspot: true,
+      bluetoothSupported: true,
+      backgroundReady: true,
+      batteryPercent: 50,
+      androidSdk: 31,
+      installedAt: 1792214548,
+    );
+    final encoded = TransportCapabilityAdvertisementWire.encode(known);
+    expect(TransportCapabilityAdvertisementWire.decode(encoded, 0), known);
   });
 
   test('the hosting flag round trips, and is clear unless hosting', () {
@@ -30,8 +43,6 @@ void main() {
     );
     final encoded = TransportCapabilityAdvertisementWire.encode(hosting);
     expect(TransportCapabilityAdvertisementWire.decode(encoded, 0), hosting);
-    // Older builds reject unknown flags, so a phone that is not hosting must
-    // send exactly the bytes it always did.
     expect(TransportCapabilityAdvertisementWire.encode(value)[2] & 0x10, 0);
   });
 
@@ -78,7 +89,7 @@ void main() {
     final encoded = TransportCapabilityAdvertisementWire.encode(value);
 
     final marker = Uint8List.fromList(encoded)..[0] = 0x7f;
-    final version = Uint8List.fromList(encoded)..[1] = 2;
+    final version = Uint8List.fromList(encoded)..[1] = 1;
 
     expect(TransportCapabilityAdvertisementWire.decode(marker, 0), isNull);
     expect(TransportCapabilityAdvertisementWire.decode(version, 0), isNull);

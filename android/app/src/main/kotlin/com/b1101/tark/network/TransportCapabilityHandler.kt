@@ -48,8 +48,17 @@ class TransportCapabilityHandler(
             // not treated as background readiness.
             "backgroundReady" to isKeepAliveRunning(),
             "batteryPercent" to battery,
+            "androidSdk" to Build.VERSION.SDK_INT,
+            "installedAt" to firstInstallSeconds(),
         )
     }
+
+    // Seconds, not millis: it travels as four bytes. 0 means unknown.
+    @Suppress("DEPRECATION")
+    private fun firstInstallSeconds(): Long = runCatching {
+        context.packageManager.getPackageInfo(context.packageName, 0)
+            .firstInstallTime / 1000
+    }.getOrDefault(0L)
 
     @Suppress("DEPRECATION")
     private fun isKeepAliveRunning(): Boolean {

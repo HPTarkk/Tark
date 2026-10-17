@@ -139,11 +139,17 @@ abstract final class TransportCapabilityReader {
         batteryPercent > 100) {
       return null;
     }
+    final androidSdk = raw['androidSdk'];
+    final installedAt = raw['installedAt'];
     return TransportCapabilityAdvertisement(
       canHostHotspot: canHostHotspot,
       bluetoothSupported: bluetoothSupported,
       backgroundReady: backgroundReady,
       batteryPercent: batteryPercent,
+      androidSdk: androidSdk is int && androidSdk > 0 && androidSdk < 256
+          ? androidSdk
+          : 0,
+      installedAt: installedAt is int && installedAt > 0 ? installedAt : 0,
       prefersHotspotHost: prefersHotspotHost,
       hostingAccessPoint: hostingAccessPoint,
       gaveUpMove: gaveUpMove,

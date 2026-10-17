@@ -20,6 +20,8 @@ final class RoomTransportCandidate {
     this.prefersHotspotHost = false,
     this.hostingAccessPoint = false,
     this.gaveUpMove = false,
+    this.androidSdk = 0,
+    this.installedAt = 0,
     this.memberSince,
   }) : assert(batteryPercent >= 0 && batteryPercent <= 100);
 
@@ -46,6 +48,14 @@ final class RoomTransportCandidate {
   /// hears this, so both show the same "couldn't move" together.
   final bool gaveUpMove;
 
+  /// The Android API level this member runs, 0 when unknown. A newer
+  /// Android leads a tie: it hosts more reliably.
+  final int androidSdk;
+
+  /// When this member's app was first installed, in seconds since the epoch,
+  /// 0 when unknown. The older install leads a tie.
+  final int installedAt;
+
   /// When this member joined the Room, from the roster both phones share.
   /// The longer-standing member leads a tie, so the two agree without
   /// asking each other.
@@ -61,6 +71,8 @@ final class RoomTransportCandidate {
         prefersHotspotHost: prefersHotspotHost,
         hostingAccessPoint: hostingAccessPoint,
         gaveUpMove: gaveUpMove,
+        androidSdk: androidSdk,
+        installedAt: installedAt,
         memberSince: since,
       );
 }
@@ -205,14 +217,29 @@ abstract final class RoomTransportPlanner {
         }
         final battery = _batteryBand(b).compareTo(_batteryBand(a));
         if (battery != 0) return battery;
-        // Then whoever has been in the Room longer, then the member id: a
-        // fixed order both phones compute from the same roster, so a tie can
-        // never be broken two ways.
+        // Then the newer Android, then the older install, then whoever has
+        // been in the Room longer, then the member id: a fixed order both
+        // phones compute from the same evidence, so a tie can never be broken
+        // two ways. An unknown (0) never decides anything.
+        final sdk = _compareKnown(b.androidSdk, a.androidSdk);
+        if (sdk != 0) return sdk;
+        final installed = _compareKnown(a.installedAt, b.installedAt);
+        if (installed != 0) return installed;
         final since = _compareSince(a.memberSince, b.memberSince);
         if (since != 0) return since;
         return a.memberId.value.compareTo(b.memberId.value);
       });
     return ordered.first;
+  }
+
+  static int _compareSince(DateTime? a, DateTime? b) {
+    if (a == null || b == null) return 0;
+    return a.compareTo(b);
+  }
+
+  static int _compareKnown(int a, int b) {
+    if (a <= 0 || b <= 0) return 0;
+    return a.compareTo(b);
   }
 
   /// Battery in bands of twenty points, not exact percent.
@@ -222,10 +249,6 @@ abstract final class RoomTransportPlanner {
   /// down won the vote on its own screen and lost it on the other, and both
   /// raised an access point (2026-10-16). A band only flips at its edge, so
   /// the two views now agree unless a reading crosses one mid-heartbeat.
-  static int _compareSince(DateTime? a, DateTime? b) {
-    if (a == null || b == null) return 0;
-    return a.compareTo(b);
-  }
 
   static int _batteryBand(RoomTransportCandidate candidate) =>
       candidate.batteryPercent.clamp(0, 99) ~/ 20;

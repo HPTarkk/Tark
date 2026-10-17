@@ -15,6 +15,8 @@ final class TransportCapabilityAdvertisement extends Equatable {
     this.prefersHotspotHost = false,
     this.hostingAccessPoint = false,
     this.gaveUpMove = false,
+    this.androidSdk = 0,
+    this.installedAt = 0,
   }) : assert(batteryPercent >= 0 && batteryPercent <= 100);
 
   final bool canHostHotspot;
@@ -29,6 +31,14 @@ final class TransportCapabilityAdvertisement extends Equatable {
   /// This phone has just given up on a move to a hotspot.
   final bool gaveUpMove;
 
+  /// The Android API level this member runs, 0 when unknown. A newer
+  /// Android leads a tie: it hosts more reliably.
+  final int androidSdk;
+
+  /// When this member's app was first installed, in seconds since the epoch,
+  /// 0 when unknown. The older install leads a tie.
+  final int installedAt;
+
   @override
   List<Object?> get props => [
     canHostHotspot,
@@ -38,5 +48,7 @@ final class TransportCapabilityAdvertisement extends Equatable {
     prefersHotspotHost,
     hostingAccessPoint,
     gaveUpMove,
+    androidSdk,
+    installedAt,
   ];
 }

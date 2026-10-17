@@ -46,6 +46,8 @@ final class RoomTransportCapabilityObservationBridge {
       prefersHotspotHost: capability.prefersHotspotHost,
       hostingAccessPoint: capability.hostingAccessPoint,
       gaveUpMove: capability.gaveUpMove,
+      androidSdk: capability.androidSdk,
+      installedAt: capability.installedAt,
     );
   }
 

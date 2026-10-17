@@ -32,6 +32,8 @@ final class RoomTransportCapabilityObserver {
     bool prefersHotspotHost = false,
     bool hostingAccessPoint = false,
     bool gaveUpMove = false,
+    int androidSdk = 0,
+    int installedAt = 0,
   }) {
     if (batteryPercent < 0 || batteryPercent > 100) return false;
     final memberId = bindings.resolve(
@@ -49,6 +51,8 @@ final class RoomTransportCapabilityObserver {
         prefersHotspotHost: prefersHotspotHost,
         hostingAccessPoint: hostingAccessPoint,
         gaveUpMove: gaveUpMove,
+        androidSdk: androidSdk,
+        installedAt: installedAt,
       ),
       at: at,
       attachmentGeneration: attachmentGeneration,
@@ -69,6 +73,8 @@ final class RoomTransportCapabilityObserver {
     bool prefersHotspotHost = false,
     bool hostingAccessPoint = false,
     bool gaveUpMove = false,
+    int androidSdk = 0,
+    int installedAt = 0,
   }) {
     candidates.observe(
       RoomTransportCandidate(
@@ -80,6 +86,8 @@ final class RoomTransportCapabilityObserver {
         prefersHotspotHost: prefersHotspotHost,
         hostingAccessPoint: hostingAccessPoint,
         gaveUpMove: gaveUpMove,
+        androidSdk: androidSdk,
+        installedAt: installedAt,
       ),
       at: at,
       attachmentGeneration: attachmentGeneration,

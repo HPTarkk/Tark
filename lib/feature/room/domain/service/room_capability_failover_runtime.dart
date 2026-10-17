@@ -77,6 +77,8 @@ final class RoomCapabilityFailoverRuntime {
     bool prefersHotspotHost = false,
     bool hostingAccessPoint = false,
     bool gaveUpMove = false,
+    int androidSdk = 0,
+    int installedAt = 0,
   }) => observer.observePeer(
     peerKey: peerKey,
     canHostHotspot: canHostHotspot,
@@ -88,6 +90,8 @@ final class RoomCapabilityFailoverRuntime {
     prefersHotspotHost: prefersHotspotHost,
     hostingAccessPoint: hostingAccessPoint,
     gaveUpMove: gaveUpMove,
+    androidSdk: androidSdk,
+    installedAt: installedAt,
   );
 
   void observeLocal({
@@ -99,6 +103,8 @@ final class RoomCapabilityFailoverRuntime {
     bool prefersHotspotHost = false,
     bool hostingAccessPoint = false,
     bool gaveUpMove = false,
+    int androidSdk = 0,
+    int installedAt = 0,
   }) {
     observer.observeLocal(
       memberId: localMemberId,
@@ -111,6 +117,8 @@ final class RoomCapabilityFailoverRuntime {
       prefersHotspotHost: prefersHotspotHost,
       hostingAccessPoint: hostingAccessPoint,
       gaveUpMove: gaveUpMove,
+      androidSdk: androidSdk,
+      installedAt: installedAt,
     );
   }
 

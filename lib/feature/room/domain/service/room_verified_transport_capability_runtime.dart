@@ -68,6 +68,8 @@ final class RoomVerifiedTransportCapabilityRuntime {
     bool prefersHotspotHost = false,
     bool hostingAccessPoint = false,
     bool gaveUpMove = false,
+    int androidSdk = 0,
+    int installedAt = 0,
   }) => capability.observePeer(
     peerKey: peerKey,
     canHostHotspot: canHostHotspot,
@@ -78,6 +80,8 @@ final class RoomVerifiedTransportCapabilityRuntime {
     prefersHotspotHost: prefersHotspotHost,
     hostingAccessPoint: hostingAccessPoint,
     gaveUpMove: gaveUpMove,
+    androidSdk: androidSdk,
+    installedAt: installedAt,
   );
 
   void observeLocal({
@@ -89,6 +93,8 @@ final class RoomVerifiedTransportCapabilityRuntime {
     bool prefersHotspotHost = false,
     bool hostingAccessPoint = false,
     bool gaveUpMove = false,
+    int androidSdk = 0,
+    int installedAt = 0,
   }) => capability.observeLocal(
     canHostHotspot: canHostHotspot,
     bluetoothSupported: bluetoothSupported,
@@ -98,6 +104,8 @@ final class RoomVerifiedTransportCapabilityRuntime {
     prefersHotspotHost: prefersHotspotHost,
     hostingAccessPoint: hostingAccessPoint,
     gaveUpMove: gaveUpMove,
+    androidSdk: androidSdk,
+    installedAt: installedAt,
   );
 
   Future<RoomFailoverAttempt?> beginFailover({
