@@ -244,8 +244,8 @@ const modes = {
     range: ["برد وای‌فای گوشی", "Phone Wi-Fi coverage"],
     internet: ["نیاز ندارد", "Not needed"],
     caveat: [
-      "با اشتراک و میزبانی اندروید ۸ به بالا. تعداد افراد و برد به گوشی میزبان بستگی دارد.",
-      "Requires a subscription and Android 8+ for hosting. Group size and range depend on the host.",
+      "با اشتراک و میزبانی اندروید ۸ به بالا. لازم نیست میزبان را انتخاب کنید: گوشی‌ها خودشان سر یکی توافق می‌کنند، مثلاً آن‌که شارژ بیشتری دارد. تعداد افراد و برد به گوشی میزبان بستگی دارد.",
+      "Requires a subscription and Android 8+ for hosting. Nobody has to pick the host: the phones agree on one between them, such as the one with more battery. Group size and range depend on the host.",
     ],
   },
   wifi: {
@@ -259,8 +259,8 @@ const modes = {
     range: ["پوشش شبکهٔ مشترک", "Network coverage"],
     internet: ["نیاز ندارد", "Not needed"],
     caveat: [
-      "با اشتراک. اتصال وای‌فای مشترک را از گزینهٔ مربوط به آن در اپ انتخاب می‌کنید.",
-      "Requires a subscription. Choose the shared Wi-Fi connection option in the app.",
+      "با اشتراک. وقتی دو گوشی روی وای‌فای خانه همدیگر را پیدا می‌کنند، تَرک خودش آن‌ها را به هات‌اسپات یکی از گوشی‌ها می‌برد تا با بیرون رفتن از خانه ارتباط قطع نشود.",
+      "Requires a subscription. When two phones meet on home Wi-Fi, Tarkk moves them onto one phone’s hotspot by itself, so the call keeps going after you leave the house.",
     ],
   },
   browser: {
@@ -274,8 +274,8 @@ const modes = {
     range: ["هر جا اینترنت هست", "Anywhere with internet"],
     internet: ["نیاز دارد", "Required"],
     caveat: [
-      "با اشتراک میزبان. سرویس عمومی کشف اتصال فقط برای پیدا کردن دستگاه‌هاست؛ صدا مستقیم می‌رود و بعضی شبکه‌های محدود ممکن است اتصال را ببندند.",
-      "Requires the host’s subscription. Public STUN helps devices find each other; audio travels directly. Some restricted networks may block the connection.",
+      "فعلاً در نسخهٔ بتا و رایگان. سرویس عمومی کشف اتصال فقط برای پیدا کردن دستگاه‌هاست؛ صدا مستقیم می‌رود و بعضی شبکه‌های محدود ممکن است اتصال را ببندند.",
+      "Free while in Beta. Public STUN helps devices find each other; audio travels directly. Some restricted networks may block the connection.",
     ],
   },
 };
