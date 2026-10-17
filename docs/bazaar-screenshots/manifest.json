@@ -3,14 +3,14 @@
     "file": "01-offline.jpg",
     "width": 1080,
     "height": 1920,
-    "bytes": 185697,
+    "bytes": 182992,
     "quality": 94
   },
   {
     "file": "02-voice.jpg",
     "width": 1080,
     "height": 1920,
-    "bytes": 247574,
+    "bytes": 247512,
     "quality": 94
   },
   {
@@ -24,21 +24,21 @@
     "file": "04-connect.jpg",
     "width": 1080,
     "height": 1920,
-    "bytes": 231879,
+    "bytes": 200868,
     "quality": 94
   },
   {
-    "file": "05-riding.jpg",
+    "file": "05-settings.jpg",
     "width": 1080,
     "height": 1920,
-    "bytes": 238788,
+    "bytes": 208155,
     "quality": 94
   },
   {
     "file": "06-light.jpg",
     "width": 1080,
     "height": 1920,
-    "bytes": 186520,
+    "bytes": 185423,
     "quality": 94
   }
 ]

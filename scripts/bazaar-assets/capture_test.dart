@@ -50,6 +50,7 @@ import 'package:tark/feature/walkie/presentation/page/walkie_talkie_page.dart';
 const _orange = Color(0xFFF5853F);
 const _white = Color(0xFFE9EDF1);
 final _output = Directory('build/bazaar-assets');
+final _capturedAt = DateTime.now().toUtc();
 
 class _Gate implements LicenseGate {
   @override
@@ -73,6 +74,7 @@ class _Landing extends Cubit<LandingState> implements LandingCubit {
         const LandingState(
           localIp: '192.168.49.1',
           myName: 'آرمان',
+          myAvatarId: 3,
           isLoading: false,
           transferMode: TransferMode.wifi,
           pinnedMode: null,
@@ -99,14 +101,14 @@ class _Walkie extends Cubit<WalkieTalkieState> implements WalkieTalkieCubit {
               name: 'سارا',
               isTalking: true,
               avatarId: 4,
-              lastSeen: DateTime.utc(2026, 10, 10),
+              lastSeen: _capturedAt,
             ),
             ChannelUser(
               id: 'demo-ali',
               name: 'علی',
               isTalking: false,
               avatarId: 14,
-              lastSeen: DateTime.utc(2026, 10, 10),
+              lastSeen: _capturedAt,
             ),
           ],
         ),
@@ -134,7 +136,7 @@ class _Walkie extends Cubit<WalkieTalkieState> implements WalkieTalkieCubit {
 }
 
 SavedRoom _room() {
-  final now = DateTime.utc(2026, 10, 10);
+  final now = _capturedAt;
   return SavedRoom(
     room: Room(
       id: const RoomId('0123456789abcdef0123456789abcdef'),
@@ -243,11 +245,16 @@ void main() {
         ..registerFactory<OnboardingCubit>(
           () => OnboardingCubit(modes, settings),
         );
+      final appVersion = RegExp(
+        r'^version:\s*(\S+)',
+        multiLine: true,
+      ).firstMatch(File('pubspec.yaml').readAsStringSync())!.group(1)!;
+      final versionParts = appVersion.split('+');
       PackageInfo.setMockInitialValues(
         appName: 'Tarkk',
         packageName: 'tark',
-        version: '1.1.2',
-        buildNumber: '34',
+        version: versionParts.first,
+        buildNumber: versionParts.length > 1 ? versionParts[1] : '0',
         buildSignature: 'preview',
       );
       SystemAudioCapture.debugIsAndroid = true;
@@ -290,16 +297,16 @@ void main() {
         ),
         (
           '04-connect',
-          'هر جا هستید،',
-          'به هم وصل شوید',
-          'وای‌فای، هات‌اسپات یا بلوتوث',
-          () => OnboardingPage.buildPage(initialStep: 4, initialName: 'آرمان'),
+          'با یک اسکن،',
+          'کنار هم باشید',
+          'کد QR را اسکن کن و به اتاق بپیوند',
+          () => OnboardingPage.buildPage(initialStep: 2, initialName: 'آرمان'),
         ),
         (
-          '05-riding',
-          'آماده برای',
-          'جاده و همسفرها',
-          'حالت سواری و تنظیمات دلخواه',
+          '05-settings',
+          'تنظیمش کن،',
+          'به سبک خودت',
+          'اتصال خودکار و تنظیمات صدا',
           SettingsPage.buildPage,
         ),
         (
@@ -395,6 +402,20 @@ void main() {
         await tester.pumpWidget(const SizedBox());
         await tester.pump();
       }
+      final commit = Process.runSync('git', ['rev-parse', 'HEAD']);
+      expect(commit.exitCode, 0);
+      final capture = {
+        'version': appVersion,
+        'sourceCommit': commit.stdout.toString().trim(),
+        'capturedAt': _capturedAt.toIso8601String(),
+        'locale': 'fa',
+        'renderedFromProductionWidgets': true,
+        'usesFictionalData': true,
+        'screens': scenes.map((scene) => scene.$1).toList(),
+      };
+      File('${_output.path}/capture.json').writeAsStringSync(
+        '${const JsonEncoder.withIndent('  ').convert(capture)}\n',
+      );
     },
   );
 }
