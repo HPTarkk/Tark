@@ -189,6 +189,13 @@ abstract final class DiagnosticLog {
         'pssKb=${exit['pssKb']}',
       );
     }
+    final anr = exit['anr'];
+    if (anr is String && anr.isNotEmpty) {
+      _append('app: the frozen run was stuck here');
+      for (final line in anr.split('\n')) {
+        if (line.isNotEmpty) _append('app:   $line');
+      }
+    }
     final crash = exit['crash'];
     if (crash is String && crash.isNotEmpty) {
       _append('app: previous run crashed in native code');

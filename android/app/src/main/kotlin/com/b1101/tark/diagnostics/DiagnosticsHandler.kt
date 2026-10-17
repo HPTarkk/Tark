@@ -81,10 +81,47 @@ class DiagnosticsHandler(
                 out["status"] = info.status
                 out["importance"] = info.importance
                 out["pssKb"] = info.pss
+                if (info.reason == ApplicationExitInfo.REASON_ANR) {
+                    anrThreads(info)?.let { out["anr"] = it }
+                }
             }
         }
         return if (out.isEmpty()) null else out
     }
+
+    /**
+     * The frozen run's main thread and Flutter's UI thread, from the trace
+     * Android kept for the ANR: which of the two was stuck, and where. Only
+     * the frame lines are kept (`at …`, `- waiting …`, `native: #NN …`); they
+     * name classes and methods, never data.
+     */
+    private fun anrThreads(info: ApplicationExitInfo): String? = runCatching {
+        val text = info.traceInputStream?.bufferedReader()?.use { it.readText() }
+            ?: return null
+        val wanted = listOf("\"main\"", "\"1.ui\"")
+        val kept = StringBuilder()
+        var current: String? = null
+        var frames = 0
+        for (line in text.lineSequence()) {
+            if (line.startsWith("\"")) {
+                current = wanted.firstOrNull { line.startsWith(it) }
+                frames = 0
+                if (current != null) kept.append("thread ").append(current).append('\n')
+                continue
+            }
+            if (current == null || frames >= ANR_FRAMES) continue
+            val trimmed = line.trim()
+            if (trimmed.startsWith("at ") ||
+                trimmed.startsWith("- waiting") ||
+                trimmed.startsWith("- locked") ||
+                trimmed.startsWith("native: #")
+            ) {
+                kept.append("  ").append(trimmed.take(160)).append('\n')
+                frames++
+            }
+        }
+        kept.toString().ifEmpty { null }
+    }.getOrNull()
 
     private fun reasonName(reason: Int): String = when (reason) {
         ApplicationExitInfo.REASON_ANR -> "anr"
@@ -153,6 +190,7 @@ class DiagnosticsHandler(
         private const val PREFS = "tark_diagnostics"
         private const val KEY_REPORTED = "last_exit_reported"
         private const val CRASH_FILE = "last-crash.txt"
+        private const val ANR_FRAMES = 25
 
         @Volatile
         private var installed = false
