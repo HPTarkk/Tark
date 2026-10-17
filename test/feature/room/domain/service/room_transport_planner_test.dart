@@ -81,6 +81,44 @@ void main() {
     expect(plan.hotspotHost, const RoomMemberId('member-a'));
   });
 
+  test('the member who joined the room first wins a battery tie', () {
+    final older = candidate(
+      'member-z',
+      battery: 81,
+    ).withMemberSince(DateTime.utc(2026, 1, 1));
+    final newer = candidate(
+      'member-a',
+      battery: 85,
+    ).withMemberSince(DateTime.utc(2026, 3, 1));
+    for (final inputs in [
+      [older, newer],
+      [newer, older],
+    ]) {
+      final plan = RoomTransportPlanner.plan(
+        RoomTransportEnvironment(
+          sharedLanUsable: false,
+          epoch: 1,
+          candidates: inputs,
+        ),
+      );
+      expect(plan.hotspotHost, const RoomMemberId('member-z'));
+    }
+  });
+
+  test('an unknown join time falls back to member identity', () {
+    final plan = RoomTransportPlanner.plan(
+      RoomTransportEnvironment(
+        sharedLanUsable: false,
+        epoch: 1,
+        candidates: [
+          candidate('member-z').withMemberSince(DateTime.utc(2026, 1, 1)),
+          candidate('member-a'),
+        ],
+      ),
+    );
+    expect(plan.hotspotHost, const RoomMemberId('member-a'));
+  });
+
   test('stable member identity deterministically breaks equal ties', () {
     final inputs = [
       candidate('member-c', battery: 80),

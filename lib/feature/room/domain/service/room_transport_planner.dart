@@ -20,6 +20,7 @@ final class RoomTransportCandidate {
     this.prefersHotspotHost = false,
     this.hostingAccessPoint = false,
     this.gaveUpMove = false,
+    this.memberSince,
   }) : assert(batteryPercent >= 0 && batteryPercent <= 100);
 
   final RoomMemberId memberId;
@@ -44,6 +45,24 @@ final class RoomTransportCandidate {
   /// as it says itself. The other phone stops waiting for it the moment it
   /// hears this, so both show the same "couldn't move" together.
   final bool gaveUpMove;
+
+  /// When this member joined the Room, from the roster both phones share.
+  /// The longer-standing member leads a tie, so the two agree without
+  /// asking each other.
+  final DateTime? memberSince;
+
+  RoomTransportCandidate withMemberSince(DateTime? since) =>
+      RoomTransportCandidate(
+        memberId: memberId,
+        canHostHotspot: canHostHotspot,
+        bluetoothSupported: bluetoothSupported,
+        backgroundReady: backgroundReady,
+        batteryPercent: batteryPercent,
+        prefersHotspotHost: prefersHotspotHost,
+        hostingAccessPoint: hostingAccessPoint,
+        gaveUpMove: gaveUpMove,
+        memberSince: since,
+      );
 }
 
 final class RoomTransportEnvironment {
@@ -186,6 +205,11 @@ abstract final class RoomTransportPlanner {
         }
         final battery = _batteryBand(b).compareTo(_batteryBand(a));
         if (battery != 0) return battery;
+        // Then whoever has been in the Room longer, then the member id: a
+        // fixed order both phones compute from the same roster, so a tie can
+        // never be broken two ways.
+        final since = _compareSince(a.memberSince, b.memberSince);
+        if (since != 0) return since;
         return a.memberId.value.compareTo(b.memberId.value);
       });
     return ordered.first;
@@ -198,6 +222,11 @@ abstract final class RoomTransportPlanner {
   /// down won the vote on its own screen and lost it on the other, and both
   /// raised an access point (2026-10-16). A band only flips at its edge, so
   /// the two views now agree unless a reading crosses one mid-heartbeat.
+  static int _compareSince(DateTime? a, DateTime? b) {
+    if (a == null || b == null) return 0;
+    return a.compareTo(b);
+  }
+
   static int _batteryBand(RoomTransportCandidate candidate) =>
       candidate.batteryPercent.clamp(0, 99) ~/ 20;
 }

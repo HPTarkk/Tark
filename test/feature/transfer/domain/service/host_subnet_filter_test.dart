@@ -37,11 +37,7 @@ void main() {
     // Wi-Fi off, or the single-radio case where the framework already dropped
     // the client side when the AP came up. Nothing to exclude.
     expect(
-      HostSubnetFilter.apply(
-        subnets: const [ap],
-        clientIp: null,
-        isHost: true,
-      ),
+      HostSubnetFilter.apply(subnets: const [ap], clientIp: null, isHost: true),
       const [ap],
     );
   });
@@ -95,6 +91,27 @@ void main() {
         isHost: true,
       ),
       const [ap, '10.0.0'],
+    );
+  });
+
+  test('a peer still on the client network keeps it until it comes over', () {
+    expect(
+      HostSubnetFilter.apply(
+        subnets: const [ap, home],
+        clientIp: '192.168.1.37',
+        isHost: true,
+        peerAddresses: const ['192.168.1.80'],
+      ),
+      const [ap, home],
+    );
+    expect(
+      HostSubnetFilter.apply(
+        subnets: const [ap, home],
+        clientIp: '192.168.1.37',
+        isHost: true,
+        peerAddresses: const ['$ap.20'],
+      ),
+      const [ap],
     );
   });
 }

@@ -132,6 +132,11 @@ class WifiTransferRepositoryImpl
   // platforms where broadcast DOES arrive are harmless: presence handling
   // is idempotent and the playback buffer drops repeated audio seqs.
   final Map<String, DateTime> _peers = {};
+
+  /// How recently a peer on the network a host is only a client of must have
+  /// been heard for that network to keep its broadcast. Longer than the 10 s
+  /// re-resolve, so one quiet gap does not drop it mid-move.
+  static const _peerOnClientFresh = Duration(seconds: 15);
   static const _peerMaxAge = Duration(seconds: 10);
 
   /// Addresses that were peers recently, kept far longer than [_peerMaxAge]
@@ -2129,6 +2134,11 @@ class WifiTransferRepositoryImpl
       subnets: subnets.toList(),
       clientIp: isHost ? await WifiClientAddress.current() : null,
       isHost: isHost,
+      peerAddresses: [
+        for (final entry in _peers.entries)
+          if (DateTime.now().difference(entry.value) < _peerOnClientFresh)
+            entry.key,
+      ],
     );
     if (kept.length != subnets.length) {
       Logger.diagnostic(

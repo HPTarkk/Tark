@@ -2170,7 +2170,16 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   final RoomHotspotFallbackDetector _fallback = RoomHotspotFallbackDetector();
   bool _fallingBack = false;
-  bool _loggedRouterBridge = false;
+
+  /// When the other phone was first heard on the router while the hotspot
+  /// was still up for it, this episode.
+  DateTime? _onRouterSince;
+
+  /// How long that phone gets to find its way back onto the hotspot before
+  /// the move runs again. Never open-ended: home Wi-Fi is not where a call
+  /// is left, and with no limit both phones sat on it with nothing on screen
+  /// to say so (2026-10-17).
+  static const routerGrace = Duration(seconds: 20);
 
   /// Whether the Room's hotspot is still there to go back to: this phone is
   /// holding it up, or is the one joined to it and still trying to get back
@@ -2230,16 +2239,25 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       // carries the call meanwhile. Tearing the hotspot down and moving
       // again is what put the move screen up every minute (2026-10-16
       // 18:27 and 18:31), each time onto a hotspot it would leave again.
-      if (!_loggedRouterBridge) {
-        _loggedRouterBridge = true;
-        Logger.diagnostic(
-          'carrier_move: the other phone is on the router for now — the '
-          'hotspot stays up for it to come back to',
-        );
+      final now = DateTime.now();
+      final first = _onRouterSince == null;
+      final since = _onRouterSince ??= now;
+      if (now.difference(since) < routerGrace) {
+        if (first) {
+          Logger.diagnostic(
+            'carrier_move: the other phone is on the router for now — the '
+            'hotspot stays up ${routerGrace.inSeconds}s for it to come back',
+          );
+        }
+        return;
       }
-      return;
+      Logger.diagnostic(
+        'carrier_move: the other phone did not come back to the hotspot in '
+        '${routerGrace.inSeconds}s — moving again',
+      );
+    } else if (_fallback.isHotspotRoute(proof.carrierRoute)) {
+      _onRouterSince = null;
     }
-    _loggedRouterBridge = false;
     if (_fallback.observe(proof.carrierRoute)) {
       unawaited(_fallBackOffRouter(room));
     }
@@ -2265,6 +2283,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       Logger.log('Fallback move failed: $e');
     } finally {
       _fallingBack = false;
+      _onRouterSince = null;
       _fallback.reset();
     }
   }

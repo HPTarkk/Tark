@@ -82,6 +82,23 @@ final class AndroidNetworkRebindCoordinator {
 
   Timer? _bridgeTimer;
   bool _bridging = false;
+  DateTime? _bridgedAt;
+
+  /// How long a pin is held at least, so the other phone has the hotspot's
+  /// announcement a few times over before this one stops reaching it.
+  static const bridgeHold = Duration(seconds: 10);
+
+  Future<bool> _peerOnlyOnRouter() async {
+    final heard = _peersHeardAt;
+    final station = _stationAddress;
+    if (heard == null || station == null) return false;
+    return hostNeedsRouter(
+      heard: heard(),
+      station: await station(),
+      now: _clock(),
+    );
+  }
+
   bool _bridgeBusy = false;
 
   StreamSubscription<AndroidNetworkSelection>? _networkSub;
@@ -158,8 +175,27 @@ final class AndroidNetworkRebindCoordinator {
     required int roleGeneration,
     required int modeGeneration,
   }) async {
+    final wasPinned = _boundNetworkGeneration != null;
     _boundNetworkGeneration = null;
     _loggedHostSkip = false;
+    // Taking the host side while the other phone is still on the router: the
+    // move's announcement has to reach it there. Left exactly as they are —
+    // pinned, and the peers it was already pinging still known — the sockets
+    // deliver it, as they did on 2026-10-16 13:06 when the joiner did get it.
+    // Rebuilt, they forgot the peer (nothing was pinged again) and went deaf
+    // on the router, and the move timed out every time (2026-10-17 08:52,
+    // 23:22, 23:24). They are rebuilt once that phone leaves the router.
+    if (wasPinned && await _peerOnlyOnRouter()) {
+      if (_disposed || !_active || roleGeneration != _roleGeneration) return;
+      _bridging = true;
+      _bridgedAt = _clock();
+      Logger.diagnostic(
+        'network: hosting while the other phone is on the router — keeping '
+        'the router pin and sockets until it leaves',
+      );
+      _startBridge();
+      return;
+    }
     await _port.clear();
     // Sockets keep the network they were made on. Made while the process was
     // pinned to the router, they stay on it after the pin goes, and a phone
@@ -325,6 +361,10 @@ final class AndroidNetworkRebindCoordinator {
           want == _bridging) {
         return;
       }
+      final since = _bridgedAt;
+      if (!want && since != null && _clock().difference(since) < bridgeHold) {
+        return;
+      }
       if (want) {
         final selection = await _port.current();
         if (!_eligible(selection) || !_hosting || _disposed) return;
@@ -334,6 +374,7 @@ final class AndroidNetworkRebindCoordinator {
           return;
         }
         _bridging = true;
+        _bridgedAt = _clock();
         _rebindWifiSockets();
         Logger.diagnostic(
           'network: hosting, the other phone is on the router — pinned to it '
@@ -343,6 +384,7 @@ final class AndroidNetworkRebindCoordinator {
         await _port.clear();
         if (_disposed || roleGeneration != _roleGeneration) return;
         _bridging = false;
+        _bridgedAt = null;
         _rebindWifiSockets();
         Logger.diagnostic(
           'network: hosting, the other phone left the router — unpinned for '

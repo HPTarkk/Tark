@@ -280,10 +280,18 @@ final class SelectedRoomLiveSessionBinding {
             // bound to a durable member reach the election. An unverified
             // observation could otherwise nominate a stranger to run the whole
             // Room's network.
-            candidates: () => capabilities.candidates.snapshot(
-              now: DateTime.now(),
-              attachmentGeneration: capabilities.attachmentGeneration,
-            ),
+            candidates: () => [
+              for (final candidate in capabilities.candidates.snapshot(
+                now: DateTime.now(),
+                attachmentGeneration: capabilities.attachmentGeneration,
+              ))
+                candidate.withMemberSince(
+                  saved.room.members
+                      .where((member) => member.id == candidate.memberId)
+                      .firstOrNull
+                      ?.joinedAt,
+                ),
+            ],
           );
           failover.carrierPromotion = promotion;
           promotion.start();

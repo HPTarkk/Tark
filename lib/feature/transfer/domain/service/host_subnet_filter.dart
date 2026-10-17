@@ -51,14 +51,22 @@ abstract final class HostSubnetFilter {
   /// there would leave the host unable to reach anybody at all, turning a
   /// transient into a dead session. Keeping everything is the safe direction:
   /// the worst case is the unfiltered behaviour we already shipped.
+  ///
+  /// A peer heard on the client network ([peerAddresses]) keeps it too: that
+  /// phone has not come over to the access point yet, and the announcement
+  /// telling it to has to reach it where it is. Dropped, the host sent the
+  /// phone still on the router nothing for the whole move and it timed out
+  /// every time (2026-10-17 08:52).
   static List<String> apply({
     required List<String> subnets,
     required String? clientIp,
     required bool isHost,
+    Iterable<String> peerAddresses = const [],
   }) {
     if (!isHost) return subnets;
     final exclude = prefixOf(clientIp);
     if (exclude == null) return subnets;
+    if (peerAddresses.any((p) => prefixOf(p) == exclude)) return subnets;
     final kept = subnets.where((s) => s != exclude).toList(growable: false);
     return kept.isEmpty ? subnets : kept;
   }
