@@ -2251,10 +2251,14 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         }
         return;
       }
-      Logger.diagnostic(
-        'carrier_move: the other phone did not come back to the hotspot in '
-        '${routerGrace.inSeconds}s — moving again',
-      );
+      if (_fallback.observe(proof.carrierRoute)) {
+        Logger.diagnostic(
+          'carrier_move: the other phone did not come back to the hotspot in '
+          '${routerGrace.inSeconds}s — moving again',
+        );
+        unawaited(_fallBackOffRouter(room));
+      }
+      return;
     } else if (_fallback.isHotspotRoute(proof.carrierRoute)) {
       _onRouterSince = null;
     }
@@ -2269,19 +2273,30 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     _fallingBack = true;
     try {
       Logger.diagnostic('carrier_move: call fell back off the hotspot');
+      // Whoever hosted the hotspot the call just fell off hosts last next
+      // time. Both phones know who that was, so they swap together.
+      final host = _hotspotHost;
+      final local = room.membership.localMemberId;
+      final previousHost = host != null && host.isHosting
+          ? local
+          : room.room.activeMembers
+                .map((member) => member.id)
+                .where((id) => id != local)
+                .firstOrNull;
+      _binding?.carrierPromotion?.avoidHost = previousHost;
       await _modeStore?.setMode(TransferMode.wifi);
       final getIt = GetIt.instance;
       // Nothing should try to rejoin a hotspot that is gone.
       if (getIt.isRegistered<HotspotLinkKeeper>()) {
         await getIt<HotspotLinkKeeper>().release();
       }
-      final host = _hotspotHost;
       if (host != null && host.isHosting) await host.stop();
       if (!mounted) return;
       await _moveOffRouter(room, _EntryState.live(room: room), fellBack: true);
     } catch (e) {
       Logger.log('Fallback move failed: $e');
     } finally {
+      _binding?.carrierPromotion?.avoidHost = null;
       _fallingBack = false;
       _onRouterSince = null;
       _fallback.reset();

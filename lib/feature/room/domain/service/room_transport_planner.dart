@@ -85,7 +85,15 @@ final class RoomTransportEnvironment {
     this.guestExplicitlySelected = false,
     this.bootstrapHotspotHost,
     this.requireBackgroundReady = true,
+    this.avoidHotspotHost,
   }) : assert(epoch >= 0);
+
+  /// The member whose hotspot the Room just fell off, picked last so the
+  /// next try swaps the roles. A phone that cannot stay on the other one's
+  /// access point (the S8 drops back to a saved home Wi-Fi) hosts fine
+  /// itself, and the old host may be in a pocket, where Android refuses to
+  /// raise an access point at all (2026-10-17 19:34: `permission_denied`).
+  final RoomMemberId? avoidHotspotHost;
 
   /// Whether a hotspot host must already have its background keep-alive up.
   ///
@@ -174,7 +182,10 @@ abstract final class RoomTransportPlanner {
         )
         .toList(growable: false);
     if (hotspotCandidates.isNotEmpty) {
-      final elected = _electHotspotHost(hotspotCandidates);
+      final elected = _electHotspotHost(
+        hotspotCandidates,
+        avoid: environment.avoidHotspotHost,
+      );
       return RoomTransportPlan(
         epoch: environment.epoch,
         kind: RoomTransportKind.hotspot,
@@ -208,10 +219,13 @@ abstract final class RoomTransportPlanner {
   }
 
   static RoomTransportCandidate _electHotspotHost(
-    List<RoomTransportCandidate> candidates,
-  ) {
+    List<RoomTransportCandidate> candidates, {
+    RoomMemberId? avoid,
+  }) {
     final ordered = [...candidates]
       ..sort((a, b) {
+        final aAvoided = a.memberId == avoid;
+        if (aAvoided != (b.memberId == avoid)) return aAvoided ? 1 : -1;
         if (a.prefersHotspotHost != b.prefersHotspotHost) {
           return a.prefersHotspotHost ? -1 : 1;
         }

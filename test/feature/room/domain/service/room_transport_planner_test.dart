@@ -118,6 +118,32 @@ void main() {
     );
   });
 
+  test('after falling off a hotspot its host is picked last', () {
+    final plan = RoomTransportPlanner.plan(
+      RoomTransportEnvironment(
+        sharedLanUsable: false,
+        epoch: 2,
+        avoidHotspotHost: const RoomMemberId('member-a'),
+        candidates: [
+          candidate('member-a', preferred: true, battery: 95),
+          candidate('member-z', battery: 30),
+        ],
+      ),
+    );
+    expect(plan.hotspotHost, const RoomMemberId('member-z'));
+
+    // Alone, it still hosts: picked last is not ruled out.
+    final alone = RoomTransportPlanner.plan(
+      RoomTransportEnvironment(
+        sharedLanUsable: false,
+        epoch: 2,
+        avoidHotspotHost: const RoomMemberId('member-a'),
+        candidates: [candidate('member-a')],
+      ),
+    );
+    expect(alone.hotspotHost, const RoomMemberId('member-a'));
+  });
+
   test('the member who joined the room first wins a battery tie', () {
     final older = candidate(
       'member-z',

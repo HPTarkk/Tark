@@ -69,7 +69,11 @@ final class RoomCarrierPromotionEnvironment {
     required this.peersPresent,
     this.promotionPlannedForGeneration,
     this.beforeChannel = false,
+    this.avoidHost,
   });
+
+  /// See [RoomTransportEnvironment.avoidHotspotHost].
+  final RoomMemberId? avoidHost;
 
   /// The move is being made before the channel opens, with both phones in
   /// front of their people. See [RoomTransportEnvironment
@@ -160,6 +164,7 @@ abstract final class RoomCarrierPromotionPlanner {
         candidates: environment.candidates,
         epoch: generation,
         requireBackgroundReady: !environment.beforeChannel,
+        avoidHotspotHost: environment.avoidHost,
       ),
     );
     final host = plan.kind == RoomTransportKind.hotspot

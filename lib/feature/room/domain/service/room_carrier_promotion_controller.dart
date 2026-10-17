@@ -187,6 +187,10 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
        _clock = clock ?? DateTime.now;
 
   final RoomMemberId localMemberId;
+
+  /// Set for a move made because the Room fell off a hotspot: the member
+  /// that hosted it, so the next host is the other phone.
+  RoomMemberId? avoidHost;
   final RoomId roomId;
 
   /// The Room's issuer key, which every member already holds. An announcement
@@ -506,6 +510,7 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
             .length,
         promotionPlannedForGeneration: _plannedGeneration,
         beforeChannel: _eager,
+        avoidHost: avoidHost,
       ),
     );
   }
