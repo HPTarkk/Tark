@@ -306,15 +306,91 @@ td.empty, p.empty, li.empty { text-align: center; color: var(--muted); padding: 
 .role-support { color: var(--info); background: color-mix(in srgb, var(--info) 11%, transparent); border-color: color-mix(in srgb, var(--info) 28%, transparent); }
 .chip.live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: blink 1.2s ease-in-out infinite; }
 
-/* Alert checks. */
-.checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.checks li { display: flex; gap: 14px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); }
-.checks li.firing { border-color: color-mix(in srgb, var(--bad) 40%, transparent); background: color-mix(in srgb, var(--bad) 6%, transparent); }
-.checks li.empty { display: block; }
-.dot { width: 10px; height: 10px; margin-top: 8px; border-radius: 50%; flex-shrink: 0; background: var(--good); box-shadow: 0 0 0 4px color-mix(in srgb, var(--good) 20%, transparent); }
-.firing .dot { background: var(--bad); animation: pulse 1.8s ease-out infinite; }
-.check-top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 2px; font-weight: 600; }
-.checks p.muted { margin: 0; font-size: .85rem; overflow-wrap: anywhere; }
+/* System health: one line that answers "is anything wrong?", then a tile
+   per check. A tile opens to its last reading; firing ones start open and
+   take the whole row so they lead. */
+.health { --tone: var(--good); position: relative; overflow: clip; border-color: color-mix(in srgb, var(--tone) 26%, var(--line));
+  background: radial-gradient(34rem 12rem at 0% 0%, color-mix(in srgb, var(--tone) 11%, transparent), transparent 70%) var(--surface); }
+[dir="rtl"] .health { background-image: radial-gradient(34rem 12rem at 100% 0%, color-mix(in srgb, var(--tone) 11%, transparent), transparent 70%); }
+.health.is-bad { --tone: var(--bad); }
+.health.is-stale, .health.is-none { --tone: var(--warn); }
+.health-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.health-mark { position: relative; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0; color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--tone) 38%, transparent);
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--tone) 7%, transparent), 0 12px 28px -14px var(--tone); animation: pop .6s .08s var(--ease) both; }
+.health-mark .i { width: 26px; height: 26px; stroke-width: 2.2; }
+.health.is-good .health-mark .i path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: draw .55s .35s var(--ease) forwards; }
+.health.is-bad .health-mark::after { content: ""; position: absolute; inset: -1px; border-radius: 50%; animation: pulse 1.8s ease-out infinite; }
+.health-text { flex: 1; min-width: 200px; }
+.health-text h2 { margin: 0; font-size: 1.25rem; font-weight: 800; letter-spacing: -.01em; }
+.health.is-bad .health-text h2 { color: var(--bad); }
+.health-text p { margin: 3px 0 0; color: var(--muted); font-size: .9rem; }
+.health-tally { display: flex; gap: 6px; flex-wrap: wrap; }
+.health-tally .chip { padding: 3px 12px; font-size: .82rem; }
+.health .panel-note { margin-top: 16px; }
+
+.checks { list-style: none; margin: 20px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 10px; interpolate-size: allow-keywords; }
+.check { --tone: var(--good); min-width: 0; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--bg) 70%, var(--surface)); transition: border-color .2s ease, background-color .2s ease, box-shadow .3s ease; animation: rise .45s var(--ease) both; }
+.check:nth-child(2) { animation-delay: .03s; } .check:nth-child(3) { animation-delay: .06s; } .check:nth-child(4) { animation-delay: .09s; }
+.check:nth-child(5) { animation-delay: .12s; } .check:nth-child(6) { animation-delay: .15s; } .check:nth-child(n+7) { animation-delay: .18s; }
+.check:hover { border-color: color-mix(in srgb, var(--tone) 35%, var(--line)); }
+.check:has(details[open]) { background: var(--surface); box-shadow: var(--shadow); }
+.check.stale { --tone: var(--warn); }
+.check.firing { --tone: var(--bad); grid-column: 1 / -1; border-color: color-mix(in srgb, var(--bad) 45%, transparent); background: color-mix(in srgb, var(--bad) 6%, var(--surface)); }
+.check summary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "icon name chip caret"; align-items: center; gap: 0 12px; padding: 12px 14px; cursor: pointer; list-style: none; border-radius: 13px; -webkit-tap-highlight-color: transparent; }
+.check summary::-webkit-details-marker { display: none; }
+.check summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.check-icon { grid-area: icon; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; color: var(--tone); background: color-mix(in srgb, var(--tone) 12%, transparent); transition: transform .3s var(--ease); }
+.check-icon .i { width: 18px; height: 18px; }
+.check summary:hover .check-icon { transform: scale(1.06); }
+.check-name { grid-area: name; min-width: 0; display: flex; flex-direction: column; }
+.check-name b { font-weight: 650; font-size: .95rem; }
+.check-name small { color: var(--muted); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.check summary .chip { grid-area: chip; justify-self: end; }
+.check-caret { grid-area: caret; width: 8px; height: 8px; margin-inline: 2px 4px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: translateY(-2px) rotate(45deg); transition: transform .3s var(--ease), border-color .2s ease; }
+.check summary:hover .check-caret { border-color: var(--fg); }
+.check details[open] .check-caret { transform: translateY(2px) rotate(225deg); }
+.check details::details-content { block-size: 0; overflow: clip; transition: block-size .38s var(--ease), content-visibility .38s allow-discrete; }
+.check details[open]::details-content { block-size: auto; }
+.check-body { padding: 0 14px 14px; padding-inline-start: 60px; }
+.check details[open] .check-body { animation: rise .4s var(--ease) both; }
+.check-label { margin: 6px 0 3px; color: var(--muted); font-size: .74rem; font-weight: 700; }
+.check-reading, .check-fix { margin: 0; font-size: .87rem; overflow-wrap: anywhere; }
+.check-fix { padding: 8px 12px; border-radius: 10px; border-inline-start: 3px solid var(--bad); background: color-mix(in srgb, var(--bad) 8%, transparent); }
+.check-meta { margin: 10px 0 0; color: var(--muted); font-size: .78rem; }
+.check-meta code { font-size: .9em; }
+@media (max-width: 640px) {
+  .health-mark { width: 44px; height: 44px; }
+  .health-mark .i { width: 22px; height: 22px; }
+  .health-text h2 { font-size: 1.1rem; }
+  .check-body { padding-inline-start: 14px; }
+  .check.firing summary { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "icon name caret" ". chip chip"; row-gap: 8px; }
+  .check.firing summary .chip { justify-self: start; }
+}
+
+/* System stats: each card has one number that matters, then the details
+   under a dashed rule, so the four read the same way. */
+.stats .kpi { display: flex; flex-direction: column; }
+/* flag: something under the line needs a look, but the big number itself is fine. */
+.kpi.flag { border-color: color-mix(in srgb, var(--bad) 30%, var(--line)); }
+.kpi.flag::after { background: linear-gradient(90deg, transparent, var(--bad), transparent); }
+.kpi.flag .kpi-icon { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+.stats .kpi-head h2 { min-width: 0; }
+.stats .big { font-size: clamp(1.8rem, 2.3vw, 2.35rem); white-space: nowrap; }
+.big .of { font-size: .55em; font-weight: 700; color: var(--muted); }
+.meter { height: 6px; margin: 12px 0 0; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.meter span { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--accent-2), var(--accent)); transform-origin: left; animation: grow-x .9s .2s var(--ease) both; }
+[dir="rtl"] .meter span { transform-origin: right; background: linear-gradient(-90deg, var(--accent-2), var(--accent)); }
+.meter .w0 { width: 0; } .meter .w1 { width: 10%; } .meter .w2 { width: 20%; } .meter .w3 { width: 30%; } .meter .w4 { width: 40%; } .meter .w5 { width: 50%; }
+.meter .w6 { width: 60%; } .meter .w7 { width: 70%; } .meter .w8 { width: 80%; background: var(--warn); } .meter .w9 { width: 90%; background: var(--warn); } .meter .w10 { width: 100%; background: var(--bad); }
+.mini { margin: auto 0 0; padding-top: 14px; display: flex; flex-direction: column; gap: 7px; }
+.mini::before { content: ""; display: block; margin-top: 2px; margin-bottom: 5px; border-top: 1px dashed var(--line); }
+.mini > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: .85rem; }
+.mini dt { color: var(--muted); }
+.mini dd { margin: 0; display: inline-flex; align-items: baseline; gap: 8px; font-weight: 700; text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mini dd small { color: var(--muted); font-weight: 500; font-size: .78rem; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes grow-x { from { transform: scaleX(0); } to { transform: none; } }
 
 /* Security counts. */
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
@@ -490,7 +566,12 @@ button.danger-soft:hover { filter: none; color: #fff; background: var(--bad); bo
 @media (prefers-reduced-motion: reduce) {
   main.content > *, .page-icon, .hero-icon, .avatar.xl, .kpi .big, main.content > .flash.bad, .search-hero .flash, .nav-toggle:checked ~ .side .nav a { animation-name: auth-fade; animation-delay: 0s; }
   .bar, .nav a.on::before { animation: none; }
-  .firing .dot, .chip.live::before { animation: none; }
+  .chip.live::before, .health.is-bad .health-mark::after { animation: none; }
+  .health-mark, .check, .check details[open] .check-body { animation-name: auth-fade; animation-delay: 0s; }
+  .health.is-good .health-mark .i path { animation: none; stroke-dashoffset: 0; }
+  .meter span { animation: none; }
+  .check details::details-content, .check-caret, .check-icon { transition: none; }
+  .check summary:hover .check-icon { transform: none; }
   .side, .scrim { transition: none; }
   .dialog:popover-open { animation-name: auth-fade; }
   main.content > .flash.toast, main.content > .flash.toast.bad { animation: auth-fade .3s both, toast-out .3s ease 8s forwards; }

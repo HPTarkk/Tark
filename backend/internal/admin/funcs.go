@@ -48,6 +48,13 @@ var funcs = template.FuncMap{
 	"icon": icon,
 	// static is the address of a file in static/, cached between pages.
 	"static": staticURL,
+	// checkIcon is the picture for an alert check key.
+	"checkIcon": func(key string) template.HTML {
+		if name, ok := checkIcons[key]; ok {
+			return icon(name)
+		}
+		return icon("alert")
+	},
 	// avatar is the picture of an app avatar id (one of the app's own
 	// avatars, copied into static/avatars), or "" for none or unknown.
 	"avatar": func(v any) string {
@@ -150,6 +157,23 @@ func funcsFor(lang string) template.FuncMap {
 			return tr(lang, "ago.h", int(d.Hours()))
 		}
 		return tr(lang, "ago.d", int(d.Hours()/24))
+	}
+	// span is how long since a time, without "ago": "3 hours" for uptime.
+	m["span"] = func(v any) string {
+		t, ok := timeOf(v)
+		if !ok {
+			return "-"
+		}
+		d := time.Since(t)
+		switch {
+		case d < time.Minute:
+			return tr(lang, "span.s")
+		case d < time.Hour:
+			return tr(lang, "span.m", int(d.Minutes()))
+		case d < 48*time.Hour:
+			return tr(lang, "span.h", int(d.Hours()))
+		}
+		return tr(lang, "span.d", int(d.Hours()/24))
 	}
 	return m
 }

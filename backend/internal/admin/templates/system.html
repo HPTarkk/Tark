@@ -4,30 +4,70 @@
   <span class="page-icon">{{icon "system"}}</span>
   <div><h1>{{t "nav.system"}}</h1><p class="lead">{{t "lead.system"}}</p></div>
 </header>
-<section class="panel">
-  <header class="panel-head"><h2>{{icon "check"}}{{t "system.checks"}}</h2><p>{{t "system.checksNote"}}</p></header>
-  <ul class="checks">
-  {{range .Alerts}}<li class="{{if .Firing}}firing{{else}}fine{{end}}"><span class="dot" aria-hidden="true"></span>
-    <div><p class="check-top"><code>{{.Key}}</code>{{if .Firing}}<span class="chip bad">{{t "system.firing" (when .Since)}}</span>{{else}}<span class="chip good">{{t "ok"}}</span>{{end}}</p>
-    <p class="muted"><span class="ltr email">{{.Detail}}</span> · {{ago .Updated}}</p></div></li>
-  {{else}}<li class="empty">{{t "system.noChecks"}}</li>{{end}}
+{{with .Health}}{{$state := .State}}
+<section class="panel health is-{{$state}}" aria-labelledby="health-h">
+  <header class="health-head">
+    <span class="health-mark" aria-hidden="true">{{if eq $state "good"}}{{icon "check"}}{{else if eq $state "none"}}{{icon "clock"}}{{else if eq $state "stale"}}{{icon "clock"}}{{else}}{{icon "alert"}}{{end}}</span>
+    <div class="health-text">
+      {{if eq $state "good"}}<h2 id="health-h">{{t "system.h.good"}}</h2><p>{{t "system.h.goodSub" .Total (ago .LastRun)}}</p>
+      {{else if eq $state "bad"}}<h2 id="health-h">{{t "system.h.bad" .Firing}}</h2><p>{{t "system.h.badSub" .OK .Total}}</p>
+      {{else if eq $state "stale"}}<h2 id="health-h">{{t "system.h.stale"}}</h2><p>{{t "system.h.staleSub" .Stale .Total (ago .LastRun)}}</p>
+      {{else}}<h2 id="health-h">{{t "system.h.none"}}</h2><p>{{t "system.noChecks"}}</p>{{end}}
+    </div>
+    {{if .Firing}}<div class="health-tally">
+      <span class="chip good">{{t "system.okCount" .OK}}</span>{{if .Firing}}<span class="chip bad">{{t "system.badCount" .Firing}}</span>{{end}}
+    </div>{{end}}
+  </header>
+  {{if .Total}}<ul class="checks" aria-label="{{t "system.checks"}}">
+  {{range $.Alerts}}<li class="check{{if .Firing}} firing{{else if .Stale}} stale{{end}}"><details{{if .Firing}} open{{end}}>
+    <summary>
+      <span class="check-icon">{{checkIcon .Key}}</span>
+      <span class="check-name"><b>{{code "check" .Key}}</b>{{$what := code "checkWhat" .Key}}{{if ne $what .Key}}<small title="{{$what}}">{{$what}}</small>{{else}}<small><code>{{.Key}}</code></small>{{end}}</span>
+      {{if .Firing}}<span class="chip bad live">{{t "system.firing" (when .Since)}}</span>{{else if .Stale}}<span class="chip warn">{{t "system.stale"}}</span>{{else}}<span class="chip good">{{t "ok"}}</span>{{end}}
+      <span class="check-caret" aria-hidden="true"></span>
+    </summary>
+    <div class="check-body">
+      <p class="check-label">{{t "system.reading"}}</p>
+      <p class="check-reading"><span class="ltr email">{{.Detail}}</span></p>
+      {{if .Firing}}{{$fix := code "checkFix" .Key}}{{if ne $fix .Key}}<p class="check-label">{{t "system.todo"}}</p><p class="check-fix">{{$fix}}</p>{{end}}{{end}}
+      <p class="check-meta"><code>{{.Key}}</code> · {{t "system.updated" (ago .Updated)}}{{if .Notified}} · {{t "system.notified" (ago .Notified)}}{{end}}</p>
+    </div>
+  </details></li>{{end}}
   </ul>
+  <p class="panel-note">{{icon "info"}}{{t "system.checksNote"}}</p>{{end}}
 </section>
+{{end}}
 {{with .M}}
-<section class="kpis wide">
-  <article class="kpi"><div class="kpi-head"><span class="kpi-icon">{{icon "zap"}}</span><h2>{{t "system.last5"}}</h2></div>
-    <p class="big">{{.Five.Requests}}</p><p class="kpi-sub">{{t "system.reqs" (index .Five.ByClass 3) .Five.Slow}}</p>
-    <p class="kpi-sub">{{t "system.typical" (p .Five.Latency 0.5) (p .Five.Latency 0.95)}}</p></article>
-  <article class="kpi"><div class="kpi-head"><span class="kpi-icon">{{icon "backups"}}</span><h2>{{t "system.db"}}</h2></div>
-    <p class="big ltr">{{.Now.InUse}} / {{.Now.Max}}</p><p class="kpi-sub">{{t "system.inUse" .Now.Total}}</p>
-    <p class="kpi-sub">{{t "system.pool" .Pool.Acquires (dur .Pool.AvgWait) .Pool.Canceled}}</p></article>
-  <article class="kpi"><div class="kpi-head"><span class="kpi-icon">{{icon "cloud"}}</span><h2>{{t "system.outside"}}</h2></div>
-    <p class="kpi-sub">{{t "system.bazaar" .Hour.Bazaar.OK .Hour.Bazaar.Failed}}{{if .Hour.Bazaar.Latency.N}}{{t "system.slowest" (p .Hour.Bazaar.Latency 0.95)}}{{end}}</p>
-    <p class="kpi-sub">{{t "system.email" .Hour.Mail.OK .Hour.Mail.Failed}}{{if .Hour.Mail.Latency.N}}{{t "system.slowest" (p .Hour.Mail.Latency 0.95)}}{{end}}</p></article>
+<section class="kpis wide stats">
+  <article class="kpi{{if index .Five.ByClass 3}} flag{{end}}"><div class="kpi-head"><span class="kpi-icon">{{icon "zap"}}</span><h2>{{t "system.last5"}}</h2></div>
+    <p class="big">{{.Five.Requests}}</p><p class="kpi-sub">{{t "system.requests"}}</p>
+    <dl class="mini">
+      <div><dt>{{t "system.errors"}}</dt><dd{{if index .Five.ByClass 3}} class="error-text"{{end}}>{{index .Five.ByClass 3}}</dd></div>
+      <div><dt>{{t "system.slowN"}}</dt><dd{{if .Five.Slow}} class="warn-text"{{end}}>{{.Five.Slow}}</dd></div>
+      <div><dt>{{t "system.p50"}}</dt><dd class="ltr">{{p .Five.Latency 0.5}}</dd></div>
+      <div><dt>{{t "system.p95"}}</dt><dd class="ltr">{{p .Five.Latency 0.95}}</dd></div>
+    </dl></article>
+  <article class="kpi{{if .Pool.Canceled}} flag{{end}}"><div class="kpi-head"><span class="kpi-icon">{{icon "backups"}}</span><h2>{{t "system.db"}}</h2></div>
+    <p class="big ltr">{{.Now.InUse}}<span class="of"> / {{.Now.Max}}</span></p><p class="kpi-sub">{{t "system.inUse" .Now.Total}}</p>
+    <div class="meter" aria-hidden="true"><span class="w{{.DBMeter}}"></span></div>
+    <dl class="mini">
+      <div><dt>{{t "system.taken"}}</dt><dd>{{.Pool.Acquires}}</dd></div>
+      <div><dt>{{t "system.avgWait"}}</dt><dd class="ltr">{{dur .Pool.AvgWait}}</dd></div>
+      <div><dt>{{t "system.gaveUp"}}</dt><dd{{if .Pool.Canceled}} class="error-text"{{end}}>{{.Pool.Canceled}}</dd></div>
+    </dl></article>
+  <article class="kpi{{if .CallsFailed}} warn{{end}}"><div class="kpi-head"><span class="kpi-icon">{{icon "cloud"}}</span><h2>{{t "system.outside"}}</h2></div>
+    <p class="big ltr">{{.CallsOK}}</p><p class="kpi-sub">{{if .Calls}}{{t "system.okRate" .Calls}}{{else}}{{t "system.noCalls"}}{{end}}</p>
+    <dl class="mini">
+      <div><dt>{{t "system.bazaarH"}}</dt><dd>{{t "system.okFailed" .Hour.Bazaar.OK .Hour.Bazaar.Failed}}{{if .Hour.Bazaar.Latency.N}}<small class="ltr">{{p .Hour.Bazaar.Latency 0.95}}</small>{{end}}</dd></div>
+      <div><dt>{{t "system.emailH"}}</dt><dd>{{t "system.okFailed" .Hour.Mail.OK .Hour.Mail.Failed}}{{if .Hour.Mail.Latency.N}}<small class="ltr">{{p .Hour.Mail.Latency 0.95}}</small>{{end}}</dd></div>
+    </dl></article>
   <article class="kpi"><div class="kpi-head"><span class="kpi-icon">{{icon "server"}}</span><h2>{{t "system.process"}}</h2></div>
-    <p class="kpi-sub">{{t "system.since" (when .Started) (ago .Started)}}</p>
-    <p class="kpi-sub">{{t "system.memory" (bytes .Runtime.HeapBytes) (bytes .Runtime.SysBytes)}}</p>
-    <p class="kpi-sub">{{t "system.goroutines" .Runtime.Goroutines}}</p></article>
+    <p class="big">{{span .Started}}</p><p class="kpi-sub">{{t "system.upFor" (when .Started)}}</p>
+    <dl class="mini">
+      <div><dt>{{t "system.heap"}}</dt><dd class="ltr">{{bytes .Runtime.HeapBytes}}</dd></div>
+      <div><dt>{{t "system.sys"}}</dt><dd class="ltr">{{bytes .Runtime.SysBytes}}</dd></div>
+      <div><dt>{{t "system.gr"}}</dt><dd>{{.Runtime.Goroutines}}</dd></div>
+    </dl></article>
 </section>
 <section class="panel">
   <header class="panel-head"><h2>{{icon "chart"}}{{t "system.byRoute"}}</h2><p>{{if lt .Covered.Minutes 59.0}}{{t "system.partial" (ago .Started)}}{{end}}{{t "system.buckets"}}</p></header>

@@ -583,7 +583,8 @@ func TestSystemAndLogsPages(t *testing.T) {
 	owner := e.owner("boss@example.com")
 	code, body := owner.get("/system")
 	if code != http.StatusOK || !strings.Contains(body, "POST /v1/auth/login") || !strings.Contains(body, "9 of 20 requests were slow") ||
-		!strings.Contains(body, "firing since") {
+		!strings.Contains(body, "firing since") || !strings.Contains(body, "Firing alerts: 1") || !strings.Contains(body, "Slow responses") ||
+		!strings.Contains(body, "What to do") {
 		t.Fatalf("system page: %d %s", code, body)
 	}
 	code, body = owner.get("/logs?level=WARN&days=7")
