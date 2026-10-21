@@ -3,17 +3,17 @@
 <header class="page-head">
   <span class="page-icon">{{icon "admins"}}</span>
   <div><h1>{{t "nav.admins"}}</h1><p class="lead">{{t "lead.admins"}}</p></div>
+  <button type="button" class="page-tools" popovertarget="add-admin" aria-haspopup="dialog">{{icon "plus"}}<span>{{t "admins.addH"}}</span></button>
 </header>
 {{with .Error}}<div class="flash bad toast" role="alert">{{icon "alert"}}<p>{{.}}</p></div>{{end}}
 {{with .Temp}}<div class="flash ok secret" role="status">{{icon "lock"}}<div><p>{{t "admins.tempFor"}} <strong class="ltr email">{{$.TempFor}}</strong>:</p><p><code class="key">{{.}}</code></p>
 <p class="muted">{{t "admins.tempNote"}}</p></div></div>{{end}}
-<div class="split">
 <section class="panel" id="team">
-  <div class="table-wrap"><table><thead><tr><th>{{t "col.name"}}</th><th>{{t "col.role"}}</th><th>{{t "col.authenticator"}}</th><th>{{t "col.lastSignin"}}</th><th></th></tr></thead><tbody>
-  {{range .Admins}}<tr{{if .Disabled}} class="muted"{{end}}>
+  <div class="table-wrap"><table class="team"><thead><tr><th>{{t "col.name"}}</th><th>{{t "col.role"}}</th><th>{{t "col.authenticator"}}</th><th>{{t "col.lastSignin"}}</th><th></th></tr></thead><tbody>
+  {{range .Admins}}<tr class="{{if .Disabled}}muted{{end}}{{if and $.Temp (eq .Email $.TempFor)}} fresh{{end}}">
     <td><div class="who"><span class="avatar" aria-hidden="true">{{initial .Name}}</span><div><b>{{.Name}}</b><small class="ltr email">{{.Email}}</small></div></div></td>
     <td><span class="chip role-{{.Role}}">{{code "role" .Role}}</span>{{if .Disabled}} <span class="chip bad">{{code "status" "disabled"}}</span>{{end}}</td>
-    <td>{{if .TOTP}}<span class="chip good">{{icon "check"}}{{t "admins.set"}}</span>{{else}}<span class="chip warn">{{t "admins.notYet"}}</span>{{end}}</td><td>{{ago .LastLogin}}</td>
+    <td>{{if .TOTP}}<span class="chip good">{{icon "check"}}{{t "admins.set"}}</span>{{else}}<span class="chip warn">{{t "admins.notYet"}}</span>{{end}}</td><td class="seen" data-label="{{t "col.lastSignin"}}">{{ago .LastLogin}}</td>
     <td class="act">{{if ne .ID $.Admin.ID}}
     {{if .Disabled}}<form method="post" action="/admins/{{.ID}}/enable#team"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost sm">{{icon "check"}}<span>{{t "btn.enable"}}</span></button></form>
     {{else}}<form method="post" action="/admins/{{.ID}}/disable#team" data-confirm="{{t "confirm.adminDisable.q" .Name}}" data-confirm-x="{{t "confirm.adminDisable.x"}}" data-confirm-ok="{{t "btn.disable"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost sm">{{icon "ban"}}<span>{{t "btn.disable"}}</span></button></form>{{end}}
@@ -21,19 +21,27 @@
     {{else}}<span class="chip accent">{{t "admins.you"}}</span>{{end}}</td></tr>{{end}}
   </tbody></table></div>
 </section>
-<section class="panel">
-  <header class="panel-head"><h2>{{icon "plus"}}{{t "admins.addH"}}</h2><p>{{t "admins.addLead"}}</p></header>
-  <form method="post" action="/admins" class="stack">
+{{/* The add form is a side drawer: a popover opens and closes it without a
+     script, Esc and an outside click close it. A refused add comes back with
+     the drawer open, the fields as typed and the reason inside it. */}}
+{{$add := .Add}}
+<div id="add-admin" popover class="drawer" role="dialog" aria-labelledby="add-admin-h" aria-describedby="add-admin-x"{{if .AddError}} data-open{{end}}>
+  <header class="drawer-head">
+    <span class="drawer-icon">{{icon "plus"}}</span>
+    <div><h2 id="add-admin-h">{{t "admins.addH"}}</h2><p id="add-admin-x">{{t "admins.addLead"}}</p></div>
+    <button type="button" class="drawer-close" popovertarget="add-admin" popovertargetaction="hide" title="{{t "btn.close"}}" aria-label="{{t "btn.close"}}">{{icon "close"}}</button>
+  </header>
+  {{with .AddError}}<div class="flash bad drawer-error" role="alert">{{icon "alert"}}<p>{{.}}</p></div>{{end}}
+  <form method="post" action="/admins" class="stack drawer-form">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
-    <label>{{t "label.name"}} <input name="name" required maxlength="64"></label>
-    <label>{{t "label.email"}} <input type="email" name="email" required maxlength="254" dir="ltr"></label>
-    <label>{{t "label.role"}} <select name="role">
-      <option value="viewer">{{t "admins.optViewer"}}</option>
-      <option value="support">{{t "admins.optSupport"}}</option>
-      <option value="owner">{{t "admins.optOwner"}}</option>
+    <label>{{t "label.name"}} <input name="name" required maxlength="64" autocomplete="off" autofocus{{with $add}} value="{{.Name}}"{{end}}{{if eq .AddField "name"}} aria-invalid="true"{{end}}></label>
+    <label>{{t "label.email"}} <input type="email" name="email" required maxlength="254" dir="ltr" autocomplete="off"{{with $add}} value="{{.Email}}"{{end}}{{if eq .AddField "email"}} aria-invalid="true"{{end}}></label>
+    <label>{{t "label.role"}} <select name="role"{{if eq .AddField "role"}} aria-invalid="true"{{end}}>
+      <option value="viewer"{{with $add}}{{if eq .Role "viewer"}} selected{{end}}{{end}}>{{t "admins.optViewer"}}</option>
+      <option value="support"{{with $add}}{{if eq .Role "support"}} selected{{end}}{{end}}>{{t "admins.optSupport"}}</option>
+      <option value="owner"{{with $add}}{{if eq .Role "owner"}} selected{{end}}{{end}}>{{t "admins.optOwner"}}</option>
     </select></label>
-    <button>{{t "btn.add"}}</button>
+    <button>{{icon "plus"}}<span>{{t "btn.add"}}</span></button>
   </form>
-</section>
 </div>
 {{end}}

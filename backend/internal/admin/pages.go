@@ -453,11 +453,34 @@ func (s *Server) createAdmin(w http.ResponseWriter, r *http.Request) {
 	email, name, role := r.PostFormValue("email"), r.PostFormValue("name"), Role(r.PostFormValue("role"))
 	temp, err := CreateAdmin(ctx, s.Deps, email, name, role, a.ID)
 	if err != nil {
-		s.showAdmins(w, r, http.StatusBadRequest, map[string]any{"Error": createAdminProblem(ctx, err)})
+		// The drawer opens again with what was typed, so only the field at
+		// fault needs fixing.
+		s.showAdmins(w, r, http.StatusBadRequest, map[string]any{
+			"AddError": createAdminProblem(ctx, err),
+			"AddField": createAdminField(err),
+			"Add":      addAdminForm{Name: name, Email: email, Role: string(role)},
+		})
 		return
 	}
 	s.record(ctx, a.ID, "admin.created", "", ipFrom(ctx), map[string]any{"email": normalizeEmail(email), "role": string(role)})
 	s.showAdmins(w, r, http.StatusOK, map[string]any{"Temp": temp, "TempFor": normalizeEmail(email)})
+}
+
+// addAdminForm is the add-admin drawer's fields as last sent.
+type addAdminForm struct{ Name, Email, Role string }
+
+// createAdminField names the field CreateAdmin refused, for the drawer to
+// mark and focus.
+func createAdminField(err error) string {
+	switch {
+	case errors.Is(err, errBadName):
+		return "name"
+	case errors.Is(err, errBadEmail), errors.Is(err, errAdminExists):
+		return "email"
+	case errors.Is(err, errBadRole):
+		return "role"
+	}
+	return ""
 }
 
 // createAdminProblem says why CreateAdmin refused, in the admin's language.

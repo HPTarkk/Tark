@@ -188,6 +188,7 @@ var texts = map[string][2]string{
 	"btn.search":      {"Search", "جستجو"},
 	"btn.save":        {"Save", "ذخیره کن"},
 	"btn.cancel":      {"Cancel", "انصراف"},
+	"btn.close":       {"Close", "بستن"},
 	"btn.copy":        {"Copy", "کپی"},
 	"btn.copied":      {"Copied", "کپی شد"},
 	// Questions asked before an action takes effect.

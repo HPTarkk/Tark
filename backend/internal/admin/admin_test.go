@@ -296,6 +296,20 @@ func TestOwnerFlow(t *testing.T) {
 	if m == nil {
 		t.Fatalf("no one-time password:\n%s", body)
 	}
+	if !strings.Contains(body, `<tr class=" fresh">`) {
+		t.Fatalf("the new admin's row is not marked:\n%s", body)
+	}
+	// Adding the same email again is refused inside the drawer, which comes
+	// back open with the fields as typed and the email marked.
+	code, again := b.post("/admins", url.Values{"csrf": {field(t, body, "csrf")}, "name": {"Sam Two"}, "email": {"sam@example.com"}, "role": {"support"}})
+	if code != http.StatusBadRequest || !strings.Contains(again, `data-open`) || !strings.Contains(again, `value="Sam Two"`) ||
+		!strings.Contains(again, `<option value="support" selected>`) || !regexp.MustCompile(`name="email"[^>]*aria-invalid="true"`).MatchString(again) ||
+		!strings.Contains(again, "drawer-error") || strings.Contains(again, "flash bad toast") {
+		t.Fatalf("refused add: %d\n%s", code, again)
+	}
+	if _, plain := b.get("/admins"); strings.Contains(plain, "data-open") || strings.Contains(plain, "aria-invalid") {
+		t.Fatalf("the drawer starts open:\n%s", plain)
+	}
 	viewer := e.browser()
 	vbody, _ := viewer.signIn("sam@example.com", m[1], nil)
 	_, vbody = viewer.post("/account/password", url.Values{"csrf": {field(t, vbody, "csrf")}, "current": {m[1]},

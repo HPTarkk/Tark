@@ -97,3 +97,12 @@ if (confirmBox) {
     }
   });
 }
+
+// A refused add comes back with its drawer open, already in place, and the
+// field at fault focused.
+for (const drawer of document.querySelectorAll(".drawer[data-open]")) {
+  drawer.classList.add("settled");
+  drawer.showPopover();
+  drawer.querySelector("[aria-invalid]")?.focus();
+  requestAnimationFrame(() => requestAnimationFrame(() => drawer.classList.remove("settled")));
+}

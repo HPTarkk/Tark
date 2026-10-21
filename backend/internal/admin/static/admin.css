@@ -177,6 +177,45 @@ main.content > :nth-child(6) { animation-delay: .2s; } main.content > :nth-child
 button.danger { background: var(--bad); box-shadow: 0 8px 20px -12px var(--bad); }
 @keyframes dialog-in { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
 
+/* Side drawer (a popover): slides in from the edge away from the menu over a
+   blurred page; Esc, the close button and an outside click send it back.
+   Its contents rise in just behind it. */
+.drawer { position: fixed; inset-block: 0; inset-inline-start: auto; inset-inline-end: 0; width: min(100vw, 440px); height: 100dvh; max-height: none; margin: 0; padding: 0; border: 0; border-inline-start: 1px solid var(--line); background: var(--surface); color: var(--fg); box-shadow: 0 0 80px -24px rgba(0, 0, 0, .55); overflow-y: auto; overscroll-behavior: contain; transform: translateX(104%); transition: transform .44s var(--ease), overlay .44s allow-discrete, display .44s allow-discrete; }
+[dir="rtl"] .drawer { transform: translateX(-104%); }
+main.content > .drawer { animation: none; } /* it slides; the page's rise-in is not for it */
+.drawer:popover-open { display: flex; flex-direction: column; transform: none; }
+@starting-style { .drawer:popover-open { transform: translateX(104%); } [dir="rtl"] .drawer:popover-open { transform: translateX(-104%); } }
+/* The backdrop fades by opacity: animating the blur itself stalls the first frames. */
+.drawer::backdrop { background: rgba(8, 10, 14, .55); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); opacity: 0; transition: opacity .32s ease, overlay .32s allow-discrete, display .32s allow-discrete; }
+.drawer:popover-open::backdrop { opacity: 1; }
+@starting-style { .drawer:popover-open::backdrop { opacity: 0; } }
+.drawer-head { display: flex; align-items: flex-start; gap: 14px; padding: 26px 24px 20px; }
+.drawer-head > div { flex: 1; min-width: 0; }
+.drawer-head h2 { margin: 2px 0 0; font-size: 1.15rem; font-weight: 800; }
+.drawer-head p { margin: 4px 0 0; color: var(--muted); font-size: .88rem; }
+.drawer-icon { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: 14px; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); }
+.drawer-icon .i { width: 22px; height: 22px; }
+button.drawer-close { padding: 0; width: 38px; height: 38px; border-radius: 12px; background: var(--surface); color: var(--muted); border: 1px solid var(--line); box-shadow: none; }
+button.drawer-close:hover { filter: none; box-shadow: none; color: var(--fg); border-color: var(--line-2); background: var(--surface-2); }
+button.drawer-close .i { width: 18px; height: 18px; transition: transform .3s var(--ease); }
+button.drawer-close:hover .i { transform: rotate(90deg); }
+.drawer-error { margin: 0 24px 18px; box-shadow: none; animation: shake .42s .1s ease; }
+.drawer-form { padding: 4px 24px 28px; border-top: 1px solid var(--line); padding-top: 22px; }
+.drawer-form > button { align-self: stretch; margin-top: 6px; padding-block: 12px; }
+.drawer [aria-invalid="true"] { border-color: var(--bad); box-shadow: 0 0 0 4px color-mix(in srgb, var(--bad) 14%, transparent); }
+.drawer:popover-open .drawer-head, .drawer:popover-open .drawer-form > :not([type="hidden"]) { animation: rise .5s var(--ease) both; }
+.drawer:popover-open .drawer-head { animation-delay: .06s; }
+.drawer:popover-open .drawer-form > :nth-child(2) { animation-delay: .1s; }
+.drawer:popover-open .drawer-form > :nth-child(3) { animation-delay: .14s; }
+.drawer:popover-open .drawer-form > :nth-child(4) { animation-delay: .18s; }
+.drawer:popover-open .drawer-form > :nth-child(5) { animation-delay: .22s; }
+/* Back open after a refused add: already there, nothing slides again. */
+.drawer.settled, .drawer.settled::backdrop { transition: none; }
+.drawer.settled .drawer-head, .drawer.settled .drawer-form > * { animation: none; }
+/* The admin just added (or just given a new password) glows for a moment. */
+tr.fresh > td { animation: fresh 2.6s ease both; }
+@keyframes fresh { from, 30% { background: color-mix(in srgb, var(--accent) 13%, transparent); } to { background: transparent; } }
+
 /* A form result is the same page again: no entrance replay, and the form
    action's #section brings the page back to where the button was. */
 body.posted main.content > *, body.posted .page-icon, body.posted .avatar.xl, body.posted .kpi .big, body.posted .bar { animation: none; }
@@ -516,6 +555,14 @@ button.danger-soft:hover { filter: none; color: #fff; background: var(--bad); bo
   .split { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
+  /* The drawer turns into a bottom sheet that rises from the thumb's edge. */
+  .drawer, [dir="rtl"] .drawer { inset: auto 0 0 0; width: 100%; height: auto; max-height: calc(100dvh - 40px); border: 0; border-top: 1px solid var(--line); border-radius: 22px 22px 0 0; padding-bottom: env(safe-area-inset-bottom); transform: translateY(104%); }
+  .drawer:popover-open, [dir="rtl"] .drawer:popover-open { transform: none; }
+  @starting-style { .drawer:popover-open, [dir="rtl"] .drawer:popover-open { transform: translateY(104%); } }
+  .drawer::before { content: ""; flex-shrink: 0; width: 40px; height: 4px; margin: 10px auto 0; border-radius: 2px; background: var(--line-2); }
+  .drawer-head { padding: 14px 18px 16px; }
+  .drawer-error { margin-inline: 18px; }
+  .drawer-form { padding: 18px 18px 22px; }
   .page-head { gap: 12px; margin-bottom: 20px; }
   .page-head h1 { font-size: 1.35rem; }
   .page-icon { width: 46px; height: 46px; border-radius: 14px; }
@@ -533,6 +580,22 @@ button.danger-soft:hover { filter: none; color: #fff; background: var(--bad); bo
   .panel > .table-wrap:last-child { margin-bottom: -16px; }
   th:first-child, td:first-child { padding-inline-start: 16px; }
   th:last-child, td:last-child { padding-inline-end: 16px; }
+  /* Admins read as cards on a phone: who on top, role and authenticator
+     beside the last sign-in, then the actions, with nothing off-screen. */
+  table.team thead { display: none; }
+  table.team tr { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 10px 8px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  table.team tbody tr:last-child { border-bottom: 0; }
+  table.team td { padding: 0; border: 0; white-space: normal; }
+  table.team td:first-child { grid-column: 1 / -1; }
+  table.team td.seen { justify-self: end; color: var(--muted); font-size: .8rem; }
+  table.team td.seen::before { content: attr(data-label) " · "; }
+  table.team td.act { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; text-align: start; }
+  table.team td.act:has(> .chip) { position: absolute; inset-block-start: 14px; inset-inline-end: 16px; }
+  table.team tr:has(td.act > .chip) { position: relative; }
+  table.team td.act form { margin: 0; flex: 1; }
+  table.team td.act button { width: 100%; padding-block: 9px; }
+  table.team .who { padding-inline-end: 52px; }
+  table.team .who small { overflow-wrap: anywhere; }
   .profile { padding: 20px; gap: 14px; flex-direction: column; align-items: flex-start; }
   .avatar.xl { width: 60px; height: 60px; font-size: 1.6rem; }
   .profile h1 { font-size: 1.4rem; }
@@ -665,6 +728,12 @@ body.posted .drawn > *, body.posted .nil-title, body.posted .nil-hint { animatio
   .check summary:hover .check-icon { transform: none; }
   .side, .scrim { transition: none; }
   .dialog:popover-open { animation-name: auth-fade; }
+  .drawer, [dir="rtl"] .drawer { transform: none; opacity: 0; transition: opacity .2s ease, overlay .2s allow-discrete, display .2s allow-discrete; }
+  .drawer:popover-open { opacity: 1; }
+  @starting-style { .drawer:popover-open, [dir="rtl"] .drawer:popover-open { transform: none; opacity: 0; } }
+  .drawer:popover-open .drawer-head, .drawer:popover-open .drawer-form > :not([type="hidden"]) { animation-name: auth-fade; animation-delay: 0s; }
+  .drawer-error { animation: none; }
+  button.drawer-close:hover .i { transform: none; }
   main.content > .flash.toast, main.content > .flash.toast.bad { animation: auth-fade .3s both, toast-out .3s ease 8s forwards; }
   .kpi:hover, .tile:hover, .kpi:hover::after, .nav a:hover .i { transform: none; }
   button:active, .btn:active, .nav a:active, .icon-btn:active { transform: none; }
