@@ -55,6 +55,16 @@ var funcs = template.FuncMap{
 		}
 		return icon("alert")
 	},
+	// blank is what the "empty" block draws for a list with nothing in it:
+	// an icon, a line, and optionally a quieter second line.
+	"blank": func(icon, title string, hint ...string) map[string]string {
+		b := map[string]string{"Icon": icon, "Title": title}
+		if len(hint) > 0 {
+			b["Hint"] = hint[0]
+		}
+		return b
+	},
+	"drawn": drawn,
 	// avatar is the picture of an app avatar id (one of the app's own
 	// avatars, copied into static/avatars), or "" for none or unknown.
 	"avatar": func(v any) string {
@@ -238,4 +248,13 @@ var icons = map[string]string{
 
 func icon(name string) template.HTML {
 	return template.HTML(`<svg class="i" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">` + icons[name] + `</svg>`)
+}
+
+// drawShapes gives every stroke of an icon the same length, so CSS can draw
+// it in line by line whatever its real length.
+var drawShapes = strings.NewReplacer("<path ", `<path pathLength="1" `, "<rect ", `<rect pathLength="1" `, "<circle ", `<circle pathLength="1" `, "<ellipse ", `<ellipse pathLength="1" `)
+
+// drawn is an icon that draws itself in (see .nil in admin.css).
+func drawn(name string) template.HTML {
+	return template.HTML(`<svg class="i drawn" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">` + drawShapes.Replace(icons[name]) + `</svg>`)
 }

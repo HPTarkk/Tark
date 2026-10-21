@@ -29,32 +29,32 @@
   <div class="table-wrap"><table><thead><tr><th>{{t "col.plan"}}</th><th>{{t "col.state"}}</th><th>{{t "col.validUntil"}}</th><th>{{t "col.autoRenew"}}</th><th>{{t "col.refunded"}}</th><th>{{t "col.lastVerified"}}</th><th class="num">{{t "col.failedChecks"}}</th><th>{{t "col.bought"}}</th><th></th></tr></thead><tbody>
   {{range .Purchases}}<tr><td><code>{{.SKU}}</code></td><td><span class="chip st-{{.State}}">{{code "state" .State}}</span></td><td>{{when .ValidUntil}}</td><td>{{if .AutoRenew}}<span class="chip good">{{t "on"}}</span>{{else}}<span class="chip">{{t "off"}}</span>{{end}}</td><td>{{when .Refunded}}</td><td>{{when .LastVerified}}</td><td class="num">{{.CheckFailures}}</td><td>{{when .Created}}</td>
   <td class="act"><form method="post" action="/users/{{$.U.ID}}/recheck#subscription"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="purchase" value="{{.ID}}"><button class="ghost sm">{{icon "refresh"}}<span>{{t "user.recheck"}}</span></button></form></td></tr>
-  {{else}}<tr><td colspan="9" class="empty">{{t "user.noPurchases"}}</td></tr>{{end}}</tbody></table></div>
+  {{else}}<tr class="nil-row"><td colspan="9">{{template "empty" (blank "card" (t "user.noPurchases"))}}</td></tr>{{end}}</tbody></table></div>
 </section>
 <div class="grid-2">
 <section class="panel">
   <header class="panel-head"><h2>{{icon "gift"}}{{t "user.grantsH"}}</h2></header>
   <div class="table-wrap"><table><thead><tr><th>{{t "col.from"}}</th><th>{{t "col.until"}}</th><th>{{t "col.by"}}</th><th>{{t "col.reason"}}</th><th>{{t "col.state"}}</th></tr></thead><tbody>
   {{range .Grants}}<tr><td>{{when .Starts}}</td><td>{{when .Ends}}</td><td>{{.By}}</td><td class="wrap">{{.Reason}}</td><td>{{if .Revoked}}<span class="chip bad">{{t "user.revokedAt" (when .Revoked)}}</span>{{else if .Live}}<span class="chip good">{{t "user.running"}}</span>{{else}}<span class="chip">{{t "user.ended"}}</span>{{end}}</td></tr>
-  {{else}}<tr><td colspan="5" class="empty">{{t "none"}}</td></tr>{{end}}</tbody></table></div>
+  {{else}}<tr class="nil-row"><td colspan="5">{{if eq $.Admin.Role "owner"}}{{template "empty" (blank "gift" (t "user.noGrants") (t "user.noGrantsX"))}}{{else}}{{template "empty" (blank "gift" (t "user.noGrants"))}}{{end}}</td></tr>{{end}}</tbody></table></div>
 </section>
 <section class="panel">
   <header class="panel-head"><h2>{{icon "phone"}}{{t "user.devicesH"}}</h2></header>
   <div class="table-wrap"><table><thead><tr><th>{{t "col.platform"}}</th><th>{{t "col.signedIn"}}</th><th>{{t "col.lastUsed"}}</th><th>{{t "col.ended"}}</th></tr></thead><tbody>
   {{range .Sessions}}<tr><td>{{deref .Platform}}</td><td>{{when .Created}}</td><td>{{ago .LastSeen}}</td><td>{{when .Revoked}} {{with deref .Reason}}<code>{{.}}</code>{{end}}</td></tr>
-  {{else}}<tr><td colspan="4" class="empty">{{t "none"}}</td></tr>{{end}}</tbody></table></div>
+  {{else}}<tr class="nil-row"><td colspan="4">{{template "empty" (blank "phone" (t "user.noDevices"))}}</td></tr>{{end}}</tbody></table></div>
 </section>
 </div>
 <div class="grid-2">
 <section class="panel">
   <header class="panel-head"><h2>{{icon "activity"}}{{t "user.historyH"}}</h2></header>
   <div class="table-wrap"><table><thead><tr><th>{{t "col.when"}}</th><th>{{t "col.event"}}</th><th>{{t "col.details"}}</th></tr></thead><tbody>
-  {{range .SubEvents}}<tr><td>{{when .At}}</td><td><code class="kind">{{.Kind}}</code></td><td class="wrap"><code>{{.Details}}</code></td></tr>{{else}}<tr><td colspan="3" class="empty">{{t "none"}}</td></tr>{{end}}</tbody></table></div>
+  {{range .SubEvents}}<tr><td>{{when .At}}</td><td><code class="kind">{{.Kind}}</code></td><td class="wrap"><code>{{.Details}}</code></td></tr>{{else}}<tr class="nil-row"><td colspan="3">{{template "empty" (blank "activity" (t "user.noHistory"))}}</td></tr>{{end}}</tbody></table></div>
 </section>
 <section class="panel">
   <header class="panel-head"><h2>{{icon "security"}}{{t "security.h"}}</h2></header>
   <div class="table-wrap"><table><thead><tr><th>{{t "col.when"}}</th><th>{{t "col.event"}}</th><th>{{t "col.details"}}</th></tr></thead><tbody>
-  {{range .Audit}}<tr><td>{{when .At}}</td><td><code class="kind">{{.Kind}}</code></td><td class="wrap"><code>{{.Details}}</code></td></tr>{{else}}<tr><td colspan="3" class="empty">{{t "none"}}</td></tr>{{end}}</tbody></table></div>
+  {{range .Audit}}<tr><td>{{when .At}}</td><td><code class="kind">{{.Kind}}</code></td><td class="wrap"><code>{{.Details}}</code></td></tr>{{else}}<tr class="nil-row"><td colspan="3">{{template "empty" (blank "security" (t "user.noSecurity"))}}</td></tr>{{end}}</tbody></table></div>
 </section>
 </div>
 <section class="panel acts" id="actions">
@@ -128,7 +128,7 @@
 <section class="panel">
   <header class="panel-head"><h2>{{icon "admins"}}{{t "user.adminH"}}</h2></header>
   <div class="table-wrap"><table><thead><tr><th>{{t "col.when"}}</th><th>{{t "col.admin"}}</th><th>{{t "col.action"}}</th></tr></thead><tbody>
-  {{range .AdminEvents}}<tr><td>{{when .At}}</td><td>{{.Who}}</td><td><code class="kind">{{.Kind}}</code></td></tr>{{else}}<tr><td colspan="3" class="empty">{{t "none"}}</td></tr>{{end}}</tbody></table></div>
+  {{range .AdminEvents}}<tr><td>{{when .At}}</td><td>{{.Who}}</td><td><code class="kind">{{.Kind}}</code></td></tr>{{else}}<tr class="nil-row"><td colspan="3">{{template "empty" (blank "admins" (t "user.noAdmin"))}}</td></tr>{{end}}</tbody></table></div>
 </section>
 {{end}}
 {{end}}

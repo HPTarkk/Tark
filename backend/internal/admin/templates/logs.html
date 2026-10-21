@@ -13,11 +13,11 @@
     <button>{{t "btn.search"}}</button>
   </form>
   <p class="panel-note">{{icon "info"}}<span>{{t "logs.note" .Max}}{{if .Cut}} {{t "logs.cut"}}{{end}} {{t "logs.note2"}}</span></p>
-  <div class="log">{{range .Lines}}<code class="{{level .}}">{{.}}</code>{{else}}<p class="empty">{{t "logs.none"}}</p>{{end}}</div>
+  <div class="log">{{range .Lines}}<code class="{{level .}}">{{.}}</code>{{else}}{{template "empty" (blank "search" (t "logs.none") (t "logs.noneX"))}}{{end}}</div>
 </section>
 <section class="panel">
   <header class="panel-head"><h2>{{icon "backups"}}{{t "logs.kept"}}</h2><p>{{t "logs.download"}}</p></header>
-  <div class="table-wrap"><table><thead><tr><th>{{t "col.dayUTC"}}</th><th class="num">{{t "col.sizeDisk"}}</th></tr></thead><tbody>{{range .Kept}}<tr><td>{{.Date}}</td><td class="num">{{mb .Bytes}}</td></tr>{{end}}</tbody></table></div>
+  <div class="table-wrap"><table><thead><tr><th>{{t "col.dayUTC"}}</th><th class="num">{{t "col.sizeDisk"}}</th></tr></thead><tbody>{{range .Kept}}<tr><td>{{.Date}}</td><td class="num">{{mb .Bytes}}</td></tr>{{else}}<tr class="nil-row"><td colspan="2">{{template "empty" (blank "logs" (t "logs.noKept"))}}</td></tr>{{end}}</tbody></table></div>
 </section>
 {{end}}
 {{end}}

@@ -154,8 +154,6 @@ var texts = map[string][2]string{
 	"on":              {"on", "روشن"},
 	"off":             {"off", "خاموش"},
 	"ok":              {"ok", "سالم"},
-	"none":            {"None.", "هیچی."},
-	"nothing":         {"Nothing.", "چیزی نیست."},
 	"never":           {"never", "هیچ‌وقت"},
 	"ago.now":         {"just now", "همین الان"},
 	"ago.m":           {"%dm ago", "%d دقیقه پیش"},
@@ -270,7 +268,9 @@ var texts = map[string][2]string{
 	"col.ended":              {"Ended", "پایان"},
 
 	// activity
-	"activity.h": {"Admin activity", "کارهای مدیرها"},
+	"activity.h":     {"Admin activity", "کارهای مدیرها"},
+	"activity.none":  {"No admin activity yet", "هنوز مدیری کاری نکرده"},
+	"activity.noneX": {"Every change an admin makes is recorded here.", "هر تغییری که مدیرها بدن اینجا ثبت می‌شه."},
 
 	// admins
 	"admins.tempFor":     {"One-time password for", "رمز یک‌بارمصرف برای"},
@@ -296,7 +296,8 @@ var texts = map[string][2]string{
 	"backups.ok":      {"ok", "موفق"},
 	"backups.failed":  {"failed: %v", "ناموفق: %v"},
 	"backups.running": {"running", "در حال اجرا"},
-	"backups.none":    {"No backups yet.", "هنوز پشتیبانی نیست."},
+	"backups.none":    {"No backups yet", "هنوز پشتیبانی گرفته نشده"},
+	"backups.noneX":   {"The nightly backup shows up here once it has run.", "پشتیبان شبانه بعد از اجرا اینجا نشون داده می‌شه."},
 
 	// dashboard
 	"dash.alerts":       {"Alerts firing:", "هشدارهای فعال:"},
@@ -368,13 +369,16 @@ var texts = map[string][2]string{
 	"logs.note":        {"Newest first, at most %v lines.", "جدیدترها اول، حداکثر %v خط."},
 	"logs.cut":         {"There are more; narrow the search.", "بیشتر هم هست؛ جستجو رو دقیق‌تر کن."},
 	"logs.note2":       {"Times are UTC. The log has no IP addresses or tokens.", "زمان‌ها به وقت UTC هستن. توی لاگ هیچ آدرس IP یا توکنی نیست."},
-	"logs.none":        {"Nothing matches.", "چیزی پیدا نشد."},
+	"logs.none":        {"Nothing matches", "چیزی پیدا نشد"},
+	"logs.noneX":       {"Try fewer words, another level or more days.", "کلمه‌های کمتر، یه سطح دیگه یا روزهای بیشتر رو امتحان کن."},
+	"logs.noKept":      {"No log days kept yet", "هنوز روزی نگه داشته نشده"},
 	"logs.kept":        {"Kept days", "روزهای نگه‌داشته‌شده"},
 	"logs.download":    {"Download a whole day on your computer with: bash remote.sh log-day YYYY-MM-DD", "برای گرفتن یه روز کامل روی کامپیوترت: bash remote.sh log-day YYYY-MM-DD"},
 
 	// mail
 	"mail.h":     {"Email, last 7 days", "ایمیل‌ها، 7 روز اخیر"},
-	"mail.none":  {"No email in 7 days.", "تو 7 روز ایمیلی نبوده."},
+	"mail.none":  {"No email in 7 days", "تو 7 روز ایمیلی نبوده"},
+	"mail.noneX": {"Every email the server sends is counted here, by kind.", "هر ایمیلی که سرور بفرسته، به تفکیک نوع اینجا شمرده می‌شه."},
 	"mail.retry": {"Retry every waiting email now", "همه‌ی ایمیل‌های توی صف رو الان دوباره بفرست"},
 	"mail.note":  {"Sent emails are wiped from the database right away; only these counts remain, for 7 days.", "ایمیل‌های فرستاده‌شده همون موقع از پایگاه داده پاک می‌شن؛ فقط همین شمارش‌ها 7 روز می‌مونن."},
 
@@ -404,6 +408,7 @@ var texts = map[string][2]string{
 	// pricing
 	"pricing.h":          {"Price helper", "کمک‌حساب قیمت"},
 	"pricing.lead":       {"Works out a price for every plan on sale from the monthly price. It only suggests: Bazaar charges whatever you type in its panel, and the app shows Bazaar's price.", "از روی قیمت ماهانه، برای هر اشتراکی که فروشیه قیمت حساب می‌کنه. فقط پیشنهاد می‌ده: بازار همون قیمتی رو می‌گیره که توی پنلش بنویسی و برنامه هم قیمت بازار رو نشون می‌ده."},
+	"pricing.emptyT":     {"No prices yet", "هنوز قیمتی نیست"},
 	"pricing.empty":      {"Nothing saved yet. Fill in the monthly price to see suggestions.", "هنوز چیزی ذخیره نشده. قیمت ماهانه رو بنویس تا پیشنهادها رو ببینی."},
 	"pricing.inputs":     {"Inputs", "ورودی‌ها"},
 	"pricing.base":       {"Monthly price, Toman", "قیمت ماهانه، تومان"},
@@ -426,6 +431,9 @@ var texts = map[string][2]string{
 
 	// security
 	"security.h":      {"Security events", "رویدادهای امنیتی"},
+	"security.quiet":  {"All quiet in the last 24 hours", "24 ساعت اخیر همه‌چیز آروم بوده"},
+	"security.quietX": {"Failed sign-ins and other trouble are counted here.", "ورودهای ناموفق و بقیه‌ی مشکلات اینجا شمرده می‌شن."},
+	"security.none":   {"No security events yet", "هنوز رویداد امنیتی‌ای نیست"},
 	"security.latest": {"Latest 100 (successful sign-ins left out)", "100 تای آخر (بدون ورودهای موفق)"},
 	"security.source": {"\"Source\" is the first characters of a keyed hash of the IP address: equal values mean the same address, the address itself is never stored.", "«منبع» چند کاراکتر اولِ هش کلیددارِ آدرس IP هست: مقدارهای یکسان یعنی همون آدرس، خود آدرس هیچ‌وقت ذخیره نمی‌شه."},
 
@@ -516,7 +524,13 @@ var texts = map[string][2]string{
 	"user.subH":        {"Subscription", "اشتراک"},
 	"user.suspicious":  {"Flagged suspicious since %v (a refund before expiry).", "از %v علامت مشکوک خورده (پول قبل از تموم شدن اشتراک برگشته)."},
 	"user.recheck":     {"Check with Bazaar now", "الان از بازار بپرس"},
-	"user.noPurchases": {"No purchases.", "خریدی نیست."},
+	"user.noPurchases": {"No purchases yet", "هنوز خریدی نکرده"},
+	"user.noGrants":    {"No premium given by hand", "نسخه ویژه‌ی دستی‌ای نگرفته"},
+	"user.noGrantsX":   {"You can give it under Actions below.", "از بخش «کارها» پایین‌تر می‌تونی بدی."},
+	"user.noDevices":   {"Not signed in on any device", "روی هیچ دستگاهی وارد نشده"},
+	"user.noHistory":   {"No subscription changes yet", "هنوز تغییری توی اشتراکش نبوده"},
+	"user.noSecurity":  {"No security events for this account", "رویداد امنیتی‌ای برای این حساب نیست"},
+	"user.noAdmin":     {"No admin has acted on this account", "هیچ مدیری روی این حساب کاری نکرده"},
 	"user.grantsH":     {"Premium given by hand", "نسخه ویژه‌ی دستی"},
 	"user.revokedAt":   {"revoked %v", "لغوشده %v"},
 	"user.running":     {"running", "فعال"},
@@ -571,7 +585,16 @@ var texts = map[string][2]string{
 	"act.confirmEmail":   {"Type the account's email address exactly to confirm the deletion.", "برای تأیید حذف، آدرس ایمیل حساب رو دقیق بنویس."},
 
 	// users
-	"users.h":        {"Find an account", "پیدا کردن حساب"},
-	"users.lead":     {"Type the person's exact email address or account id. There is no browsing; every search is recorded.", "آدرس ایمیل دقیق یا شناسه‌ی حساب رو بنویس. فهرست کردن نداریم؛ هر جستجو ثبت می‌شه."},
-	"users.notFound": {"No account has that address or id.", "هیچ حسابی با این آدرس یا شناسه نیست."},
+	"users.h":          {"Find an account", "پیدا کردن حساب"},
+	"users.lead":       {"Type the person's exact email address or account id. There is no browsing; every search is recorded.", "آدرس ایمیل دقیق یا شناسه‌ی حساب رو بنویس. فهرست کردن نداریم؛ هر جستجو ثبت می‌شه."},
+	"users.notFound":   {"No account has that address or id.", "هیچ حسابی با این آدرس یا شناسه نیست."},
+	"users.idleT":      {"Who are you looking for?", "دنبال کی می‌گردی؟"},
+	"users.idleX":      {"A match opens the account straight away.", "اگه پیدا بشه، مستقیم صفحه‌ی حسابش باز می‌شه."},
+	"users.byEmail":    {"Email", "ایمیل"},
+	"users.byID":       {"Account id", "شناسه‌ی حساب"},
+	"users.missT":      {"No account found", "حسابی پیدا نشد"},
+	"users.searched":   {"You searched for", "دنبال این گشتی"},
+	"users.tipExact":   {"Check for typos: the address has to match exactly.", "غلط تایپی رو چک کن؛ آدرس باید دقیقاً همون باشه."},
+	"users.tipRemoved": {"Removed addresses don't count, so try the email they use now.", "آدرس‌های حذف‌شده حساب نمی‌شن؛ ایمیلی که الان استفاده می‌کنه رو امتحان کن."},
+	"users.tipID":      {"Have the account id? Search with that instead.", "شناسه‌ی حساب رو داری؟ با اون بگرد."},
 }

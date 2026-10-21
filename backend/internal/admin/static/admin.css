@@ -412,7 +412,6 @@ td.empty, p.empty, li.empty { text-align: center; color: var(--muted); padding: 
 .search input { flex: 1; padding: 12px 4px; border: 0; background: transparent; }
 .search input:focus { box-shadow: none; }
 .search button { border-radius: 13px; padding-inline: 22px; }
-.search-hero .flash { margin-top: 16px; text-align: start; animation: rise .4s var(--ease) both, shake .42s .1s ease both; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; }
 .toolbar .search { flex: 1 1 280px; margin: 0; padding: 0 4px; border-radius: 12px; box-shadow: none; background: var(--bg); border-color: var(--line-2); }
 .toolbar .search input { padding: 10px 4px; }
@@ -544,6 +543,98 @@ button.danger-soft:hover { filter: none; color: #fff; background: var(--bad); bo
   .search-hero .search button { flex-basis: 100%; }
 }
 
+/* ---- empty lists ---------------------------------------------------------
+   One look for every list with nothing in it: a tile springs in, its icon
+   draws itself stroke by stroke, the words rise after it, and then the
+   tile floats while a dashed halo breathes out now and then. */
+.nil { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 34px 16px 30px; }
+.nil-art { position: relative; display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 16px; }
+.nil-art::before, .nil-art::after { content: ""; position: absolute; inset: -9px; border-radius: 27px; border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); opacity: 0; animation: nil-halo 4.2s ease-out 1.1s infinite; pointer-events: none; }
+.nil-art::after { animation-delay: 3.2s; }
+.nil-tile { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; color: var(--accent); background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 15%, var(--surface)), color-mix(in srgb, var(--accent) 4%, var(--surface-2))); border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line)); box-shadow: 0 16px 30px -18px var(--accent), inset 0 1px 0 rgba(255, 255, 255, .07); animation: nil-pop .75s cubic-bezier(.34, 1.56, .64, 1) .06s both, nil-float 5.4s ease-in-out .9s infinite; }
+.nil-tile .i { width: 28px; height: 28px; }
+.drawn > * { stroke-dasharray: 1 1; animation: nil-draw .95s var(--ease) .28s both; }
+.drawn > :nth-child(2) { animation-delay: .4s; } .drawn > :nth-child(n+3) { animation-delay: .52s; }
+.nil-title { margin: 0; font-weight: 700; color: var(--fg); animation: rise .55s var(--ease) .2s both; }
+.nil-hint { margin: 5px 0 0; max-width: 440px; color: var(--muted); font-size: .875rem; line-height: 1.7; animation: rise .55s var(--ease) .28s both; }
+tr.nil-row td { padding: 0; white-space: normal; }
+/* In a table wider than the screen the message stays in view, centred on
+   the visible part rather than on the whole scrolling table. */
+.table-wrap:has(.nil-row) { container-type: inline-size; }
+tr.nil-row .nil { position: sticky; inset-inline-start: 0; width: 100cqi; box-sizing: border-box; }
+tbody tr.nil-row:hover { background: none; }
+.panel.quiet { padding-block: 4px; }
+.log .nil-title { color: #c9d1d9; } .log .nil-hint { color: #8b949e; }
+.log .nil-tile { color: #ff9a57; background: linear-gradient(160deg, rgba(255, 140, 66, .16), rgba(255, 140, 66, .04)); border-color: rgba(255, 140, 66, .3); }
+@keyframes nil-pop { from { opacity: 0; transform: scale(.55) rotate(-10deg); } to { opacity: 1; transform: none; } }
+@keyframes nil-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
+@keyframes nil-draw { from { stroke-dashoffset: 1; opacity: 0; } 12% { opacity: 1; } to { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes nil-halo { 0% { opacity: 0; transform: scale(.82); } 18% { opacity: .9; } 100% { opacity: 0; transform: scale(1.32); } }
+
+/* Find an account. Before a search a lens drifts over a stack of accounts,
+   lighting each one it passes; after a miss it shakes its head over an
+   empty card. Drawn left to right and mirrored for Persian. */
+.finder { display: flex; flex-direction: column; align-items: center; margin-top: 38px; }
+.finder .scene { width: min(300px, 84%); height: auto; overflow: visible; margin-bottom: 8px; animation: nil-pop .8s cubic-bezier(.34, 1.4, .64, 1) .12s both; }
+[dir="rtl"] .finder .scene { scale: -1 1; }
+.finder h2 { margin: 12px 0 4px; font-size: 1.2rem; font-weight: 800; animation: rise .55s var(--ease) .24s both; }
+.finder-x { margin: 0; color: var(--muted); animation: rise .55s var(--ease) .3s both; }
+.scene .card { fill: var(--surface); stroke: var(--line-2); stroke-width: 1.2; }
+.scene .card.ghost { fill: color-mix(in srgb, var(--surface) 55%, transparent); stroke-dasharray: 7 6; }
+.scene .dot, .scene .line { fill: var(--line); }
+.scene .glass { fill: color-mix(in srgb, var(--accent) 12%, transparent); stroke: var(--accent); stroke-width: 3.5; }
+.scene .handle, .scene .cross { stroke: var(--accent); stroke-linecap: round; fill: none; }
+.scene .handle { stroke-width: 6.5; }
+.scene .cross { stroke-width: 3; }
+.idle .lens-at { transform: translate(150px, 29px); animation: lens-scan 8s cubic-bezier(.65, 0, .35, 1) .7s infinite; }
+.idle .row .card, .idle .row .dot { animation: row-lit 8s ease-in-out .7s infinite; }
+.idle .r1 .card, .idle .r1 .dot { animation-delay: -2.18s; }
+.idle .r3 .card, .idle .r3 .dot { animation-delay: 2.94s; }
+.idle .lens { animation: lens-tilt 4s ease-in-out infinite; }
+.missed .lens-at { transform: translate(168px, 57px); }
+.missed .lens { animation: lens-no .9s ease-in-out .55s both, lens-tilt 4s ease-in-out 1.6s infinite; }
+.missed .cross { stroke-dasharray: 1 1; animation: nil-draw .5s var(--ease) 1.15s both; }
+.missed .card.ghost { animation: ghost-dash 1.6s linear infinite; }
+.finder-ways { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0 0; padding: 0; }
+.finder-ways li { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); box-shadow: var(--shadow); color: var(--muted); font-size: .85rem; animation: rise .55s var(--ease) .38s both; }
+.finder-ways li + li { animation-delay: .46s; }
+.finder-ways .i { width: 16px; height: 16px; color: var(--accent); }
+.finder-ways code { color: var(--fg); font-size: .8rem; }
+.finder-q { margin: 14px 0 0; color: var(--muted); font-size: .9rem; animation: rise .55s var(--ease) .36s both; }
+.finder-q code { display: inline-block; max-width: 100%; padding: 3px 10px; border-radius: 8px; color: var(--fg); background: color-mix(in srgb, var(--bad) 9%, var(--surface)); border: 1px solid color-mix(in srgb, var(--bad) 28%, transparent); overflow-wrap: anywhere; }
+.finder-tips { list-style: none; width: min(100%, 460px); margin: 20px 0 0; padding: 6px 18px; text-align: start; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+.finder-tips li { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; font-size: .9rem; animation: rise .55s var(--ease) .44s both; }
+.finder-tips li + li { border-top: 1px solid var(--line); animation-delay: .52s; }
+.finder-tips li:last-child { animation-delay: .6s; }
+.finder-tips .i { flex-shrink: 0; width: 18px; height: 18px; margin-top: 3px; color: var(--accent); }
+@keyframes lens-scan {
+  0%, 12% { transform: translate(150px, 29px); }
+  28%, 40% { transform: translate(122px, 75px); }
+  56%, 68% { transform: translate(160px, 121px); }
+  84%, 100% { transform: translate(150px, 29px); }
+}
+@keyframes row-lit {
+  0%, 22%, 46%, 100% { fill: var(--surface); stroke: var(--line-2); }
+  30%, 38% { fill: color-mix(in srgb, var(--accent) 10%, var(--surface)); stroke: color-mix(in srgb, var(--accent) 55%, var(--line-2)); }
+}
+.idle .row .dot { animation-name: dot-lit; }
+@keyframes dot-lit { 0%, 22%, 46%, 100% { fill: var(--line); } 30%, 38% { fill: color-mix(in srgb, var(--accent) 45%, var(--line)); } }
+@keyframes lens-tilt { 0%, 100% { rotate: -4deg; } 50% { rotate: 5deg; } }
+@keyframes lens-no { 0%, 100% { transform: none; } 20% { transform: translateX(-9px) rotate(-10deg); } 45% { transform: translateX(8px) rotate(9deg); } 70% { transform: translateX(-4px) rotate(-4deg); } }
+@keyframes ghost-dash { to { stroke-dashoffset: -26; } }
+@media (prefers-reduced-motion: reduce) {
+  .nil-tile, .nil-title, .nil-hint, .drawn > *, .finder .scene, .finder h2, .finder-x, .finder-q, .finder-ways li, .finder-tips li, .missed .cross { animation: auth-fade .4s ease both; }
+  .nil-art::before, .nil-art::after { animation: none; }
+  .idle .lens-at { animation: none; transform: translate(122px, 75px); }
+  .idle .row .card, .idle .row .dot, .idle .lens, .missed .lens, .missed .card.ghost { animation: none; }
+  .idle .r2 .card { fill: color-mix(in srgb, var(--accent) 10%, var(--surface)); stroke: color-mix(in srgb, var(--accent) 55%, var(--line-2)); }
+  .idle .r2 .dot { fill: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+}
+/* A form result is the same page again: the empty lists are already there. */
+body.posted .nil-tile { animation: nil-float 5.4s ease-in-out infinite; }
+body.posted .drawn > *, body.posted .nil-title, body.posted .nil-hint { animation: none; }
+@media (prefers-reduced-motion: reduce) { body.posted .nil-tile { animation: none; } }
+
 /* Persian: no capitals and no letter spacing, which break joined letters. */
 :root[lang="fa"] body { font-family: "Vazirmatn Digits", Vazirmatn, Tahoma, system-ui, sans-serif; }
 :root[lang="fa"] .email, :root[lang="fa"] input[type="email"], :root[lang="fa"] .lang[lang="en"] { font-family: Vazirmatn, Tahoma, system-ui, sans-serif; }
@@ -564,7 +655,7 @@ button.danger-soft:hover { filter: none; color: #fff; background: var(--bad); bo
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--bad) 55%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
 @keyframes blink { 50% { opacity: .3; } }
 @media (prefers-reduced-motion: reduce) {
-  main.content > *, .page-icon, .hero-icon, .avatar.xl, .kpi .big, main.content > .flash.bad, .search-hero .flash, .nav-toggle:checked ~ .side .nav a { animation-name: auth-fade; animation-delay: 0s; }
+  main.content > *, .page-icon, .hero-icon, .avatar.xl, .kpi .big, main.content > .flash.bad, .nav-toggle:checked ~ .side .nav a { animation-name: auth-fade; animation-delay: 0s; }
   .bar, .nav a.on::before { animation: none; }
   .chip.live::before, .health.is-bad .health-mark::after { animation: none; }
   .health-mark, .check, .check details[open] .check-body { animation-name: auth-fade; animation-delay: 0s; }

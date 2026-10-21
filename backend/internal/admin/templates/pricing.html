@@ -11,7 +11,7 @@
   <div class="table-wrap"><table><thead><tr><th>{{t "col.plan"}}</th><th>{{t "col.sku"}}</th><th class="num">{{t "col.multiplier"}}</th><th class="num">{{t "col.exact"}}</th><th class="num">{{t "col.toman"}}</th><th class="num">{{t "col.rial"}}</th><th class="num">{{t "col.perMonth"}}</th><th class="num">{{t "col.saves"}}</th></tr></thead><tbody>
   {{range .Rows}}<tr><td><b>{{.Plan.Title lang}}</b></td><td><code>{{.Plan.SKU}}</code></td><td class="num"><span class="ltr">×{{factor .Multiplier}}</span></td><td class="num muted">{{money (round .Raw)}}</td><td class="num"><strong class="price">{{money .Toman}}</strong></td><td class="num"><span class="copy-cell"><code class="rial">{{money .Rial}}</code><button type="button" class="copy" data-copy="{{.Rial}}" data-done="{{t "btn.copied"}}" title="{{t "btn.copy"}}" aria-label="{{t "btn.copy"}} {{money .Rial}}" hidden>{{icon "copy"}}{{icon "check"}}<span aria-live="polite">{{t "btn.copy"}}</span></button></span></td><td class="num">{{money .PerMonth}}</td><td class="num">{{if .SavingPct}}<span class="chip good">{{.SavingPct}}%</span>{{else}}-{{end}}</td></tr>{{end}}
   </tbody></table></div>
-{{else}}<p class="empty">{{t "pricing.empty"}}</p>{{end}}
+{{else}}{{template "empty" (blank "pricing" (t "pricing.emptyT") (t "pricing.empty"))}}{{end}}
 </section>
 <section class="panel">
   <header class="panel-head"><h2>{{icon "zap"}}{{t "pricing.inputs"}}</h2></header>

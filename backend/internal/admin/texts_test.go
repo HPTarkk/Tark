@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"html/template"
 	"io/fs"
 	"net/http"
 	"os"
@@ -102,10 +103,10 @@ func TestLanguageSwitch(t *testing.T) {
 	}
 }
 
-// Every icon a template draws has a drawing; an unknown name would render
-// an empty square.
+// Every icon a template draws, directly or in an empty list, has a drawing;
+// an unknown name would render an empty square.
 func TestEveryIconKnown(t *testing.T) {
-	re := regexp.MustCompile(`\bicon "([a-z]+)"`)
+	re := regexp.MustCompile(`\b(?:icon|blank) "([a-z]+)"`)
 	names, _ := fs.Glob(assets, "templates/*.html")
 	n := 0
 	for _, f := range names {
@@ -119,5 +120,28 @@ func TestEveryIconKnown(t *testing.T) {
 	}
 	if n < 30 {
 		t.Fatalf("found only %d icons in use; the pattern is broken", n)
+	}
+}
+
+// An empty list gets the shared empty state: the text escaped, the icon
+// drawable, and the quieter line only when there is one.
+func TestEmptyState(t *testing.T) {
+	tm := template.Must(template.New("x").Funcs(funcsFor(langEN)).ParseFS(assets, "templates/layout.html"))
+	blank := funcs["blank"].(func(string, string, ...string) map[string]string)
+	var b strings.Builder
+	if err := tm.ExecuteTemplate(&b, "empty", blank("gift", "No <premium>", "Give it below.")); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`class="nil"`, `pathLength="1"`, "No &lt;premium&gt;", `<p class="nil-hint">Give it below.</p>`} {
+		if !strings.Contains(b.String(), want) {
+			t.Fatalf("empty state lacks %q:\n%s", want, b.String())
+		}
+	}
+	b.Reset()
+	if err := tm.ExecuteTemplate(&b, "empty", blank("mail", "None")); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(b.String(), "nil-hint") {
+		t.Fatalf("hint drawn without one:\n%s", b.String())
 	}
 }

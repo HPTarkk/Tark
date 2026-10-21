@@ -9,6 +9,44 @@
     <input name="q" value="{{.Q}}" placeholder="email@example.com" required maxlength="254" autofocus dir="ltr" aria-label="{{t "users.h"}}">
     <button>{{t "btn.find"}}</button>
   </form>
-  {{if .NotFound}}<div class="flash bad" role="alert">{{icon "alert"}}<p>{{t "users.notFound"}}</p></div>{{end}}
+  {{if .NotFound}}
+  {{/* Nothing matched: the lens shakes its head over an empty card. */}}
+  <div class="finder missed" role="alert">
+    <svg class="scene" viewBox="0 16 260 88" aria-hidden="true" focusable="false">
+      <rect class="card ghost" x="40" y="34" width="180" height="46" rx="13"/>
+      <circle class="dot" cx="66" cy="57" r="11"/>
+      <rect class="line" x="86" y="48" width="92" height="6" rx="3"/>
+      <rect class="line" x="86" y="60" width="58" height="6" rx="3"/>
+      <g class="lens-at"><g class="lens">
+        <circle class="glass" r="21"/><line class="handle" x1="15" y1="15" x2="30" y2="30"/>
+        <path class="cross" d="M-6 -6 6 6M6 -6-6 6"/>
+      </g></g>
+    </svg>
+    <h2>{{t "users.missT"}}</h2>
+    <p class="finder-x">{{t "users.notFound"}}</p>
+    <p class="finder-q"><span>{{t "users.searched"}}</span> <code dir="ltr">{{.Q}}</code></p>
+    <ul class="finder-tips">
+      <li>{{icon "check"}}<span>{{t "users.tipExact"}}</span></li>
+      <li>{{icon "mail"}}<span>{{t "users.tipRemoved"}}</span></li>
+      <li>{{icon "admins"}}<span>{{t "users.tipID"}}</span></li>
+    </ul>
+  </div>
+  {{else}}
+  {{/* Before a search: a lens drifts over a stack of accounts. */}}
+  <div class="finder idle">
+    <svg class="scene" viewBox="0 0 260 150" aria-hidden="true" focusable="false">
+      <g class="row r1"><rect class="card" x="30" y="10" width="200" height="38" rx="12"/><circle class="dot" cx="52" cy="29" r="9"/><rect class="line" x="70" y="21" width="96" height="6" rx="3"/><rect class="line" x="70" y="31" width="60" height="6" rx="3"/></g>
+      <g class="row r2"><rect class="card" x="30" y="56" width="200" height="38" rx="12"/><circle class="dot" cx="52" cy="75" r="9"/><rect class="line" x="70" y="67" width="84" height="6" rx="3"/><rect class="line" x="70" y="77" width="70" height="6" rx="3"/></g>
+      <g class="row r3"><rect class="card" x="30" y="102" width="200" height="38" rx="12"/><circle class="dot" cx="52" cy="121" r="9"/><rect class="line" x="70" y="113" width="104" height="6" rx="3"/><rect class="line" x="70" y="123" width="48" height="6" rx="3"/></g>
+      <g class="lens-at"><g class="lens"><circle class="glass" r="19"/><line class="handle" x1="14" y1="14" x2="28" y2="28"/></g></g>
+    </svg>
+    <h2>{{t "users.idleT"}}</h2>
+    <p class="finder-x">{{t "users.idleX"}}</p>
+    <ul class="finder-ways">
+      <li>{{icon "mail"}}<span>{{t "users.byEmail"}}</span><code dir="ltr">name@example.com</code></li>
+      <li>{{icon "admins"}}<span>{{t "users.byID"}}</span><code dir="ltr">1b4e28ba-2fa1-…</code></li>
+    </ul>
+  </div>
+  {{end}}
 </section>
 {{end}}

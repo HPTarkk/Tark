@@ -93,3 +93,9 @@
   </div>
 </div>
 {{end}}
+{{/* A list with nothing in it: an icon that draws itself in and floats, a
+     line, and optionally a quieter one. Data comes from blank. */}}
+{{define "empty"}}<div class="nil">
+  <span class="nil-art" aria-hidden="true"><span class="nil-tile">{{drawn .Icon}}</span></span>
+  <p class="nil-title">{{.Title}}</p>{{with .Hint}}<p class="nil-hint">{{.}}</p>{{end}}
+</div>{{end}}

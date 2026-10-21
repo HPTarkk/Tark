@@ -6,6 +6,6 @@
 </header>
 <section class="panel">
   <div class="table-wrap"><table><thead><tr><th>{{t "col.when"}}</th><th>{{t "col.admin"}}</th><th>{{t "col.action"}}</th><th>{{t "col.account"}}</th><th>{{t "col.details"}}</th></tr></thead><tbody>
-  {{range .Events}}<tr><td>{{when .At}}</td><td><div class="who"><span class="avatar sm" aria-hidden="true">{{initial .Who}}</span><span>{{.Who}}</span></div></td><td><code class="kind">{{.Kind}}</code></td><td>{{with .Target}}<a href="/users/{{.}}"><code>{{short .}}</code></a>{{end}}</td><td class="wrap"><code>{{.Detail}}</code></td></tr>{{else}}<tr><td colspan="5" class="empty">{{t "nothing"}}</td></tr>{{end}}</tbody></table></div>
+  {{range .Events}}<tr><td>{{when .At}}</td><td><div class="who"><span class="avatar sm" aria-hidden="true">{{initial .Who}}</span><span>{{.Who}}</span></div></td><td><code class="kind">{{.Kind}}</code></td><td>{{with .Target}}<a href="/users/{{.}}"><code>{{short .}}</code></a>{{end}}</td><td class="wrap"><code>{{.Detail}}</code></td></tr>{{else}}<tr class="nil-row"><td colspan="5">{{template "empty" (blank "activity" (t "activity.none") (t "activity.noneX"))}}</td></tr>{{end}}</tbody></table></div>
 </section>
 {{end}}
