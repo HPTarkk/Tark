@@ -52,6 +52,7 @@ var eventKinds = map[string]eventKind{
 	"admin.totp_failed":               {"alert", "bad"},
 	"admin.totp_throttled":            {"lock", "bad"},
 	"admin.password_changed":          {"key", "good"},
+	"admin.sessions_ended":            {"devices", ""},
 	"admin.password_change_failed":    {"key", "bad"},
 
 	// Security events (audit_events, the audit package's kinds).
@@ -125,6 +126,7 @@ var eventTexts = map[string][2]string{
 	"ev.admin.totp_failed":               {"Wrong authenticator code", "کد تأیید اشتباه"},
 	"ev.admin.totp_throttled":            {"Too many authenticator codes", "کد تأیید بیش از حد"},
 	"ev.admin.password_changed":          {"Changed password", "تغییر رمز"},
+	"ev.admin.sessions_ended":            {"Signed out other browsers", "خروج مرورگرهای دیگه"},
 	"ev.admin.password_change_failed":    {"Password change failed", "تغییر رمز ناموفق"},
 
 	"ev.register.started":                 {"Sign-up started", "شروع ثبت‌نام"},

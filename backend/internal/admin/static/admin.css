@@ -7,16 +7,34 @@
   --card: var(--surface);
   --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 10px 28px -16px rgba(16, 24, 40, .18);
   --ease: cubic-bezier(.23, 1, .32, 1);
+  /* A light overshoot, for things that pop into place. */
+  --spring: cubic-bezier(.34, 1.56, .64, 1);
   --side: 264px;
+  --chevron: url(chevron.svg);
+  --picker-shadow: 0 18px 40px -16px rgba(16, 24, 40, .35), 0 2px 6px rgba(16, 24, 40, .06); --picker-line: var(--line);
 }
+/* Dark follows the device unless Settings picked a theme for this browser
+   (data-theme on <html>, set by the server so nothing flashes). */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0e1014; --surface: #161a20; --surface-2: #1c2129; --line: #262c35; --line-2: #343b47;
+  :root:not([data-theme="light"]) {
+  --bg: #0e1014; --surface: #161a20; --surface-2: #1c2129; --line: #262c35; --line-2: #343b47;
     --fg: #e8eaee; --muted: #98a2b3; --accent: #ff8c42; --accent-2: #ffb27a;
     --good: #3ccf7a; --warn: #f5b14c; --bad: #ff6b6b; --info: #74a7ff;
     --shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 14px 36px -18px rgba(0, 0, 0, .7);
+    --chevron: url(chevron-dark.svg);
+    --picker-shadow: 0 18px 44px -14px rgba(0, 0, 0, .75); --picker-line: var(--line-2);
   }
 }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1014; --surface: #161a20; --surface-2: #1c2129; --line: #262c35; --line-2: #343b47;
+  --fg: #e8eaee; --muted: #98a2b3; --accent: #ff8c42; --accent-2: #ffb27a;
+  --good: #3ccf7a; --warn: #f5b14c; --bad: #ff6b6b; --info: #74a7ff;
+  --shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 14px 36px -18px rgba(0, 0, 0, .7);
+  --chevron: url(chevron-dark.svg);
+  --picker-shadow: 0 18px 44px -14px rgba(0, 0, 0, .75); --picker-line: var(--line-2);
+}
+:root[data-theme="light"] { color-scheme: light; }
 * { box-sizing: border-box; }
 @font-face { font-family: Vazirmatn; src: url(Vazirmatn-Regular.ttf) format("truetype"); font-weight: 100 500; font-display: swap; }
 @font-face { font-family: Vazirmatn; src: url(Vazirmatn-Bold.ttf) format("truetype"); font-weight: 600 900; font-display: swap; }
@@ -47,21 +65,20 @@ code.key { font-size: 1.1em; letter-spacing: .05em; }
 input, select, button { font: inherit; color: var(--fg); }
 input, select { padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--bg); transition: border-color .18s ease, box-shadow .18s ease; min-width: 0; }
 input::placeholder { color: color-mix(in srgb, var(--muted) 75%, transparent); }
-select { -webkit-appearance: none; appearance: none; cursor: pointer; padding-inline-end: 42px; font-weight: 500; background: url(chevron.svg) no-repeat right 14px center / 16px, var(--bg); transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease; }
+select { -webkit-appearance: none; appearance: none; cursor: pointer; padding-inline-end: 42px; font-weight: 500; background: var(--chevron) no-repeat right 14px center / 16px, var(--bg); transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease; }
 [dir="rtl"] select { background-position: left 14px center, 0 0; }
 select:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background-color: color-mix(in srgb, var(--accent) 4%, var(--bg)); }
 select option { background: var(--surface); color: var(--fg); }
-@media (prefers-color-scheme: dark) { select { background-image: url(chevron-dark.svg); } }
 /* Where the browser allows it, the open list is ours too: a rounded card
    with roomy rows, a hover tint and a check on the chosen one. */
 @supports (appearance: base-select) {
   select, ::picker(select) { appearance: base-select; }
   select { display: flex; align-items: center; gap: 10px; background-image: none; padding-inline-end: 14px; }
   [dir="rtl"] select { background-position: 0 0; }
-  select::picker-icon { content: ""; width: 16px; height: 16px; margin-inline-start: auto; background: url(chevron.svg) no-repeat center / 16px; transition: rotate .25s var(--ease); }
+  select::picker-icon { content: ""; width: 16px; height: 16px; margin-inline-start: auto; background: var(--chevron) no-repeat center / 16px; transition: rotate .25s var(--ease); }
   select:open::picker-icon { rotate: 180deg; }
   select:open { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent); }
-  ::picker(select) { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--fg); padding: 6px; margin-block: 6px; box-shadow: 0 18px 40px -16px rgba(16, 24, 40, .35), 0 2px 6px rgba(16, 24, 40, .06); max-height: min(320px, 60vh); overflow-y: auto; scrollbar-width: thin;
+  ::picker(select) { border: 1px solid var(--picker-line); border-radius: 14px; background: var(--surface); color: var(--fg); padding: 6px; margin-block: 6px; box-shadow: var(--picker-shadow); max-height: min(320px, 60vh); overflow-y: auto; scrollbar-width: thin;
     opacity: 0; translate: 0 -6px; scale: .98; transition: opacity .18s ease, translate .22s var(--ease), scale .22s var(--ease), overlay .22s allow-discrete, display .22s allow-discrete; }
   select:open::picker(select) { opacity: 1; translate: 0 0; scale: 1; }
   @starting-style { select:open::picker(select) { opacity: 0; translate: 0 -6px; scale: .98; } }
@@ -69,10 +86,6 @@ select option { background: var(--surface); color: var(--fg); }
   select option:hover, select option:focus-visible { background: color-mix(in srgb, var(--accent) 10%, transparent); outline: none; }
   select option:checked { color: var(--accent); font-weight: 600; }
   select option::checkmark { order: 1; margin-inline-start: auto; content: "✓"; color: var(--accent); font-weight: 700; }
-  @media (prefers-color-scheme: dark) {
-    select::picker-icon { background-image: url(chevron-dark.svg); }
-    ::picker(select) { box-shadow: 0 18px 44px -14px rgba(0, 0, 0, .75); border-color: var(--line-2); }
-  }
   @media (prefers-reduced-motion: reduce) { ::picker(select), select::picker-icon { transition: opacity .15s ease; translate: none; scale: none; } }
 }
 input:hover:not(:focus) { border-color: color-mix(in srgb, var(--fg) 22%, var(--line-2)); }
@@ -573,6 +586,73 @@ button.danger-soft:hover { filter: none; color: #fff; background: var(--bad); bo
   .act-do button { flex: 1 1 100%; margin-inline-start: 0; }
 }
 
+/* ---- settings ----------------------------------------------------------- */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Jump links to each section; on phones they stay under the top bar. */
+.settings-jump { display: flex; gap: 8px; margin: -8px 0 22px; overflow-x: auto; scrollbar-width: none; }
+.settings-jump::-webkit-scrollbar { display: none; }
+.settings-jump a { display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); font-size: .86rem; font-weight: 600; text-decoration: none; transition: border-color .18s ease, color .18s ease, background-color .18s ease, transform .3s var(--spring); }
+.settings-jump a .i { width: 16px; height: 16px; color: var(--muted); transition: color .18s ease; }
+.settings-jump a:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); color: var(--accent); transform: translateY(-1px); }
+.settings-jump a:hover .i { color: var(--accent); }
+.settings-jump a:active { transform: scale(.96); }
+.settings { max-width: 920px; }
+.settings > .panel { animation: rise .55s var(--ease) both; }
+.settings > .panel:nth-child(2) { animation-delay: .06s; } .settings > .panel:nth-child(3) { animation-delay: .12s; } .settings > .panel:nth-child(4) { animation-delay: .18s; }
+/* A section reached from a jump link glows for a moment. */
+.settings > .panel:target { animation: rise .55s var(--ease) both, target-glow 1.6s .1s ease both; }
+@keyframes target-glow { 0%, 100% { box-shadow: var(--shadow); } 30% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent), var(--shadow); } }
+
+/* Theme and language: big cards that work like radio buttons. */
+.choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.choices.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.choice { position: relative; display: flex; flex-direction: column; gap: 12px; padding: 10px 10px 14px; border: 1px solid var(--line); border-radius: 18px; background: var(--bg); cursor: pointer; font-weight: 400; -webkit-tap-highlight-color: transparent;
+  transition: border-color .2s ease, background-color .2s ease, box-shadow .3s ease, transform .45s var(--spring); }
+.choice input { position: absolute; opacity: 0; pointer-events: none; }
+.choice:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); transform: translateY(-2px); }
+.choice:active { transform: scale(.97); transition-duration: .12s; }
+.choice:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.choice:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 14%, transparent), 0 14px 30px -20px var(--accent); }
+.choice-text { display: flex; flex-direction: column; gap: 2px; padding-inline: 4px; min-width: 0; }
+.choice-text b { display: flex; align-items: center; gap: 7px; font-size: .95rem; }
+.choice-text b .i { width: 17px; height: 17px; color: var(--muted); transition: color .2s ease, transform .45s var(--spring); }
+.choice:has(input:checked) .choice-text b .i { color: var(--accent); transform: rotate(-12deg) scale(1.1); }
+.choice-text small { color: var(--muted); font-size: .8rem; line-height: 1.4; }
+.choice-tick { position: absolute; top: 16px; inset-inline-end: 16px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: #fff; background: var(--accent); box-shadow: 0 4px 12px -4px var(--accent); scale: 0; opacity: 0; transition: scale .45s var(--spring), opacity .2s ease; }
+.choice-tick .i { width: 14px; height: 14px; stroke-width: 3; }
+.choice:has(input:checked) .choice-tick { scale: 1; opacity: 1; }
+/* Previews: a tiny panel (menu, header bar, card) in each theme's colours. */
+.swatch, .glyph { position: relative; height: 92px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(127, 127, 127, .22); transition: transform .45s var(--spring); }
+.choice:hover > .swatch, .choice:hover > .glyph { transform: scale(1.02); }
+.swatch { display: grid; grid-template-columns: 28% minmax(0, 1fr); grid-template-rows: 12px minmax(0, 1fr); gap: 7px; padding: 9px; background: #f4f5f7; }
+.swatch i { border-radius: 5px; background: #fff; box-shadow: 0 1px 2px rgba(16, 24, 40, .08); }
+.swatch i:first-child { grid-row: 1 / 3; }
+.swatch i:nth-child(2) { width: 62%; background: linear-gradient(90deg, #e8590c, #ff8c42); box-shadow: none; }
+.swatch i:nth-child(3) { border-radius: 7px; }
+.swatch-dark { background: #0e1014; }
+.swatch-dark i { background: #1c2129; box-shadow: none; }
+.swatch-dark i:nth-child(2) { background: linear-gradient(90deg, #ff8c42, #ffb27a); }
+/* Automatic: the light preview, with the dark one over its lower half. */
+.swatch-system { display: block; padding: 0; background: #0e1014; }
+.swatch-system > .swatch { position: absolute; inset: 0; height: auto; border: 0; border-radius: 0; }
+.swatch-system > .swatch-dark { clip-path: polygon(100% 0, 100% 0, 100% 100%, 0 100%); transition: clip-path .6s var(--ease); }
+.choice:hover .swatch-system > .swatch-dark { clip-path: polygon(55% 0, 100% 0, 100% 100%, 0 100%); }
+.glyph { display: grid; place-items: center; font-size: 2.1rem; font-weight: 800; color: var(--accent); background: radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 65%), var(--surface); }
+.glyph[lang="fa"] { font-family: Vazirmatn, Tahoma, sans-serif; }
+.glyph[lang="en"] { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: -.02em; }
+.choice-apply { margin-top: 14px; }
+/* admin.js applies a choice the moment it is picked. */
+.choice-form.auto .choice-apply { display: none; }
+.choice-form.sending .choice:has(input:checked) .choice-tick { animation: tick-wait .9s ease-in-out infinite; }
+@keyframes tick-wait { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 22%, transparent); } }
+
+.panel > .error { margin: 0 0 16px; border-radius: 12px; animation: rise .35s var(--ease) both, shake .42s .12s ease both; }
+.form-end { display: flex; justify-content: flex-end; margin-top: 18px; }
+.act-text h4 .chip { margin-inline-start: 6px; }
+/* The theme switch spreads from the card that was picked (admin.js). */
+html.theme-shift::view-transition-old(root), html.theme-shift::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+html.theme-shift::view-transition-new(root) { z-index: 1; }
+
 /* Short laptop screens: tighter links so the whole menu fits. */
 @media (min-width: 961px) and (max-height: 780px) {
   .side-inner { padding-top: 14px; }
@@ -657,7 +737,22 @@ button.danger-soft:hover { filter: none; color: #fff; background: var(--bad); bo
   .search { flex-wrap: wrap; }
   .search input { flex-basis: 60%; }
   .search-hero .search button { flex-basis: 100%; }
+  .settings-jump { position: sticky; top: 61px; z-index: 10; margin: -6px -16px 16px; padding: 8px 16px; background: color-mix(in srgb, var(--bg) 82%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+  .settings-jump a { padding: 6px 12px; font-size: .82rem; }
+  [id] { scroll-margin-top: 130px; }
+  .choices { gap: 8px; }
+  .choice { padding: 6px 6px 10px; gap: 8px; border-radius: 14px; }
+  .swatch, .glyph { height: 64px; border-radius: 9px; }
+  .swatch { padding: 6px; gap: 5px; grid-template-rows: 9px minmax(0, 1fr); }
+  .swatch-system { padding: 0; }
+  .glyph { font-size: 1.6rem; }
+  .choice-text b { font-size: .86rem; gap: 5px; }
+  .choice-text b .i { display: none; }
+  .choice-text small { font-size: .74rem; }
+  .choice-tick { top: 10px; inset-inline-end: 10px; width: 20px; height: 20px; }
+  .form-end button { width: 100%; }
 }
+@media (max-width: 420px) { .choices:not(.two) .choice-text small { display: none; } }
 
 /* ---- empty lists ---------------------------------------------------------
    One look for every list with nothing in it: a tile springs in, its icon
@@ -794,6 +889,13 @@ body.posted .drawn > *, body.posted .nil-title, body.posted .nil-hint { animatio
   .act:hover .act-icon, .act:focus-within .act-icon { transform: none; }
   table.events tbody tr { animation-name: auth-fade; animation-delay: 0s; }
   tbody tr:hover .ev-i, .tile:hover .ev-i, .kv:hover { transform: none; }
+  .settings > .panel, .settings > .panel:target, .panel > .error { animation: auth-fade .3s both; }
+  .choice, .swatch, .glyph, .choice-tick, .choice-text b .i, .settings-jump a { transition: border-color .2s ease, background-color .2s ease, opacity .2s ease; }
+  .choice:hover, .choice:active, .choice:hover > .swatch, .choice:hover > .glyph, .settings-jump a:hover, .settings-jump a:active { transform: none; }
+  .choice:has(input:checked) .choice-text b .i { transform: none; }
+  .swatch-system > .swatch-dark { transition: none; }
+  .choice:hover .swatch-system > .swatch-dark { clip-path: polygon(100% 0, 100% 0, 100% 100%, 0 100%); }
+  .choice-form.sending .choice:has(input:checked) .choice-tick { animation: none; }
 }
 
 /* Sign-in, authenticator and password pages: one centred card that rises in,

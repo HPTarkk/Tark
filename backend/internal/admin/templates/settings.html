@@ -1,0 +1,96 @@
+{{define "title"}}{{t "nav.settings"}} · {{t "brand"}}{{end}}
+{{define "main"}}
+<header class="page-head">
+  <span class="page-icon">{{icon "settings"}}</span>
+  <div><h1>{{t "settings.h"}}</h1><p class="lead">{{t "lead.settings"}}</p></div>
+</header>
+{{with .Saved}}<div class="flash ok toast" role="status">{{icon "check"}}<p>{{.}}</p></div>{{end}}
+<nav class="settings-jump" aria-label="{{t "settings.jump"}}">
+  <a href="#appearance">{{icon "sun"}}<span>{{t "settings.look.h"}}</span></a>
+  <a href="#language">{{icon "globe"}}<span>{{t "settings.lang.h"}}</span></a>
+  <a href="#password">{{icon "key"}}<span>{{t "pw.change"}}</span></a>
+  <a href="#sessions">{{icon "devices"}}<span>{{t "settings.sec.h"}}</span></a>
+</nav>
+<div class="settings">
+<section class="panel" id="appearance">
+  <header class="panel-head"><h2>{{icon "sun"}}{{t "settings.look.h"}}</h2><p>{{t "settings.look.p"}}</p></header>
+  {{/* admin.js applies a choice as soon as it is picked; without it, Apply sends the form. */}}
+  <form method="post" action="/settings/theme" class="choice-form" data-autosave="theme">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <fieldset class="choices">
+      <legend class="sr-only">{{t "settings.look.h"}}</legend>
+      <label class="choice"><input type="radio" name="theme" value="system"{{if eq .ThemeChoice "system"}} checked{{end}}>
+        <span class="swatch swatch-system" aria-hidden="true"><span class="swatch swatch-light"><i></i><i></i><i></i></span><span class="swatch swatch-dark"><i></i><i></i><i></i></span></span>
+        <span class="choice-text"><b>{{icon "monitor"}}{{t "theme.system"}}</b><small>{{t "theme.systemX"}}</small></span>
+        <span class="choice-tick" aria-hidden="true">{{icon "check"}}</span></label>
+      <label class="choice"><input type="radio" name="theme" value="light"{{if eq .ThemeChoice "light"}} checked{{end}}>
+        <span class="swatch swatch-light" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="choice-text"><b>{{icon "sun"}}{{t "theme.light"}}</b><small>{{t "theme.lightX"}}</small></span>
+        <span class="choice-tick" aria-hidden="true">{{icon "check"}}</span></label>
+      <label class="choice"><input type="radio" name="theme" value="dark"{{if eq .ThemeChoice "dark"}} checked{{end}}>
+        <span class="swatch swatch-dark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="choice-text"><b>{{icon "moon"}}{{t "theme.dark"}}</b><small>{{t "theme.darkX"}}</small></span>
+        <span class="choice-tick" aria-hidden="true">{{icon "check"}}</span></label>
+    </fieldset>
+    <button class="ghost choice-apply">{{t "settings.apply"}}</button>
+  </form>
+</section>
+
+<section class="panel" id="language">
+  <header class="panel-head"><h2>{{icon "globe"}}{{t "settings.lang.h"}}</h2><p>{{t "settings.lang.p"}}</p></header>
+  <form method="post" action="/settings/language" class="choice-form" data-autosave="lang">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <fieldset class="choices two">
+      <legend class="sr-only">{{t "settings.lang.h"}}</legend>
+      <label class="choice"><input type="radio" name="lang" value="fa"{{if eq lang "fa"}} checked{{end}}>
+        <span class="glyph" lang="fa" aria-hidden="true">الف</span>
+        <span class="choice-text"><b lang="fa">{{t "lang.faName"}}</b><small>{{t "lang.faX"}}</small></span>
+        <span class="choice-tick" aria-hidden="true">{{icon "check"}}</span></label>
+      <label class="choice"><input type="radio" name="lang" value="en"{{if eq lang "en"}} checked{{end}}>
+        <span class="glyph" lang="en" aria-hidden="true">Aa</span>
+        <span class="choice-text"><b lang="en">{{t "lang.enName"}}</b><small>{{t "lang.enX"}}</small></span>
+        <span class="choice-tick" aria-hidden="true">{{icon "check"}}</span></label>
+    </fieldset>
+    <button class="ghost choice-apply">{{t "settings.apply"}}</button>
+  </form>
+</section>
+
+<section class="panel" id="password">
+  <header class="panel-head"><h2>{{icon "key"}}{{t "pw.change"}}</h2><p>{{t "settings.pw.p" .MinPassword}}</p></header>
+  {{with .PasswordError}}<p class="error" role="alert">{{.}}</p>{{end}}
+  <form method="post" action="/account/password" class="pw-form">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <input type="hidden" name="username" value="{{.Admin.Email}}" autocomplete="username">
+    <div class="form-grid fields">
+      <div class="field"><label for="pw-current">{{t "pw.current"}}</label><input id="pw-current" type="password" name="current" autocomplete="current-password" required dir="ltr"></div>
+      <div class="field"><label for="pw-new">{{t "pw.new"}}</label><input id="pw-new" type="password" name="new" autocomplete="new-password" minlength="{{.MinPassword}}" required dir="ltr"></div>
+      <div class="field"><label for="pw-again">{{t "pw.again"}}</label><input id="pw-again" type="password" name="again" autocomplete="new-password" minlength="{{.MinPassword}}" required dir="ltr"></div>
+    </div>
+    <div class="form-end"><button>{{icon "check"}}<span>{{t "btn.save"}}</span></button></div>
+  </form>
+</section>
+
+<section class="panel" id="sessions">
+  <header class="panel-head"><h2>{{icon "devices"}}{{t "settings.sec.h"}}</h2><p>{{t "settings.sec.p"}}</p></header>
+  <div class="act-list">
+    <div class="act good">
+      <span class="act-icon">{{icon "lock"}}</span>
+      <div class="act-text"><h4>{{t "settings.totp"}} <span class="chip good">{{t "settings.totpOn"}}</span></h4><p>{{t "settings.totpX"}}</p></div>
+    </div>
+    <div class="act accent">
+      <span class="act-icon">{{icon "monitor"}}</span>
+      <div class="act-text"><h4>{{t "settings.here"}}</h4><p>{{t "settings.hereX" (ago .Since)}}</p></div>
+    </div>
+    <div class="act{{if .Others}} warn{{end}}">
+      <span class="act-icon">{{icon "devices"}}</span>
+      <div class="act-text"><h4>{{t "settings.others"}}</h4><p>{{if .Others}}{{t "settings.othersX" .Others}}{{else}}{{t "settings.othersNone"}}{{end}}</p></div>
+      {{if .Others}}<form method="post" action="/settings/sessions" class="act-do"
+        data-confirm="{{t "confirm.endOthers.q"}}" data-confirm-x="{{t "confirm.endOthers.x"}}" data-confirm-ok="{{t "settings.endOthers"}}">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <button class="danger-soft">{{icon "signout"}}<span>{{t "settings.endOthers"}}</span></button>
+      </form>{{end}}
+    </div>
+  </div>
+</section>
+</div>
+{{end}}

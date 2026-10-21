@@ -154,6 +154,10 @@ func (s *Server) Handler() http.Handler {
 			r.Use(s.requirePasswordChanged)
 			r.Get("/", s.dashboard)
 			r.Get("/system", s.system)
+			r.Get("/settings", s.settings)
+			r.Post("/settings/theme", s.saveTheme)
+			r.Post("/settings/language", s.saveLanguage)
+			r.Post("/settings/sessions", s.endOtherSessions)
 			r.Group(func(r chi.Router) {
 				r.Use(requireRole(RoleSupport))
 				r.Get("/users", s.users)
@@ -306,8 +310,11 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	data["Admin"] = adminFrom(r.Context())
 	data["Here"] = s.here(r)
 	data["Page"] = page
+	data["Theme"] = themeOf(r)
 	// A form result is the same page again: it skips the entrance motion.
-	data["Posted"] = r.Method == http.MethodPost
+	if _, set := data["Posted"]; !set {
+		data["Posted"] = r.Method == http.MethodPost
+	}
 	if sess := sessionFrom(r.Context()); sess != nil {
 		data["CSRF"] = sess.csrf
 	}
@@ -568,7 +575,13 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
+// passwordPage is the forced first change; once that is done the password
+// is changed in Settings.
 func (s *Server) passwordPage(w http.ResponseWriter, r *http.Request) {
+	if !adminFrom(r.Context()).MustChangePassword {
+		http.Redirect(w, r, "/settings#password", http.StatusSeeOther)
+		return
+	}
 	s.render(w, r, http.StatusOK, "password", nil)
 }
 
@@ -578,8 +591,13 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	a, sess, ip := adminFrom(ctx), sessionFrom(ctx), ipFrom(ctx)
 	current, next, again := r.PostFormValue("current"), r.PostFormValue("new"), r.PostFormValue("again")
+	forced := a.MustChangePassword
 	show := func(status int, msg string) {
-		s.render(w, r, status, "password", map[string]any{"Error": msg})
+		if forced {
+			s.render(w, r, status, "password", map[string]any{"Error": msg})
+			return
+		}
+		s.showSettings(w, r, status, msg)
 	}
 	var hash string
 	if err := s.Pool.QueryRow(ctx, `SELECT password_hash FROM admin_users WHERE id = $1`, a.ID).Scan(&hash); err != nil {
@@ -617,5 +635,9 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.record(ctx, a.ID, "admin.password_changed", "", ip, nil)
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	if forced {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/settings?saved=password#password", http.StatusSeeOther)
 }

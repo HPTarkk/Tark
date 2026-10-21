@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{lang}}" dir="{{dir}}">
+<html lang="{{lang}}" dir="{{dir}}"{{with .Theme}} data-theme="{{.}}"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -24,7 +24,7 @@
 <header class="topbar">
   <label for="nav-open" class="icon-btn" title="{{t "menu"}}">{{icon "menu"}}</label>
   <a class="brand" href="/"><img src="{{static "logo.png"}}" alt="" width="28" height="28"><span>{{t "brand"}}</span></a>
-  <span class="avatar sm" aria-hidden="true">{{initial .Name}}</span>
+  <a class="avatar sm" href="/settings" title="{{t "nav.settings"}}" aria-label="{{t "nav.settings"}}">{{initial .Name}}</a>
 </header>
 <label for="nav-open" class="scrim" title="{{t "menuClose"}}"></label>
 <aside class="side"><div class="side-inner">
@@ -50,14 +50,15 @@
     <a href="/activity"{{if eq $.Page "activity"}} class="on" aria-current="page"{{end}}>{{icon "activity"}}<span>{{t "nav.activity"}}</span></a>
     <a href="/logs"{{if eq $.Page "logs"}} class="on" aria-current="page"{{end}}>{{icon "logs"}}<span>{{t "nav.logs"}}</span></a>
     {{end}}
+    <p class="nav-group">{{t "nav.gYou"}}</p>
+    <a href="/settings"{{if eq $.Page "settings"}} class="on" aria-current="page"{{end}}>{{icon "settings"}}<span>{{t "nav.settings"}}</span></a>
   </nav>
   <div class="side-foot">
-    <a class="me{{if eq $.Page "password"}} on{{end}}" href="/account/password" title="{{t "nav.account"}}">
+    <a class="me{{if eq $.Page "settings"}} on{{end}}" href="/settings" title="{{t "nav.settings"}}">
       <span class="avatar" aria-hidden="true">{{initial .Name}}</span>
-      <span class="me-text"><b>{{.Name}}</b><small>{{code "role" .Role}} · {{t "nav.account"}}</small></span>
+      <span class="me-text"><b>{{.Name}}</b><small>{{code "role" .Role}} · {{t "nav.settings"}}</small></span>
     </a>
     <div class="side-actions">
-      <a class="lang" href="/lang/{{t "lang.otherCode"}}?next={{$.Here}}" lang="{{t "lang.otherCode"}}">{{icon "globe"}}<span>{{t "lang.other"}}</span></a>
       <button type="button" class="ghost signout" popovertarget="confirm-signout">{{icon "signout"}}<span>{{t "signout"}}</span></button>
     </div>
   </div>

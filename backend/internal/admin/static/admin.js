@@ -106,3 +106,57 @@ for (const drawer of document.querySelectorAll(".drawer[data-open]")) {
   drawer.querySelector("[aria-invalid]")?.focus();
   requestAnimationFrame(() => requestAnimationFrame(() => drawer.classList.remove("settled")));
 }
+
+// Settings: a theme or language is applied the moment it is picked, so the
+// Apply button (there for pages without scripts) goes away. A new theme
+// spreads out in a circle from the card that was picked, then is saved.
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+const darkSystem = window.matchMedia("(prefers-color-scheme: dark)");
+const looksDark = (theme) => theme === "dark" || (theme !== "light" && darkSystem.matches);
+for (const form of document.querySelectorAll("form[data-autosave]")) {
+  form.classList.add("auto");
+  const send = () => {
+    form.classList.add("sending");
+    form.submit();
+  };
+  form.addEventListener("change", (event) => {
+    const input = event.target;
+    if (form.classList.contains("sending") || !input.checked) return;
+    if (form.dataset.autosave !== "theme") {
+      send();
+      return;
+    }
+    const root = document.documentElement;
+    const before = looksDark(root.dataset.theme);
+    const apply = () => {
+      if (input.value === "system") delete root.dataset.theme;
+      else root.dataset.theme = input.value;
+    };
+    if (looksDark(input.value) === before || reduceMotion.matches || !document.startViewTransition) {
+      apply();
+      send();
+      return;
+    }
+    const box = input.closest(".choice").getBoundingClientRect();
+    const x = box.left + box.width / 2;
+    const y = box.top + box.height / 2;
+    const r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    root.classList.add("theme-shift");
+    const shift = document.startViewTransition(apply);
+    shift.ready.then(() => {
+      root.animate(
+        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${r}px at ${x}px ${y}px)`] },
+        { duration: 620, easing: "cubic-bezier(.23, 1, .32, 1)", pseudoElement: "::view-transition-new(root)" },
+      );
+    }).catch(() => {});
+    shift.finished.finally(() => {
+      root.classList.remove("theme-shift");
+      send();
+    });
+  });
+}
+// Back to a page that was left mid-save shows its choices working again.
+window.addEventListener("pageshow", (event) => {
+  if (!event.persisted) return;
+  for (const form of document.querySelectorAll("form[data-autosave]")) form.classList.remove("sending");
+});
