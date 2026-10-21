@@ -18,12 +18,12 @@
   }
 }
 * { box-sizing: border-box; }
-@font-face { font-family: Vazirmatn; src: url(/static/Vazirmatn-Regular.ttf) format("truetype"); font-weight: 100 500; font-display: swap; }
-@font-face { font-family: Vazirmatn; src: url(/static/Vazirmatn-Bold.ttf) format("truetype"); font-weight: 600 900; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url(Vazirmatn-Regular.ttf) format("truetype"); font-weight: 100 500; font-display: swap; }
+@font-face { font-family: Vazirmatn; src: url(Vazirmatn-Bold.ttf) format("truetype"); font-weight: 600 900; font-display: swap; }
 /* Draws 0-9 as Persian digits on Persian pages while the text stays Latin,
    so prices, ids and codes copy as they are (scripts/admin_digit_font.py). */
-@font-face { font-family: "Vazirmatn Digits"; src: url(/static/VazirmatnDigits-Regular.woff2) format("woff2"); font-weight: 100 500; font-display: swap; }
-@font-face { font-family: "Vazirmatn Digits"; src: url(/static/VazirmatnDigits-Bold.woff2) format("woff2"); font-weight: 600 900; font-display: swap; }
+@font-face { font-family: "Vazirmatn Digits"; src: url(VazirmatnDigits-Regular.woff2) format("woff2"); font-weight: 100 500; font-display: swap; }
+@font-face { font-family: "Vazirmatn Digits"; src: url(VazirmatnDigits-Bold.woff2) format("woff2"); font-weight: 600 900; font-display: swap; }
 /* No page scrollbar: it looked out of place and made pages shift sideways
    when one had it and the next didn't. Wheel, trackpad and keys still scroll. */
 html { -webkit-text-size-adjust: 100%; scrollbar-width: none; }
@@ -47,18 +47,18 @@ code.key { font-size: 1.1em; letter-spacing: .05em; }
 input, select, button { font: inherit; color: var(--fg); }
 input, select { padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--bg); transition: border-color .18s ease, box-shadow .18s ease; min-width: 0; }
 input::placeholder { color: color-mix(in srgb, var(--muted) 75%, transparent); }
-select { -webkit-appearance: none; appearance: none; cursor: pointer; padding-inline-end: 42px; font-weight: 500; background: url(/static/chevron.svg) no-repeat right 14px center / 16px, var(--bg); transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease; }
+select { -webkit-appearance: none; appearance: none; cursor: pointer; padding-inline-end: 42px; font-weight: 500; background: url(chevron.svg) no-repeat right 14px center / 16px, var(--bg); transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease; }
 [dir="rtl"] select { background-position: left 14px center, 0 0; }
 select:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background-color: color-mix(in srgb, var(--accent) 4%, var(--bg)); }
 select option { background: var(--surface); color: var(--fg); }
-@media (prefers-color-scheme: dark) { select { background-image: url(/static/chevron-dark.svg); } }
+@media (prefers-color-scheme: dark) { select { background-image: url(chevron-dark.svg); } }
 /* Where the browser allows it, the open list is ours too: a rounded card
    with roomy rows, a hover tint and a check on the chosen one. */
 @supports (appearance: base-select) {
   select, ::picker(select) { appearance: base-select; }
   select { display: flex; align-items: center; gap: 10px; background-image: none; padding-inline-end: 14px; }
   [dir="rtl"] select { background-position: 0 0; }
-  select::picker-icon { content: ""; width: 16px; height: 16px; margin-inline-start: auto; background: url(/static/chevron.svg) no-repeat center / 16px; transition: rotate .25s var(--ease); }
+  select::picker-icon { content: ""; width: 16px; height: 16px; margin-inline-start: auto; background: url(chevron.svg) no-repeat center / 16px; transition: rotate .25s var(--ease); }
   select:open::picker-icon { rotate: 180deg; }
   select:open { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent); }
   ::picker(select) { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--fg); padding: 6px; margin-block: 6px; box-shadow: 0 18px 40px -16px rgba(16, 24, 40, .35), 0 2px 6px rgba(16, 24, 40, .06); max-height: min(320px, 60vh); overflow-y: auto; scrollbar-width: thin;
@@ -70,7 +70,7 @@ select option { background: var(--surface); color: var(--fg); }
   select option:checked { color: var(--accent); font-weight: 600; }
   select option::checkmark { order: 1; margin-inline-start: auto; content: "✓"; color: var(--accent); font-weight: 700; }
   @media (prefers-color-scheme: dark) {
-    select::picker-icon { background-image: url(/static/chevron-dark.svg); }
+    select::picker-icon { background-image: url(chevron-dark.svg); }
     ::picker(select) { box-shadow: 0 18px 44px -14px rgba(0, 0, 0, .75); border-color: var(--line-2); }
   }
   @media (prefers-reduced-motion: reduce) { ::picker(select), select::picker-icon { transition: opacity .15s ease; translate: none; scale: none; } }

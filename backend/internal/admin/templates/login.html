@@ -2,7 +2,7 @@
 {{define "main"}}
 <section class="auth">
 <div class="auth-card">
-<div class="auth-mark" aria-hidden="true"><img src="/static/logo.png" alt="" width="64" height="64"></div>
+<div class="auth-mark" aria-hidden="true"><img src="{{static "logo.png"}}" alt="" width="64" height="64"></div>
 <h1>{{t "brand"}}</h1>
 <p class="auth-lead">{{t "login.lead"}}</p>
 {{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}

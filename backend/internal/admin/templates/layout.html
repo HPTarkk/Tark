@@ -6,10 +6,15 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="light dark">
 <title>{{block "title" .}}{{t "brand"}}{{end}}</title>
-<link rel="icon" href="/static/logo.png" type="image/png">
-<link rel="apple-touch-icon" href="/static/logo.png">
-<link rel="stylesheet" href="/static/admin.css">
-<script src="/static/admin.js" defer></script>
+<link rel="icon" href="{{static "logo.png"}}" type="image/png">
+<link rel="apple-touch-icon" href="{{static "logo.png"}}">
+<link rel="stylesheet" href="{{static "admin.css"}}">
+{{- /* Persian pages start loading their fonts with the page, so even a first visit swaps them in early. */}}
+{{if eq lang "fa"}}<link rel="preload" href="{{static "Vazirmatn-Regular.ttf"}}" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="{{static "Vazirmatn-Bold.ttf"}}" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="{{static "VazirmatnDigits-Regular.woff2"}}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{{static "VazirmatnDigits-Bold.woff2"}}" as="font" type="font/woff2" crossorigin>
+{{end}}<script src="{{static "admin.js"}}" defer></script>
 </head>
 {{$top := false}}{{with .Admin}}{{if not .MustChangePassword}}{{$top = true}}{{end}}{{end}}
 <body class="{{if $top}}app{{end}}{{if .Posted}} posted{{end}}">
@@ -18,13 +23,13 @@
 <input type="checkbox" id="nav-open" class="nav-toggle" aria-label="{{t "menu"}}">
 <header class="topbar">
   <label for="nav-open" class="icon-btn" title="{{t "menu"}}">{{icon "menu"}}</label>
-  <a class="brand" href="/"><img src="/static/logo.png" alt="" width="28" height="28"><span>{{t "brand"}}</span></a>
+  <a class="brand" href="/"><img src="{{static "logo.png"}}" alt="" width="28" height="28"><span>{{t "brand"}}</span></a>
   <span class="avatar sm" aria-hidden="true">{{initial .Name}}</span>
 </header>
 <label for="nav-open" class="scrim" title="{{t "menuClose"}}"></label>
 <aside class="side"><div class="side-inner">
   <div class="side-head">
-    <a class="brand" href="/"><img src="/static/logo.png" alt="" width="32" height="32"><span>{{t "brand"}}</span></a>
+    <a class="brand" href="/"><img src="{{static "logo.png"}}" alt="" width="32" height="32"><span>{{t "brand"}}</span></a>
     <label for="nav-open" class="icon-btn side-close" title="{{t "menuClose"}}">{{icon "close"}}</label>
   </div>
   <nav class="nav">

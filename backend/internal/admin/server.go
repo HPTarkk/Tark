@@ -132,7 +132,7 @@ func (s *Server) Handler() http.Handler {
 	r.Use(s.recoverer, headers, s.withIP, withLang)
 	static, _ := fs.Sub(assets, "static")
 	files := http.FileServer(http.FS(static))
-	r.Handle("/static/*", http.StripPrefix("/static/", files))
+	r.Handle("/static/*", serveStatic(files))
 	r.Get("/favicon.ico", files.ServeHTTP)
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	r.Get("/lang/{code}", s.setLang)

@@ -46,6 +46,8 @@ var funcs = template.FuncMap{
 		return v
 	},
 	"icon": icon,
+	// static is the address of a file in static/, cached between pages.
+	"static": staticURL,
 	// avatar is the picture of an app avatar id (one of the app's own
 	// avatars, copied into static/avatars), or "" for none or unknown.
 	"avatar": func(v any) string {
@@ -61,7 +63,7 @@ var funcs = template.FuncMap{
 		if _, err := fs.Stat(assets, name); err != nil {
 			return ""
 		}
-		return "/" + name
+		return staticURL(strings.TrimPrefix(name, "static/"))
 	},
 	// initial is the first letter of a name, for the round avatars.
 	"initial": func(s string) string {
