@@ -73,7 +73,7 @@
   <header class="panel-head"><h2>{{icon "chart"}}{{t "system.byRoute"}}</h2><p>{{if lt .Covered.Minutes 59.0}}{{t "system.partial" (ago .Started)}}{{end}}{{t "system.buckets"}}</p></header>
   <div class="table-wrap"><table><thead><tr><th>{{t "col.route"}}</th><th class="num">{{t "col.requests"}}</th><th class="num">4xx</th><th class="num">5xx</th><th class="num">{{t "col.slow"}}</th><th>{{t "col.typical"}}</th><th>{{t "col.slowest"}}</th></tr></thead><tbody>
   {{range .Hour.Sorted}}<tr><td><code class="route">{{.Method}} {{.Route}}</code></td><td class="num">{{.Requests}}</td><td class="num">{{index .ByClass 2}}</td><td class="num">{{if index .ByClass 3}}<span class="chip bad">{{index .ByClass 3}}</span>{{else}}0{{end}}</td><td class="num">{{.Slow}}</td><td>{{p .Latency 0.5}}</td><td>{{p .Latency 0.95}}</td></tr>
-  {{else}}<tr><td colspan="7" class="empty">{{t "system.noReqs"}}</td></tr>{{end}}</tbody></table></div>
+  {{else}}<tr class="nil-row"><td colspan="7">{{template "empty" (blank "chart" (t "system.noReqs"))}}</td></tr>{{end}}</tbody></table></div>
 </section>
 {{end}}
 {{end}}

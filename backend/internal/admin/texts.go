@@ -511,7 +511,7 @@ var texts = map[string][2]string{
 	"system.byRoute":          {"Requests by route, last hour", "درخواست‌ها بر اساس مسیر، یک ساعت اخیر"},
 	"system.partial":          {"The server started %v, so this covers less than an hour. ", "سرور %v روشن شده، پس این کمتر از یک ساعت رو نشون می‌ده. "},
 	"system.buckets":          {"Times are bucket limits: \"≤ 250 ms\" means at most 250 ms.", "زمان‌ها سقف بازه‌ها هستن: «≤ 250 ms» یعنی حداکثر 250 میلی‌ثانیه."},
-	"system.noReqs":           {"No requests yet.", "هنوز درخواستی نیست."},
+	"system.noReqs":           {"No requests yet this hour", "این ساعت هنوز درخواستی نیومده"},
 
 	// one account
 	"user.title":       {"Account", "حساب کاربر"},
