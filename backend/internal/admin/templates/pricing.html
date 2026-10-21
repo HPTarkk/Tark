@@ -17,13 +17,13 @@
   <header class="panel-head"><h2>{{icon "zap"}}{{t "pricing.inputs"}}</h2></header>
   <form method="post" action="/pricing" class="stack">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
-    <div class="form-grid">
-    <label>{{t "pricing.base"}} <input name="base" required inputmode="numeric" data-money dir="ltr" value="{{if .In.BaseMonthly}}{{money .In.BaseMonthly}}{{end}}"></label>
-    <label>{{t "pricing.adj"}} <input name="adjustment" required inputmode="decimal" dir="ltr" value="{{factor .In.Adjustment}}"></label>
-    {{range .Plans}}<label>{{t "pricing.mult" (.Title lang)}} <input name="mult_{{.SKU}}" required inputmode="decimal" dir="ltr" value="{{factor (index $.In.Multipliers .SKU)}}"></label>
+    <div class="form-grid fields">
+    <div class="field"><label for="f-base">{{t "pricing.base"}}</label><input id="f-base" name="base" required inputmode="numeric" data-money dir="ltr" aria-describedby="f-base-hint" value="{{if .In.BaseMonthly}}{{money .In.BaseMonthly}}{{end}}"><small class="hint" id="f-base-hint">{{t "pricing.baseHint"}}</small></div>
+    <div class="field"><label for="f-adj">{{t "pricing.adj"}}</label><input id="f-adj" name="adjustment" required inputmode="decimal" dir="ltr" aria-describedby="f-adj-hint" value="{{factor .In.Adjustment}}"><small class="hint" id="f-adj-hint">{{t "pricing.adjHint"}}</small></div>
+    {{range .Plans}}<div class="field"><label for="f-{{.SKU}}">{{t "pricing.mult" (.Title lang)}}</label><input id="f-{{.SKU}}" name="mult_{{.SKU}}" required inputmode="decimal" dir="ltr" aria-describedby="f-{{.SKU}}-hint" value="{{factor (index $.In.Multipliers .SKU)}}"><small class="hint" id="f-{{.SKU}}-hint">{{t "pricing.multHint"}}</small></div>
     {{end}}
-    <label>{{t "pricing.round"}} <input name="round_to" required inputmode="numeric" data-money dir="ltr" value="{{money .In.RoundTo}}"></label>
-    <label>{{t "pricing.ending"}} <input name="ending" required inputmode="numeric" data-money dir="ltr" value="{{money .In.Ending}}"></label>
+    <div class="field"><label for="f-round">{{t "pricing.round"}}</label><input id="f-round" name="round_to" required inputmode="numeric" data-money dir="ltr" aria-describedby="f-round-hint" value="{{money .In.RoundTo}}"><small class="hint" id="f-round-hint">{{t "pricing.roundHint"}}</small></div>
+    <div class="field"><label for="f-ending">{{t "pricing.ending"}}</label><input id="f-ending" name="ending" required inputmode="numeric" data-money dir="ltr" aria-describedby="f-ending-hint" value="{{money .In.Ending}}"><small class="hint" id="f-ending-hint">{{t "pricing.endingHint"}}</small></div>
     </div>
     <button>{{t "pricing.save"}}</button>
   </form>
