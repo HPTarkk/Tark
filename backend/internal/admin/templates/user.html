@@ -57,47 +57,72 @@
   {{range .Audit}}<tr><td>{{when .At}}</td><td><code class="kind">{{.Kind}}</code></td><td class="wrap"><code>{{.Details}}</code></td></tr>{{else}}<tr><td colspan="3" class="empty">{{t "none"}}</td></tr>{{end}}</tbody></table></div>
 </section>
 </div>
-<section class="section" id="actions">
-<header class="section-head"><h2>{{icon "zap"}}{{t "user.actionsH"}}</h2><p>{{t "user.actionsNote"}}</p></header>
-<div class="actions">
-<form method="post" action="/users/{{.ID}}/signout#actions" class="action" data-confirm="{{t "confirm.userSignout.q" .Name}}" data-confirm-x="{{t "confirm.userSignout.x"}}" data-confirm-ok="{{t "user.signoutH"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>{{icon "signout"}}{{t "user.signoutH"}}</h3><p>{{t "user.signoutP"}}</p><button>{{t "user.signoutH"}}</button></form>
+<section class="panel acts" id="actions">
+<header class="panel-head"><h2>{{icon "zap"}}{{t "user.actionsH"}}</h2><p>{{t "user.actionsNote"}}</p></header>
+<div class="act-group">
+<h3 class="act-group-h">{{t "user.accessG"}}</h3>
+<div class="act-list">
+<form method="post" action="/users/{{.ID}}/signout#actions" class="act" data-confirm="{{t "confirm.userSignout.q" .Name}}" data-confirm-x="{{t "confirm.userSignout.x"}}" data-confirm-ok="{{t "user.signoutH"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <span class="act-icon">{{icon "signout"}}</span>
+  <div class="act-text"><h4>{{t "user.signoutH"}}</h4><p>{{t "user.signoutP"}}</p></div>
+  <div class="act-do"><button class="ghost">{{t "user.signoutH"}}</button></div>
+</form>
 {{if eq .Status "active"}}
-<form method="post" action="/users/{{.ID}}/disable#actions" class="action" data-confirm="{{t "confirm.userDisable.q" .Name}}" data-confirm-x="{{t "confirm.userDisable.x"}}" data-confirm-ok="{{t "btn.disable"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>{{icon "ban"}}{{t "user.disableH"}}</h3><p>{{t "user.disableP"}}</p>
-  <label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.disable"}}</button></form>
+<form method="post" action="/users/{{.ID}}/disable#actions" class="act bad" data-confirm="{{t "confirm.userDisable.q" .Name}}" data-confirm-x="{{t "confirm.userDisable.x"}}" data-confirm-ok="{{t "btn.disable"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <span class="act-icon">{{icon "ban"}}</span>
+  <div class="act-text"><h4>{{t "user.disableH"}}</h4><p>{{t "user.disableP"}}</p></div>
+  <div class="act-do"><label class="act-reason">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button class="danger-soft">{{t "btn.disable"}}</button></div>
+</form>
 {{else}}
-<form method="post" action="/users/{{.ID}}/enable#actions" class="action"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>{{icon "check"}}{{t "user.enableH"}}</h3><label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.enable"}}</button></form>
-{{end}}
-{{if eq $.Admin.Role "owner"}}
-<form method="post" action="/users/{{.ID}}/grant#actions" class="action" data-confirm="{{t "confirm.grant.q" .Name}}" data-confirm-x="{{t "confirm.grant.x"}}" data-confirm-ok="{{t "user.grantH"}}"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>{{icon "gift"}}{{t "user.grantH"}}</h3><p>{{t "user.grantP"}}</p>
-  <label>{{t "label.months"}} <select name="months"><option>1</option><option>3</option><option>6</option><option>12</option></select></label>
-  <label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500" placeholder="{{t "user.grantHint"}}"></label><button>{{t "user.grantH"}}</button></form>
-{{range .Grants}}{{if .Live}}
-<form method="post" action="/users/{{$.U.ID}}/revoke-grant#actions" class="action" data-confirm="{{t "confirm.revoke.q"}}" data-confirm-x="{{t "confirm.revoke.x"}}" data-confirm-ok="{{t "btn.revoke"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="grant" value="{{.ID}}">
-  <h3>{{icon "close"}}{{t "user.revokeH" (when .Ends)}}</h3><label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.revoke"}}</button></form>
-{{end}}{{end}}
-{{if .Suspicious}}
-<form method="post" action="/users/{{.ID}}/clear-suspicious#actions" class="action" data-confirm="{{t "confirm.clear.q"}}" data-confirm-x="{{t "confirm.clear.x"}}" data-confirm-ok="{{t "user.clearBtn"}}"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>{{icon "flag"}}{{t "user.clearH"}}</h3><p>{{t "user.clearP"}}</p>
-  <label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "user.clearBtn"}}</button></form>
-{{end}}
+<form method="post" action="/users/{{.ID}}/enable#actions" class="act good"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <span class="act-icon">{{icon "check"}}</span>
+  <div class="act-text"><h4>{{t "user.enableH"}}</h4><p>{{t "user.enableP"}}</p></div>
+  <div class="act-do"><label class="act-reason">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.enable"}}</button></div>
+</form>
 {{end}}
 </div>
+</div>
+{{if eq $.Admin.Role "owner"}}
+<div class="act-group">
+<h3 class="act-group-h">{{t "user.premiumG"}}</h3>
+<div class="act-list">
+<form method="post" action="/users/{{.ID}}/grant#actions" class="act accent" data-confirm="{{t "confirm.grant.q" .Name}}" data-confirm-x="{{t "confirm.grant.x"}}" data-confirm-ok="{{t "user.grantH"}}"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <span class="act-icon">{{icon "gift"}}</span>
+  <div class="act-text"><h4>{{t "user.grantH"}}</h4><p>{{t "user.grantP"}}</p></div>
+  <div class="act-do"><label class="act-months">{{t "label.months"}} <select name="months"><option>1</option><option>3</option><option>6</option><option>12</option></select></label>
+  <label class="act-reason">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500" placeholder="{{t "user.grantHint"}}"></label><button>{{t "user.grantH"}}</button></div>
+</form>
+{{range .Grants}}{{if .Live}}
+<form method="post" action="/users/{{$.U.ID}}/revoke-grant#actions" class="act bad" data-confirm="{{t "confirm.revoke.q"}}" data-confirm-x="{{t "confirm.revoke.x"}}" data-confirm-ok="{{t "btn.revoke"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="grant" value="{{.ID}}">
+  <span class="act-icon">{{icon "close"}}</span>
+  <div class="act-text"><h4>{{t "user.revokeH" (when .Ends)}}</h4><p>{{t "user.revokeP"}}</p></div>
+  <div class="act-do"><label class="act-reason">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button class="danger-soft">{{t "btn.revoke"}}</button></div>
+</form>
+{{end}}{{end}}
+{{if .Suspicious}}
+<form method="post" action="/users/{{.ID}}/clear-suspicious#actions" class="act warn" data-confirm="{{t "confirm.clear.q"}}" data-confirm-x="{{t "confirm.clear.x"}}" data-confirm-ok="{{t "user.clearBtn"}}"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <span class="act-icon">{{icon "flag"}}</span>
+  <div class="act-text"><h4>{{t "user.clearH"}}</h4><p>{{t "user.clearP"}}</p></div>
+  <div class="act-do"><label class="act-reason">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button class="ghost">{{t "user.clearBtn"}}</button></div>
+</form>
+{{end}}
+</div>
+</div>
+{{end}}
 </section>
 {{if eq $.Admin.Role "owner"}}
-<section class="section danger-zone">
-<header class="section-head"><h2>{{icon "alert"}}{{t "user.dangerH"}}</h2></header>
-<form method="post" action="/users/{{.ID}}/delete" class="action danger" data-confirm="{{t "confirm.delete.q" .Name}}" data-confirm-x="{{t "confirm.delete.x"}}" data-confirm-ok="{{t "user.deleteBtn"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>{{icon "trash"}}{{t "user.deleteH"}}</h3><p>{{t "user.deleteP"}}</p>
-  <div class="form-grid">
-  <label>{{t "user.deleteType" .PrimaryMasked}} <input name="confirm" required autocomplete="off" dir="ltr"></label>
-  <label>{{t "user.deleteLang"}} <select name="locale"><option value="fa">{{t "user.langFA"}}</option><option value="en">{{t "user.langEN"}}</option></select></label>
-  <label class="full">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500" placeholder="{{t "user.deleteHint"}}"></label>
+<section class="panel acts danger-zone">
+<header class="panel-head"><h2>{{icon "alert"}}{{t "user.dangerH"}}</h2><p>{{t "user.dangerP"}}</p></header>
+<form method="post" action="/users/{{.ID}}/delete" class="act bad wide" data-confirm="{{t "confirm.delete.q" .Name}}" data-confirm-x="{{t "confirm.delete.x"}}" data-confirm-ok="{{t "user.deleteBtn"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <span class="act-icon">{{icon "trash"}}</span>
+  <div class="act-text"><h4>{{t "user.deleteH"}}</h4><p>{{t "user.deleteP"}}</p></div>
+  <div class="act-do">
+  <label class="act-confirm">{{t "user.deleteType" .PrimaryMasked}} <input name="confirm" required autocomplete="off" dir="ltr"></label>
+  <label class="act-lang">{{t "user.deleteLang"}} <select name="locale"><option value="fa">{{t "user.langFA"}}</option><option value="en">{{t "user.langEN"}}</option></select></label>
+  <label class="act-reason">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500" placeholder="{{t "user.deleteHint"}}"></label>
+  <button class="danger">{{t "user.deleteBtn"}}</button>
   </div>
-  <button>{{t "user.deleteBtn"}}</button></form>
+</form>
 </section>
 {{end}}
 <section class="panel">

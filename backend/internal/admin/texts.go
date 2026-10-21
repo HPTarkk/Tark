@@ -469,10 +469,14 @@ var texts = map[string][2]string{
 	"user.disableH":    {"Disable account", "غیرفعال کردن حساب"},
 	"user.disableP":    {"Signs them out and blocks sign-in (\"contact support\") until enabled again.", "از همه‌جا خارجش می‌کنه و تا دوباره فعال نشه نمی‌تونه وارد بشه («با پشتیبانی تماس بگیر»)."},
 	"user.enableH":     {"Enable account", "فعال کردن حساب"},
+	"user.enableP":     {"Lifts the block. They can sign in again.", "محدودیت برداشته می‌شه و می‌تونه دوباره وارد بشه."},
+	"user.accessG":     {"Access", "دسترسی"},
+	"user.premiumG":    {"Premium and subscription", "نسخه ویژه و اشتراک"},
 	"user.grantH":      {"Give premium", "نسخه ویژه بده"},
 	"user.grantP":      {"Starts now, ends by itself, never renews. Shows in their subscription history.", "از همین الان شروع می‌شه، خودش تموم می‌شه و هیچ‌وقت تمدید نمی‌شه. توی تاریخچه‌ی اشتراکش دیده می‌شه."},
 	"user.grantHint":   {"tester, goodwill after a bug…", "تستر، جبران یه باگ…"},
 	"user.revokeH":     {"Revoke premium until %v", "لغو نسخه ویژه تا %v"},
+	"user.revokeP":     {"Ends it right now instead of on its end date.", "به‌جای تاریخ پایانش، همین الان تمومش می‌کنه."},
 	"user.clearH":      {"Clear suspicious flag", "برداشتن علامت مشکوک"},
 	"user.clearP":      {"Only after checking with Bazaar that the refund was a mistake.", "فقط بعد از اینکه با بازار مطمئن شدی برگشت پول اشتباه بوده."},
 	"user.clearBtn":    {"Clear flag", "علامت رو بردار"},
@@ -485,6 +489,7 @@ var texts = map[string][2]string{
 	"user.deleteHint":  {"request by email on …", "درخواست با ایمیل در تاریخ …"},
 	"user.deleteBtn":   {"Delete for good", "برای همیشه حذف کن"},
 	"user.dangerH":     {"Danger zone", "منطقه‌ی خطر"},
+	"user.dangerP":     {"Can't be undone.", "برگشت‌پذیر نیست."},
 	"user.adminH":      {"Admin activity on this account", "کارهای مدیرها روی این حساب"},
 
 	// account actions

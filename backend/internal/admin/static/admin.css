@@ -349,17 +349,54 @@ td.empty, p.empty, li.empty { text-align: center; color: var(--muted); padding: 
 .profile h1 { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 10px; font-size: 1.7rem; font-weight: 800; letter-spacing: -.015em; }
 .meta { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 0; padding: 0; list-style: none; color: var(--muted); font-size: .875rem; }
 .meta li { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 16px; align-items: start; }
-.action { display: flex; flex-direction: column; gap: 12px; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); transition: border-color .2s ease, transform .3s var(--ease); }
-.action:hover { border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
-.action h3 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 1rem; }
-.action h3 .i { width: 34px; height: 34px; padding: 8px; border-radius: 11px; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
-.action p { margin: 0; color: var(--muted); font-size: .875rem; }
-.action > button { margin-top: auto; }
-.danger-zone .section-head h2, .danger-zone .section-head h2 .i { color: var(--bad); }
-.action.danger { border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); background: color-mix(in srgb, var(--bad) 4%, var(--surface)); }
-.action.danger h3 .i { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
-.action.danger > button { align-self: flex-start; background: var(--bad); box-shadow: 0 8px 20px -12px var(--bad); }
+/* Account actions: one list of rows grouped by what they touch. Each row
+   reads the same way (what it is, what it does, then the reason and the
+   button), buttons line up in one column, and only the colour of the icon
+   and button says how heavy the action is. */
+.act-group + .act-group { margin-top: 22px; }
+.act-group-h { margin: 0 0 10px; padding-inline-start: 4px; color: var(--muted); font-size: .78rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.act-list { container-type: inline-size; border: 1px solid var(--line); border-radius: 16px; overflow: clip; background: color-mix(in srgb, var(--surface-2) 45%, var(--surface)); }
+.act { --tone: var(--muted); position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px 18px; padding: 16px 18px; transition: background-color .25s ease; }
+.act + .act { border-top: 1px solid var(--line); }
+.act.accent { --tone: var(--accent); } .act.bad { --tone: var(--bad); } .act.good { --tone: var(--good); } .act.warn { --tone: var(--warn); }
+/* A bar on the leading edge grows in under the row being worked on. */
+.act::before { content: ""; position: absolute; inset-inline-start: 0; top: 14px; bottom: 14px; width: 3px; border-start-end-radius: 3px; border-end-end-radius: 3px; background: var(--tone); transform: scaleY(0); opacity: 0; transition: transform .45s var(--ease), opacity .2s ease; }
+.act:hover, .act:focus-within { background: color-mix(in srgb, var(--tone) 5%, transparent); }
+.act:focus-within::before, .act:hover::before { transform: none; opacity: 1; }
+.act-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: var(--tone); background: color-mix(in srgb, var(--tone) 12%, transparent); border: 1px solid color-mix(in srgb, var(--tone) 22%, transparent); transition: transform .45s var(--ease); }
+.act-icon .i { width: 19px; height: 19px; }
+.act:hover .act-icon, .act:focus-within .act-icon { transform: scale(1.08) rotate(-4deg); }
+.act-text h4 { margin: 0 0 2px; font-size: .95rem; font-weight: 700; }
+.act-text p { margin: 0; color: var(--muted); font-size: .85rem; max-width: 62ch; }
+.act-do { display: flex; align-items: flex-end; justify-content: flex-end; gap: 10px; }
+.act-do label { gap: 5px; font-size: .78rem; color: var(--muted); }
+.act-do input, .act-do select { padding-block: 9px; color: var(--fg); font-weight: 400; }
+.act-reason input { width: 230px; }
+.act-months select { width: 92px; }
+.act-do button { min-width: 140px; padding-block: 10px; white-space: nowrap; }
+button.danger-soft { color: var(--bad); background: color-mix(in srgb, var(--bad) 9%, var(--surface)); border: 1px solid color-mix(in srgb, var(--bad) 35%, var(--line)); box-shadow: none; }
+button.danger-soft:hover { filter: none; color: #fff; background: var(--bad); border-color: var(--bad); box-shadow: 0 8px 20px -12px var(--bad); }
+/* Long forms put their fields under the text. */
+.act.wide { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+.act.wide .act-do { grid-column: 2; flex-wrap: wrap; justify-content: flex-start; }
+.act.wide .act-confirm { flex: 1 1 240px; } .act.wide .act-reason { flex: 2 1 280px; } .act.wide .act-reason input { width: 100%; }
+.act.wide .act-do button { margin-inline-start: auto; }
+.danger-zone { container-type: inline-size; border-color: color-mix(in srgb, var(--bad) 35%, var(--line)); background: linear-gradient(180deg, color-mix(in srgb, var(--bad) 5%, var(--surface)), var(--surface) 60%); }
+.danger-zone .panel-head h2, .danger-zone .panel-head h2 .i { color: var(--bad); }
+.danger-zone .act { padding: 4px 0 0; background: none; }
+.danger-zone .act::before { display: none; }
+/* Narrow rows: the fields and the button drop under the text. */
+@container (max-width: 760px) {
+  .act { grid-template-columns: auto minmax(0, 1fr); }
+  .act-do { grid-column: 2; justify-content: flex-start; flex-wrap: wrap; }
+  .act-reason { flex: 1 1 160px; } .act-reason input { width: 100%; }
+}
+@container (max-width: 460px) {
+  .act { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  .act-icon { display: none; }
+  .act-do, .act.wide .act-do { grid-column: 1; }
+  .act-do button { flex: 1 1 100%; margin-inline-start: 0; }
+}
 
 /* Short laptop screens: tighter links so the whole menu fits. */
 @media (min-width: 961px) and (max-height: 780px) {
@@ -451,6 +488,8 @@ td.empty, p.empty, li.empty { text-align: center; color: var(--muted); padding: 
   main.content > .flash.toast, main.content > .flash.toast.bad { animation: auth-fade .3s both, toast-out .3s ease 8s forwards; }
   .kpi:hover, .tile:hover, .kpi:hover::after, .nav a:hover .i { transform: none; }
   button:active, .btn:active, .nav a:active, .icon-btn:active { transform: none; }
+  .act::before, .act-icon { transition: none; }
+  .act:hover .act-icon, .act:focus-within .act-icon { transform: none; }
 }
 
 /* Sign-in, authenticator and password pages: one centred card that rises in,
