@@ -431,6 +431,59 @@ td.empty, p.empty, li.empty { text-align: center; color: var(--muted); padding: 
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes grow-x { from { transform: scaleX(0); } to { transform: none; } }
 
+/* Event tables: a kind reads as an icon and a phrase in its tone, details
+   as labelled chips (events.go). In a narrow box each row becomes a card. */
+.ev { --tone: var(--muted); display: inline-flex; align-items: center; gap: 9px; min-width: 0; font-weight: 600; color: var(--fg); }
+.ev.t-good { --tone: var(--good); } .ev.t-bad { --tone: var(--bad); } .ev.t-warn { --tone: var(--warn); }
+.ev.t-info { --tone: var(--info); } .ev.t-accent { --tone: var(--accent); }
+.ev-i { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 9px; color: var(--tone); background: color-mix(in srgb, var(--tone) 13%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 24%, transparent); transition: transform .35s var(--ease), box-shadow .25s ease; }
+.ev-i .i { width: 15px; height: 15px; }
+.ev-t { font-size: .88rem; }
+tbody tr:hover .ev-i { transform: scale(1.1) rotate(-4deg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 40%, transparent), 0 6px 14px -8px var(--tone); }
+.kvs { display: flex; flex-wrap: wrap; gap: 6px; }
+.kv { display: inline-flex; align-items: stretch; max-width: 100%; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; font-size: .8rem; line-height: 1.6; background: var(--surface); transition: border-color .2s ease, transform .3s var(--ease); }
+.kv:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); transform: translateY(-1px); }
+.kv .k { display: flex; align-items: center; padding: 2px 9px; color: var(--muted); background: var(--surface-2); border-inline-end: 1px solid var(--line); white-space: nowrap; }
+.kv .v { display: flex; align-items: center; gap: 6px; padding: 2px 9px; min-width: 0; font-weight: 600; overflow-wrap: anywhere; white-space: normal; }
+.kv .v.chip { margin: 3px 6px; padding: 0 8px; font-size: .74rem; line-height: 1.6; }
+.kv .v.list { flex-wrap: wrap; gap: 2px 6px; }
+.kv .sep { color: var(--muted); font-weight: 400; }
+.kv.note { flex-basis: 100%; }
+.kv.note .v { font-weight: 400; color: var(--fg); }
+td.c-det { white-space: normal; min-width: 220px; max-width: 520px; }
+code.raw { white-space: normal; word-break: break-all; }
+.tile .ev { align-items: flex-start; }
+.tile .ev-t { font-size: .8rem; color: var(--muted); font-weight: 600; line-height: 1.5; }
+.tile .ev-i { width: 24px; height: 24px; border-radius: 8px; }
+.tile:hover .ev-i { transform: scale(1.1) rotate(-4deg); }
+table.events tbody tr { animation: rise .45s var(--ease) both; }
+table.events tbody tr:nth-child(2) { animation-delay: .03s; } table.events tbody tr:nth-child(3) { animation-delay: .06s; }
+table.events tbody tr:nth-child(4) { animation-delay: .09s; } table.events tbody tr:nth-child(5) { animation-delay: .12s; }
+table.events tbody tr:nth-child(6) { animation-delay: .15s; } table.events tbody tr:nth-child(7) { animation-delay: .18s; }
+table.events tbody tr:nth-child(n+8) { animation-delay: .21s; }
+/* Cards whenever the table's own box is narrow: on phones, and in the
+   half-width panels of an account page. */
+.table-wrap:has(> table.events) { container: events / inline-size; }
+@container events (max-width: 640px) {
+  table.events thead { display: none; }
+  table.events, table.events tbody { display: block; }
+  table.events tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  table.events tbody tr:last-child { border-bottom: 0; }
+  table.events td, table.events td:first-child, table.events td:last-child { display: block; padding: 0; border: 0; min-width: 0; max-width: none; white-space: normal; }
+  table.events tbody tr.nil-row { display: block; padding: 0; }
+  table.events tbody tr.nil-row td { padding: 0; }
+  table.events tbody tr::before { content: ""; order: 3; flex-basis: 100%; height: 0; margin-block: -4px; }
+  table.events tbody tr.nil-row::before { display: none; }
+  table.events td.c-ev { order: 1; flex: 1 1 0; }
+  table.events td.c-when { order: 2; color: var(--muted); font-size: .78rem; white-space: nowrap; }
+  table.events td.c-who, table.events td.c-acct, table.events td.c-src { order: 4; display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; }
+  table.events td.c-acct::before, table.events td.c-src::before { content: attr(data-label); color: var(--muted); }
+  table.events td.c-det { order: 5; flex-basis: 100%; }
+  table.events td.c-ev ~ td:empty { display: none; }
+  table.events .who { gap: 6px; }
+  table.events .who .avatar.sm { width: 22px; height: 22px; font-size: .7rem; }
+}
+
 /* Security counts. */
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .tile { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); transition: transform .3s var(--ease); }
@@ -700,7 +753,7 @@ body.posted .drawn > *, body.posted .nil-title, body.posted .nil-hint { animatio
 
 /* Persian: no capitals and no letter spacing, which break joined letters. */
 :root[lang="fa"] body { font-family: "Vazirmatn Digits", Vazirmatn, Tahoma, system-ui, sans-serif; }
-:root[lang="fa"] .email, :root[lang="fa"] input[type="email"], :root[lang="fa"] .lang[lang="en"] { font-family: Vazirmatn, Tahoma, system-ui, sans-serif; }
+:root[lang="fa"] .email, :root[lang="fa"] .kv .ltr, :root[lang="fa"] input[type="email"], :root[lang="fa"] .lang[lang="en"] { font-family: Vazirmatn, Tahoma, system-ui, sans-serif; }
 :root[lang="fa"] input[dir="ltr"]::placeholder { direction: ltr; }
 :root[lang="fa"] th, :root[lang="fa"] .nav-group { text-transform: none; letter-spacing: 0; font-size: .8rem; }
 :root[lang="fa"] .page-head h1, :root[lang="fa"] .profile h1, :root[lang="fa"] .search-hero h1, :root[lang="fa"] .brand, :root[lang="fa"] .kpi .big { letter-spacing: 0; }
@@ -739,6 +792,8 @@ body.posted .drawn > *, body.posted .nil-title, body.posted .nil-hint { animatio
   button:active, .btn:active, .nav a:active, .icon-btn:active { transform: none; }
   .act::before, .act-icon { transition: none; }
   .act:hover .act-icon, .act:focus-within .act-icon { transform: none; }
+  table.events tbody tr { animation-name: auth-fade; animation-delay: 0s; }
+  tbody tr:hover .ev-i, .tile:hover .ev-i, .kv:hover { transform: none; }
 }
 
 /* Sign-in, authenticator and password pages: one centred card that rises in,

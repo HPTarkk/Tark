@@ -48,13 +48,13 @@
 <div class="grid-2">
 <section class="panel">
   <header class="panel-head"><h2>{{icon "activity"}}{{t "user.historyH"}}</h2></header>
-  <div class="table-wrap"><table><thead><tr><th>{{t "col.when"}}</th><th>{{t "col.event"}}</th><th>{{t "col.details"}}</th></tr></thead><tbody>
-  {{range .SubEvents}}<tr><td>{{when .At}}</td><td><code class="kind">{{.Kind}}</code></td><td class="wrap"><code>{{.Details}}</code></td></tr>{{else}}<tr class="nil-row"><td colspan="3">{{template "empty" (blank "activity" (t "user.noHistory"))}}</td></tr>{{end}}</tbody></table></div>
+  <div class="table-wrap"><table class="events"><thead><tr><th>{{t "col.when"}}</th><th>{{t "col.event"}}</th><th>{{t "col.details"}}</th></tr></thead><tbody>
+  {{range .SubEvents}}<tr><td class="c-when">{{when .At}}</td><td class="c-ev">{{ev .Kind}}</td><td class="c-det">{{details .Details}}</td></tr>{{else}}<tr class="nil-row"><td colspan="3">{{template "empty" (blank "activity" (t "user.noHistory"))}}</td></tr>{{end}}</tbody></table></div>
 </section>
 <section class="panel">
   <header class="panel-head"><h2>{{icon "security"}}{{t "security.h"}}</h2></header>
-  <div class="table-wrap"><table><thead><tr><th>{{t "col.when"}}</th><th>{{t "col.event"}}</th><th>{{t "col.details"}}</th></tr></thead><tbody>
-  {{range .Audit}}<tr><td>{{when .At}}</td><td><code class="kind">{{.Kind}}</code></td><td class="wrap"><code>{{.Details}}</code></td></tr>{{else}}<tr class="nil-row"><td colspan="3">{{template "empty" (blank "security" (t "user.noSecurity"))}}</td></tr>{{end}}</tbody></table></div>
+  <div class="table-wrap"><table class="events"><thead><tr><th>{{t "col.when"}}</th><th>{{t "col.event"}}</th><th>{{t "col.details"}}</th></tr></thead><tbody>
+  {{range .Audit}}<tr><td class="c-when">{{when .At}}</td><td class="c-ev">{{ev .Kind}}</td><td class="c-det">{{details .Details}}</td></tr>{{else}}<tr class="nil-row"><td colspan="3">{{template "empty" (blank "security" (t "user.noSecurity"))}}</td></tr>{{end}}</tbody></table></div>
 </section>
 </div>
 <section class="panel acts" id="actions">
@@ -127,8 +127,8 @@
 {{end}}
 <section class="panel">
   <header class="panel-head"><h2>{{icon "admins"}}{{t "user.adminH"}}</h2></header>
-  <div class="table-wrap"><table><thead><tr><th>{{t "col.when"}}</th><th>{{t "col.admin"}}</th><th>{{t "col.action"}}</th></tr></thead><tbody>
-  {{range .AdminEvents}}<tr><td>{{when .At}}</td><td>{{.Who}}</td><td><code class="kind">{{.Kind}}</code></td></tr>{{else}}<tr class="nil-row"><td colspan="3">{{template "empty" (blank "admins" (t "user.noAdmin"))}}</td></tr>{{end}}</tbody></table></div>
+  <div class="table-wrap"><table class="events"><thead><tr><th>{{t "col.when"}}</th><th>{{t "col.admin"}}</th><th>{{t "col.action"}}</th><th>{{t "col.details"}}</th></tr></thead><tbody>
+  {{range .AdminEvents}}<tr><td class="c-when">{{when .At}}</td><td class="c-who"><div class="who"><span class="avatar sm" aria-hidden="true">{{initial .Who}}</span><span>{{.Who}}</span></div></td><td class="c-ev">{{ev .Kind}}</td><td class="c-det">{{details .Details}}</td></tr>{{else}}<tr class="nil-row"><td colspan="4">{{template "empty" (blank "admins" (t "user.noAdmin"))}}</td></tr>{{end}}</tbody></table></div>
 </section>
 {{end}}
 {{end}}

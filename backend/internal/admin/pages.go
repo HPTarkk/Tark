@@ -392,9 +392,12 @@ func (s *Server) activity(w http.ResponseWriter, r *http.Request) {
 		Target *string
 		Detail string
 	}
+	// An admin named in the details (enabled, disabled, reset) shows by name.
 	rows, err := s.Pool.Query(r.Context(), `
-		SELECT e.at, COALESCE(a.name, '-'), e.kind, e.target_user::text, e.details::text
+		SELECT e.at, COALESCE(a.name, '-'), e.kind, e.target_user::text,
+		       CASE WHEN o.name IS NULL THEN e.details ELSE e.details || jsonb_build_object('admin', o.name) END::text
 		FROM admin_events e LEFT JOIN admin_users a ON a.id = e.admin_id
+		LEFT JOIN admin_users o ON o.id::text = e.details->>'admin'
 		ORDER BY e.at DESC LIMIT 200`)
 	if err != nil {
 		s.fail(w, r, err)

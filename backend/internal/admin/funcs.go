@@ -151,6 +151,10 @@ func funcsFor(lang string) template.FuncMap {
 		return formatWhen(lang, t)
 	}
 	m["day"] = func(t time.Time) string { return formatDay(lang, t) }
+	// ev shows an event kind in words with its icon; details shows an
+	// event's JSON details as labelled chips (events.go).
+	m["ev"] = func(kind string) template.HTML { return eventLabel(lang, kind) }
+	m["details"] = func(raw string) template.HTML { return eventDetails(lang, raw) }
 	// ago is "3h ago", "5d ago".
 	m["ago"] = func(v any) string {
 		t, ok := timeOf(v)

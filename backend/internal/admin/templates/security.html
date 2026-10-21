@@ -6,11 +6,11 @@
 </header>
 <section class="section">
   <header class="section-head"><h2>{{icon "clock"}}{{t "last24"}}</h2></header>
-  {{with .Counts}}<div class="tiles">{{range .}}<div class="tile"><b>{{.Count}}</b><code>{{.Kind}}</code></div>{{end}}</div>{{else}}<div class="panel quiet">{{template "empty" (blank "security" (t "security.quiet") (t "security.quietX"))}}</div>{{end}}
+  {{with .Counts}}<div class="tiles">{{range .}}<div class="tile"><b>{{.Count}}</b>{{ev .Kind}}</div>{{end}}</div>{{else}}<div class="panel quiet">{{template "empty" (blank "security" (t "security.quiet") (t "security.quietX"))}}</div>{{end}}
 </section>
 <section class="panel">
   <header class="panel-head"><h2>{{icon "security"}}{{t "security.latest"}}</h2><p>{{t "security.source"}}</p></header>
-  <div class="table-wrap"><table><thead><tr><th>{{t "col.when"}}</th><th>{{t "col.event"}}</th><th>{{t "col.account"}}</th><th>{{t "col.source"}}</th><th>{{t "col.details"}}</th></tr></thead><tbody>
-  {{range .Recent}}<tr><td>{{when .At}}</td><td><code class="kind">{{.Kind}}</code></td><td>{{with .UserID}}<a href="/users/{{.}}"><code>{{short .}}</code></a>{{end}}</td><td><code>{{.IP}}</code></td><td class="wrap"><code>{{.Detail}}</code></td></tr>{{else}}<tr class="nil-row"><td colspan="5">{{template "empty" (blank "check" (t "security.none"))}}</td></tr>{{end}}</tbody></table></div>
+  <div class="table-wrap"><table class="events"><thead><tr><th>{{t "col.when"}}</th><th>{{t "col.event"}}</th><th>{{t "col.account"}}</th><th>{{t "col.source"}}</th><th>{{t "col.details"}}</th></tr></thead><tbody>
+  {{range .Recent}}<tr><td class="c-when">{{when .At}}</td><td class="c-ev">{{ev .Kind}}</td><td class="c-acct" data-label="{{t "col.account"}}">{{with .UserID}}<a href="/users/{{.}}"><code>{{short .}}</code></a>{{end}}</td><td class="c-src" data-label="{{t "col.source"}}">{{with .IP}}<code>{{.}}</code>{{end}}</td><td class="c-det">{{details .Detail}}</td></tr>{{else}}<tr class="nil-row"><td colspan="5">{{template "empty" (blank "check" (t "security.none"))}}</td></tr>{{end}}</tbody></table></div>
 </section>
 {{end}}
