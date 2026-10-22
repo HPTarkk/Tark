@@ -22,7 +22,7 @@ func TestJalali(t *testing.T) {
 
 func TestFormatWhen(t *testing.T) {
 	at := time.Date(2026, 10, 3, 20, 45, 0, 0, time.UTC) // 00:15 next day in Tehran
-	if got := formatWhen(langFA, at); got != "⁨12 مهر 1405، 00:15⁩" {
+	if got := formatWhen(langFA, at); got != "⁨۱۲ مهر ۱۴۰۵، ۰۰:۱۵⁩" {
 		t.Errorf("fa: %q", got)
 	}
 	if got := formatWhen(langEN, at); got != "⁨4 Oct 2026, 00:15⁩" {

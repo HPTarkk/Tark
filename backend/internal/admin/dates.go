@@ -44,7 +44,7 @@ func formatDate(lang string, t time.Time) string {
 	t = t.In(tehran)
 	if lang == langFA {
 		y, m, d := jalali(t.Year(), int(t.Month()), t.Day())
-		return fmt.Sprintf("%d %s %d", d, persianMonths[m-1], y)
+		return localNum(lang, fmt.Sprintf("%d %s %d", d, persianMonths[m-1], y))
 	}
 	return t.Format("2 Jan 2006")
 }
@@ -56,7 +56,7 @@ func formatWhen(lang string, t time.Time) string {
 	if lang == langFA {
 		sep = "، "
 	}
-	return "⁨" + formatDate(lang, t) + sep + t.In(tehran).Format("15:04") + "⁩"
+	return "⁨" + formatDate(lang, t) + sep + localNum(lang, t.In(tehran).Format("15:04")) + "⁩"
 }
 
 // formatDay is the short chart label: "11 مهر" or "3 Oct".
@@ -64,7 +64,7 @@ func formatDay(lang string, t time.Time) string {
 	t = t.In(tehran)
 	if lang == langFA {
 		_, m, d := jalali(t.Year(), int(t.Month()), t.Day())
-		return fmt.Sprintf("%d %s", d, persianMonths[m-1])
+		return localNum(lang, fmt.Sprintf("%d %s", d, persianMonths[m-1]))
 	}
 	return t.Format("2 Jan")
 }

@@ -13,8 +13,8 @@ import (
 
 // The panel speaks Persian (the default) and English. The choice lives in a
 // cookie set by /lang/{code}; every page and every message is looked up in
-// texts. Numbers, dates and codes stay in Latin digits in both languages, so
-// prices and ids can be copied as they are.
+// texts. Numbers and dates are written in the page's digits (numbers.go);
+// ids and codes stay as stored in both languages, so they copy as they are.
 const (
 	langFA = "fa"
 	langEN = "en"
@@ -92,9 +92,9 @@ func (s *Server) here(r *http.Request) string {
 	return "/"
 }
 
-// tr looks a text up and fills in args with fmt.Sprintf. An unknown key comes
-// back as itself in brackets, so a gap shows on the page; TestEveryTextKnown
-// keeps that from shipping.
+// tr looks a text up and fills in args with fmt.Sprintf, numbers in the
+// page's digits. An unknown key comes back as itself in brackets, so a gap
+// shows on the page; TestEveryTextKnown keeps that from shipping.
 func tr(lang, key string, args ...any) string {
 	t, ok := texts[key]
 	if !ok {
@@ -105,7 +105,7 @@ func tr(lang, key string, args ...any) string {
 		s = t[1]
 	}
 	if len(args) > 0 {
-		s = fmt.Sprintf(s, args...)
+		s = fmt.Sprintf(s, localArgs(lang, args)...)
 	}
 	return s
 }
@@ -203,7 +203,7 @@ var texts = map[string][2]string{
 	"span.m":          {"%d min", "%d دقیقه"},
 	"span.h":          {"%d hours", "%d ساعت"},
 	"span.d":          {"%d days", "%d روز"},
-	"last24":          {"Last 24 hours", "24 ساعت اخیر"},
+	"last24":          {"Last 24 hours", "۲۴ ساعت اخیر"},
 	"role.owner":      {"owner", "مالک"},
 	"role.support":    {"support", "پشتیبانی"},
 	"role.viewer":     {"viewer", "بیننده"},
@@ -287,7 +287,7 @@ var texts = map[string][2]string{
 	"col.requests":           {"Requests", "درخواست‌ها"},
 	"col.slow":               {"Slow", "کند"},
 	"col.typical":            {"Typical", "معمولی"},
-	"col.slowest":            {"Slowest 5%", "کندترین 5%"},
+	"col.slowest":            {"Slowest 5%", "کندترین ۵٪"},
 	"col.address":            {"Address", "آدرس"},
 	"col.primary":            {"Primary", "اصلی"},
 	"col.verified":           {"Verified", "تأییدشده"},
@@ -329,11 +329,11 @@ var texts = map[string][2]string{
 	"admins.selfReset":   {"Change your own password on the Account page.", "رمز خودت رو از صفحه‌ی «حساب من» عوض کن."},
 	"admins.badRole":     {"The role must be owner, support or viewer.", "نقش باید مالک، پشتیبانی یا بیننده باشه."},
 	"admins.badEmail":    {"That is not an email address.", "این آدرس ایمیل نیست."},
-	"admins.badName":     {"The name must be 1 to 64 characters.", "اسم باید بین 1 تا 64 کاراکتر باشه."},
+	"admins.badName":     {"The name must be 1 to 64 characters.", "اسم باید بین ۱ تا ۶۴ کاراکتر باشه."},
 	"admins.exists":      {"An admin with that email already exists.", "یه مدیر با این ایمیل از قبل هست."},
 
 	// backups
-	"backups.lead":    {"One encrypted backup a night, kept 14 days on the server. Copy them to your computer with fetch-backups.ps1.", "هر شب یه پشتیبان رمزگذاری‌شده گرفته می‌شه و 14 روز روی سرور می‌مونه. با fetch-backups.ps1 روی کامپیوترت کپی‌شون کن."},
+	"backups.lead":    {"One encrypted backup a night, kept 14 days on the server. Copy them to your computer with fetch-backups.ps1.", "هر شب یه پشتیبان رمزگذاری‌شده گرفته می‌شه و ۱۴ روز روی سرور می‌مونه. با fetch-backups.ps1 روی کامپیوترت کپی‌شون کن."},
 	"backups.ok":      {"ok", "موفق"},
 	"backups.failed":  {"failed: %v", "ناموفق: %v"},
 	"backups.running": {"running", "در حال اجرا"},
@@ -346,23 +346,23 @@ var texts = map[string][2]string{
 	"dash.accounts":     {"Accounts", "حساب‌ها"},
 	"dash.subscribers":  {"Subscribers", "مشترک‌ها"},
 	"dash.noPlans":      {"No active plans", "اشتراک فعالی نیست"},
-	"dash.delta7":       {"+%v in 7 days", "+%v در 7 روز"},
-	"dash.subsSub":      {"%v new in 30 days", "%v خرید تازه در 30 روز"},
-	"dash.activeH":      {"Active this week", "فعال در 7 روز"},
+	"dash.delta7":       {"+%v in 7 days", "+%v در ۷ روز"},
+	"dash.subsSub":      {"%v new in 30 days", "%v خرید تازه در ۳۰ روز"},
+	"dash.activeH":      {"Active this week", "فعال در ۷ روز"},
 	"dash.activeSub":    {"signed-in accounts that used the app", "حساب‌های واردشده‌ای که از برنامه استفاده کردن"},
 	"dash.failedH":      {"Failed sign-ins", "ورودهای ناموفق"},
-	"dash.failedSub":    {"sign-ins and codes, last 24 hours", "ورود و کد، 24 ساعت اخیر"},
+	"dash.failedSub":    {"sign-ins and codes, last 24 hours", "ورود و کد، ۲۴ ساعت اخیر"},
 	"dash.seeSystem":    {"Open System", "برو به سیستم"},
 	"dash.byPlan":       {"By plan", "به تفکیک اشتراک"},
-	"dash.r.new30":      {"New in 30 days", "تازه در 30 روز"},
-	"dash.r.email30":    {"Signed up with email (30 days)", "ثبت‌نام با ایمیل (30 روز)"},
-	"dash.r.google30":   {"Google only (30 days)", "فقط با گوگل (30 روز)"},
-	"dash.r.deleted30":  {"Deleted (30 days)", "حذف‌شده (30 روز)"},
+	"dash.r.new30":      {"New in 30 days", "تازه در ۳۰ روز"},
+	"dash.r.email30":    {"Signed up with email (30 days)", "ثبت‌نام با ایمیل (۳۰ روز)"},
+	"dash.r.google30":   {"Google only (30 days)", "فقط با گوگل (۳۰ روز)"},
+	"dash.r.deleted30":  {"Deleted (30 days)", "حذف‌شده (۳۰ روز)"},
 	"dash.r.disabled":   {"Disabled", "غیرفعال"},
-	"dash.r.ended30":    {"Ended (30 days)", "تموم‌شده (30 روز)"},
+	"dash.r.ended30":    {"Ended (30 days)", "تموم‌شده (۳۰ روز)"},
 	"dash.r.renewOff":   {"Active with auto-renew off", "فعال با تمدید خودکار خاموش"},
-	"dash.r.expiring7":  {"Of those, ending within 7 days", "از اینا، تا 7 روز دیگه تموم می‌شن"},
-	"dash.r.refunded30": {"Refunded (30 days)", "برگشت پول (30 روز)"},
+	"dash.r.expiring7":  {"Of those, ending within 7 days", "از اینا، تا ۷ روز دیگه تموم می‌شن"},
+	"dash.r.refunded30": {"Refunded (30 days)", "برگشت پول (۳۰ روز)"},
 	"dash.r.suspicious": {"Flagged suspicious", "علامت مشکوک"},
 	"dash.r.grants":     {"Premium given by hand", "نسخه ویژه‌ی دستی"},
 	"dash.r.mailSent":   {"Emails sent", "ایمیل فرستاده‌شده"},
@@ -374,14 +374,14 @@ var texts = map[string][2]string{
 	"dash.r.backup":     {"Last good backup", "آخرین پشتیبان موفق"},
 	"dash.revenue":      {"Revenue is in the Bazaar developer console.", "درآمد توی پنل توسعه‌دهنده‌ی بازار هست."},
 	"dash.backupFailed": {"last attempt failed", "آخرین تلاش ناموفق بود"},
-	"dash.perDay":       {"New accounts per day (30 days)", "حساب‌های تازه در هر روز (30 روز)"},
+	"dash.perDay":       {"New accounts per day (30 days)", "حساب‌های تازه در هر روز (۳۰ روز)"},
 
 	// sign-in
 	"login.title":   {"Sign in", "ورود"},
 	"login.lead":    {"Sign in with your admin email and password.", "با ایمیل و رمز مدیریتت وارد شو."},
 	"login.expired": {"The form expired. Try again.", "فرم منقضی شد. دوباره امتحان کن."},
 	"login.wrong":   {"Wrong email or password.", "ایمیل یا رمز اشتباهه."},
-	"login.tooMany": {"Too many attempts. Wait 15 minutes.", "تلاش‌ها زیاد شد. 15 دقیقه صبر کن."},
+	"login.tooMany": {"Too many attempts. Wait 15 minutes.", "تلاش‌ها زیاد شد. ۱۵ دقیقه صبر کن."},
 
 	// authenticator
 	"totp.title":      {"Code", "کد ورود"},
@@ -391,11 +391,11 @@ var texts = map[string][2]string{
 	"totp.onPhone":    {"On this phone?", "با همین گوشی اومدی؟"},
 	"totp.step1link":  {"Add it with one tap", "با یه ضربه اضافه‌اش کن"},
 	"totp.byHand":     {"Can't scan? Type this key in the app:", "نمی‌تونی اسکن کنی؟ این کلید رو توی برنامه بنویس:"},
-	"totp.step2":      {"Type the 6-digit code the app shows.", "کد 6 رقمی‌ای که برنامه نشون می‌ده رو بنویس."},
+	"totp.step2":      {"Type the 6-digit code the app shows.", "کد ۶ رقمی‌ای که برنامه نشون می‌ده رو بنویس."},
 	"totp.enterH":     {"Enter your code", "کدت رو وارد کن"},
-	"totp.enterLead":  {"Open your authenticator app and type the 6-digit code for Tarkk admin.", "برنامه‌ی احراز هویتت رو باز کن و کد 6 رقمی پنل تَرک رو بنویس."},
+	"totp.enterLead":  {"Open your authenticator app and type the 6-digit code for Tarkk admin.", "برنامه‌ی احراز هویتت رو باز کن و کد ۶ رقمی پنل تَرک رو بنویس."},
 	"totp.signin":     {"Sign in", "ورود"},
-	"totp.tooMany":    {"Too many wrong codes. Wait 15 minutes, then sign in again.", "کدهای اشتباه زیاد شد. 15 دقیقه صبر کن، بعد دوباره وارد شو."},
+	"totp.tooMany":    {"Too many wrong codes. Wait 15 minutes, then sign in again.", "کدهای اشتباه زیاد شد. ۱۵ دقیقه صبر کن، بعد دوباره وارد شو."},
 	"totp.wrong":      {"That code is not right. Check the time on your phone and try the newest code.", "این کد درست نیست. ساعت گوشی‌ات رو چک کن و جدیدترین کد رو امتحان کن."},
 	"totp.used":       {"That code was already used. Wait for the next one.", "این کد قبلاً استفاده شده. صبر کن کد بعدی بیاد."},
 
@@ -417,11 +417,11 @@ var texts = map[string][2]string{
 	"logs.download":    {"Download a whole day on your computer with: bash remote.sh log-day YYYY-MM-DD", "برای گرفتن یه روز کامل روی کامپیوترت: bash remote.sh log-day YYYY-MM-DD"},
 
 	// mail
-	"mail.h":     {"Email, last 7 days", "ایمیل‌ها، 7 روز اخیر"},
-	"mail.none":  {"No email in 7 days", "تو 7 روز ایمیلی نبوده"},
+	"mail.h":     {"Email, last 7 days", "ایمیل‌ها، ۷ روز اخیر"},
+	"mail.none":  {"No email in 7 days", "تو ۷ روز ایمیلی نبوده"},
 	"mail.noneX": {"Every email the server sends is counted here, by kind.", "هر ایمیلی که سرور بفرسته، به تفکیک نوع اینجا شمرده می‌شه."},
 	"mail.retry": {"Retry every waiting email now", "همه‌ی ایمیل‌های توی صف رو الان دوباره بفرست"},
-	"mail.note":  {"Sent emails are wiped from the database right away; only these counts remain, for 7 days.", "ایمیل‌های فرستاده‌شده همون موقع از پایگاه داده پاک می‌شن؛ فقط همین شمارش‌ها 7 روز می‌مونن."},
+	"mail.note":  {"Sent emails are wiped from the database right away; only these counts remain, for 7 days.", "ایمیل‌های فرستاده‌شده همون موقع از پایگاه داده پاک می‌شن؛ فقط همین شمارش‌ها ۷ روز می‌مونن."},
 
 	// messages
 	"msg.notFoundT":    {"Not found", "پیدا نشد"},
@@ -440,7 +440,7 @@ var texts = map[string][2]string{
 	"pw.change":       {"Change password", "عوض کردن رمز"},
 	"pw.lead":         {"Your current password was set by someone else. Choose your own before continuing.", "رمز فعلی‌ات رو یکی دیگه گذاشته. قبل از ادامه، رمز خودت رو انتخاب کن."},
 	"pw.current":      {"Current password", "رمز فعلی"},
-	"pw.new":          {"New password (12 or more characters)", "رمز جدید (حداقل 12 کاراکتر)"},
+	"pw.new":          {"New password (12 or more characters)", "رمز جدید (حداقل ۱۲ کاراکتر)"},
 	"pw.again":        {"New password again", "تکرار رمز جدید"},
 	"pw.wrongCurrent": {"Your current password is not right.", "رمز فعلی‌ات درست نیست."},
 	"pw.mismatch":     {"The two new passwords are different.", "دو تا رمز جدید با هم فرق دارن."},
@@ -455,32 +455,32 @@ var texts = map[string][2]string{
 	"pricing.base":       {"Monthly price, Toman", "قیمت ماهانه، تومان"},
 	"pricing.baseHint":   {"Every plan's price is worked out from this.", "قیمت همه‌ی اشتراک‌ها از روی همین حساب می‌شه."},
 	"pricing.adj":        {"Overall multiplier", "ضریب کلی"},
-	"pricing.adjHint":    {"Raise it when inflation moves, e.g. 1.15.", "وقتی تورم بالا رفت زیادش کن، مثلاً 1.15."},
+	"pricing.adjHint":    {"Raise it when inflation moves, e.g. 1.15.", "وقتی تورم بالا رفت زیادش کن، مثلاً ۱٫۱۵."},
 	"pricing.mult":       {"%v", "ضریب %v"},
 	"pricing.multHint":   {"Multiplier of the monthly price.", "چند برابر قیمت ماهانه."},
 	"pricing.round":      {"Round up to, Toman", "گرد کردن، تومان"},
 	"pricing.roundHint":  {"Prices go up to a multiple of this.", "قیمت به بالا، به مضرب این عدد گرد می‌شه."},
 	"pricing.ending":     {"Then take off, Toman", "کم کردن از آخر، تومان"},
-	"pricing.endingHint": {"1,000 turns 270,000 into 269,000.", "1,000 قیمت 270,000 رو می‌کنه 269,000."},
+	"pricing.endingHint": {"1,000 turns 270,000 into 269,000.", "۱٬۰۰۰ قیمت ۲۷۰٬۰۰۰ رو می‌کنه ۲۶۹٬۰۰۰."},
 	"pricing.save":       {"Save and work out", "ذخیره و حساب کن"},
-	"pricing.badBase":    {"The monthly price must be a whole number of Toman between 1,000 and 1,000,000,000.", "قیمت ماهانه باید یه عدد صحیح بین 1,000 تا 1,000,000,000 تومان باشه."},
-	"pricing.badAdj":     {"The overall multiplier must be between 0.1 and 100.", "ضریب کلی باید بین 0.1 تا 100 باشه."},
-	"pricing.badMult":    {"The multiplier for %v must be between 0.1 and 100.", "ضریب %v باید بین 0.1 تا 100 باشه."},
-	"pricing.badRound":   {"Round to must be a whole number of Toman between 1 and 100,000,000.", "عدد گرد کردن باید یه عدد صحیح بین 1 تا 100,000,000 تومان باشه."},
-	"pricing.badEnding":  {"The ending must be at least 0 and less than Round to.", "عدد کم‌کردن باید حداقل 0 و کمتر از عدد گرد کردن باشه."},
+	"pricing.badBase":    {"The monthly price must be a whole number of Toman between 1,000 and 1,000,000,000.", "قیمت ماهانه باید یه عدد صحیح بین ۱٬۰۰۰ تا ۱٬۰۰۰٬۰۰۰٬۰۰۰ تومان باشه."},
+	"pricing.badAdj":     {"The overall multiplier must be between 0.1 and 100.", "ضریب کلی باید بین ۰٫۱ تا ۱۰۰ باشه."},
+	"pricing.badMult":    {"The multiplier for %v must be between 0.1 and 100.", "ضریب %v باید بین ۰٫۱ تا ۱۰۰ باشه."},
+	"pricing.badRound":   {"Round to must be a whole number of Toman between 1 and 100,000,000.", "عدد گرد کردن باید یه عدد صحیح بین ۱ تا ۱۰۰٬۰۰۰٬۰۰۰ تومان باشه."},
+	"pricing.badEnding":  {"The ending must be at least 0 and less than Round to.", "عدد کم‌کردن باید حداقل ۰ و کمتر از عدد گرد کردن باشه."},
 	"pricing.saved":      {"Saved. Type the Rial prices below into the Bazaar panel.", "ذخیره شد. قیمت‌های ریالی پایین رو توی پنل بازار بنویس."},
 
 	// security
 	"security.h":      {"Security events", "رویدادهای امنیتی"},
-	"security.quiet":  {"All quiet in the last 24 hours", "24 ساعت اخیر همه‌چیز آروم بوده"},
+	"security.quiet":  {"All quiet in the last 24 hours", "۲۴ ساعت اخیر همه‌چیز آروم بوده"},
 	"security.quietX": {"Failed sign-ins and other trouble are counted here.", "ورودهای ناموفق و بقیه‌ی مشکلات اینجا شمرده می‌شن."},
 	"security.none":   {"No security events yet", "هنوز رویداد امنیتی‌ای نیست"},
-	"security.latest": {"Latest 100 (successful sign-ins left out)", "100 تای آخر (بدون ورودهای موفق)"},
+	"security.latest": {"Latest 100 (successful sign-ins left out)", "۱۰۰ تای آخر (بدون ورودهای موفق)"},
 	"security.source": {"\"Source\" is the first characters of a keyed hash of the IP address: equal values mean the same address, the address itself is never stored.", "«منبع» چند کاراکتر اولِ هش کلیددارِ آدرس IP هست: مقدارهای یکسان یعنی همون آدرس، خود آدرس هیچ‌وقت ذخیره نمی‌شه."},
 
 	// system
 	"system.checks":     {"Alert checks", "بررسی‌های هشدار"},
-	"system.checksNote": {"Checked every minute. Firing alerts are emailed and repeated every 6 hours until they clear.", "هر دقیقه بررسی می‌شه. هشدارهای فعال ایمیل می‌شن و تا وقتی رفع نشدن، هر 6 ساعت تکرار می‌شن."},
+	"system.checksNote": {"Checked every minute. Firing alerts are emailed and repeated every 6 hours until they clear.", "هر دقیقه بررسی می‌شه. هشدارهای فعال ایمیل می‌شن و تا وقتی رفع نشدن، هر ۶ ساعت تکرار می‌شن."},
 	"system.firing":     {"firing since %v", "فعال از %v"},
 	"system.noChecks":   {"No checks have run yet. They run where the background workers run.", "هنوز هیچ بررسی‌ای اجرا نشده. جایی اجرا می‌شن که کارهای پس‌زمینه اجرا می‌شن."},
 	"system.h.good":     {"Everything is healthy", "همه‌چیز سالمه"},
@@ -498,14 +498,14 @@ var texts = map[string][2]string{
 	"system.updated":    {"updated %v", "به‌روزشده %v"},
 	"system.notified":   {"last emailed %v", "آخرین ایمیل %v"},
 	"system.last5":      {"API traffic", "ترافیک API"},
-	"system.requests":   {"requests in the last 5 minutes", "درخواست در 5 دقیقه‌ی اخیر"},
+	"system.requests":   {"requests in the last 5 minutes", "درخواست در ۵ دقیقه‌ی اخیر"},
 	"system.errors":     {"Server errors (5xx)", "خطای سرور (5xx)"},
-	"system.slowN":      {"Slow (over 2 s)", "کند (بیش از 2 ثانیه)"},
+	"system.slowN":      {"Slow (over 2 s)", "کند (بیش از ۲ ثانیه)"},
 	"system.p50":        {"Typical", "معمولی"},
-	"system.p95":        {"Slowest 5%", "کندترین 5%"},
+	"system.p95":        {"Slowest 5%", "کندترین ۵٪"},
 	"system.db":         {"Database connections", "اتصال‌های پایگاه داده"},
 	"system.inUse":      {"in use now (%v open)", "الان در حال استفاده (%v باز)"},
-	"system.taken":      {"Taken (5 min)", "گرفته‌شده (5 دقیقه)"},
+	"system.taken":      {"Taken (5 min)", "گرفته‌شده (۵ دقیقه)"},
 	"system.avgWait":    {"Average wait", "میانگین انتظار"},
 	"system.gaveUp":     {"Gave up waiting", "منصرف از انتظار"},
 	"system.outside":    {"Outside services", "سرویس‌های بیرونی"},
@@ -532,7 +532,7 @@ var texts = map[string][2]string{
 	"check.backup":            {"Backups", "پشتیبان‌گیری"},
 	"check.certificate":       {"HTTPS certificate", "گواهی HTTPS"},
 	"checkWhat.server_errors": {"HTTP 500 errors from the API", "خطاهای HTTP 500 در API"},
-	"checkWhat.slow":          {"Requests taking over 2 s", "درخواست‌های بیش از 2 ثانیه"},
+	"checkWhat.slow":          {"Requests taking over 2 s", "درخواست‌های بیش از ۲ ثانیه"},
 	"checkWhat.database":      {"Waiting for a database connection", "انتظار برای اتصال پایگاه داده"},
 	"checkWhat.mail":          {"Emails stuck or dropped", "ایمیل‌های گیرکرده یا نرسیده"},
 	"checkWhat.bazaar":        {"Purchase checks with Cafe Bazaar", "بررسی خریدها با کافه‌بازار"},
@@ -551,7 +551,7 @@ var texts = map[string][2]string{
 	"checkFix.certificate":    {"Caddy renews certificates by itself; read its log (docker compose logs caddy) and check the domain's DNS still points at this server.", "Caddy خودش گواهی‌ها رو تمدید می‌کنه؛ لاگش رو بخون (docker compose logs caddy) و ببین DNS دامنه هنوز به این سرور اشاره می‌کنه."},
 	"system.byRoute":          {"Requests by route, last hour", "درخواست‌ها بر اساس مسیر، یک ساعت اخیر"},
 	"system.partial":          {"The server started %v, so this covers less than an hour. ", "سرور %v روشن شده، پس این کمتر از یک ساعت رو نشون می‌ده. "},
-	"system.buckets":          {"Times are bucket limits: \"≤ 250 ms\" means at most 250 ms.", "زمان‌ها سقف بازه‌ها هستن: «≤ 250 ms» یعنی حداکثر 250 میلی‌ثانیه."},
+	"system.buckets":          {"Times are bucket limits: \"≤ 250 ms\" means at most 250 ms.", "زمان‌ها سقف بازه‌ها هستن: «≤ ۲۵۰ میلی‌ثانیه» یعنی حداکثر ۲۵۰ میلی‌ثانیه."},
 	"system.noReqs":           {"No requests yet this hour", "این ساعت هنوز درخواستی نیومده"},
 
 	// one account
@@ -609,7 +609,7 @@ var texts = map[string][2]string{
 	"user.adminH":      {"Admin activity on this account", "کارهای مدیرها روی این حساب"},
 
 	// account actions
-	"act.reason":         {"Write a reason (3 to 500 characters); it is recorded with the action.", "یه دلیل بنویس (3 تا 500 کاراکتر)؛ همراه کار ثبت می‌شه."},
+	"act.reason":         {"Write a reason (3 to 500 characters); it is recorded with the action.", "یه دلیل بنویس (۳ تا ۵۰۰ کاراکتر)؛ همراه کار ثبت می‌شه."},
 	"act.deletedT":       {"Account deleted", "حساب حذف شد"},
 	"act.deleted":        {"The account and everything tied to it are gone, and a confirmation email is on its way to the person. A running Bazaar subscription is not cancelled by this; they cancel it in Bazaar.", "حساب و هرچی بهش وصل بود پاک شد و ایمیل تأیید داره براش می‌ره. اشتراک فعال بازار با این لغو نمی‌شه؛ خودش باید توی بازار لغوش کنه."},
 	"act.disabled":       {"Account disabled and signed out on every device. Sign-in now answers \"contact support\".", "حساب غیرفعال شد و از همه‌ی دستگاه‌ها خارج شد. حالا موقع ورود «با پشتیبانی تماس بگیر» می‌بینه."},
@@ -619,7 +619,7 @@ var texts = map[string][2]string{
 	"act.rechecked":      {"Checked with Bazaar; the purchase below shows its answer.", "از بازار پرسیده شد؛ خرید پایین جوابش رو نشون می‌ده."},
 	"act.notFlagged":     {"The account is not flagged.", "این حساب علامت مشکوک نداره."},
 	"act.cleared":        {"Suspicious flag cleared. The app picks it up at its next subscription refresh.", "علامت مشکوک برداشته شد. برنامه دفعه‌ی بعد که اشتراک رو تازه کنه می‌فهمه."},
-	"act.months":         {"Choose 1 to 12 months.", "بین 1 تا 12 ماه انتخاب کن."},
+	"act.months":         {"Choose 1 to 12 months.", "بین ۱ تا ۱۲ ماه انتخاب کن."},
 	"act.granted":        {"Premium given until %v. The app shows it at its next subscription refresh (opening the subscription screen refreshes it).", "نسخه ویژه تا %v داده شد. برنامه دفعه‌ی بعد که اشتراک رو تازه کنه نشونش می‌ده (باز کردن صفحه‌ی اشتراک تازه‌اش می‌کنه)."},
 	"act.alreadyRevoked": {"That grant is already revoked.", "این نسخه ویژه قبلاً لغو شده."},
 	"act.revoked":        {"Grant revoked. An app that already holds it keeps premium until its next refresh, at most a few days.", "نسخه ویژه لغو شد. برنامه‌ای که الان داردش تا تازه‌سازی بعدی، حداکثر چند روز، ویژه می‌مونه."},
@@ -638,4 +638,9 @@ var texts = map[string][2]string{
 	"users.tipExact":   {"Check for typos: the address has to match exactly.", "غلط تایپی رو چک کن؛ آدرس باید دقیقاً همون باشه."},
 	"users.tipRemoved": {"Removed addresses don't count, so try the email they use now.", "آدرس‌های حذف‌شده حساب نمی‌شن؛ ایمیلی که الان استفاده می‌کنه رو امتحان کن."},
 	"users.tipID":      {"Have the account id? Search with that instead.", "شناسه‌ی حساب رو داری؟ با اون بگرد."},
+
+	// units, after a number already in the page's digits
+	"unit.ms": {"%s ms", "%s میلی‌ثانیه"},
+	"unit.s":  {"%s s", "%s ثانیه"},
+	"unit.mb": {"%s MB", "%s مگابایت"},
 }

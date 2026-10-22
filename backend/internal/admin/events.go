@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/HPTarkk/Tark/backend/internal/i18n"
 )
 
 // The event tables (admin actions, security events, an account's history)
@@ -197,7 +195,7 @@ var eventTexts = map[string][2]string{
 	"dv.yes":                     {"yes", "بله"},
 	"dv.no":                      {"no", "نه"},
 	"dv.months":                  {"%v months", "%v ماه"},
-	"dv.month":                   {"1 month", "1 ماه"},
+	"dv.month":                   {"1 month", "۱ ماه"},
 	"dv.emails":                  {"%v emails", "%v ایمیل"},
 	"dv.toman":                   {"%v Toman", "%v تومان"},
 	"dv.attempt":                 {"#%v", "بار %v"},
@@ -330,17 +328,17 @@ func detailValue(lang, key string, v any) string {
 		case key == "months" && isInt == nil && n == 1:
 			return plain(tr(lang, "dv.month"))
 		case key == "months":
-			return plain(tr(lang, "dv.months", x.String()))
+			return plain(tr(lang, "dv.months", localNum(lang, x.String())))
 		case key == "attempt":
-			return plain(tr(lang, "dv.attempt", x.String()))
+			return plain(tr(lang, "dv.attempt", localNum(lang, x.String())))
 		case (key == "base" || key == "roundTo" || key == "ending") && isInt == nil:
-			return plain(tr(lang, "dv.toman", i18n.GroupedDigits(i18n.EN, n)))
+			return plain(tr(lang, "dv.toman", localNum(lang, grouped(n))))
 		case key == "adjustment":
-			return ltr("×"+x.String(), "")
+			return ltr("×"+localNum(lang, x.String()), "")
 		case isInt == nil:
-			return plain(i18n.GroupedDigits(i18n.EN, n))
+			return plain(localNum(lang, grouped(n)))
 		}
-		return plain(x.String())
+		return plain(localNum(lang, x.String()))
 	case string:
 		switch {
 		case key == "role" || key == "state":
@@ -375,7 +373,7 @@ func detailValue(lang, key string, v any) string {
 		})
 		parts := make([]string, 0, len(ks))
 		for _, k := range ks {
-			parts = append(parts, `<bdi class="ltr" dir="ltr">`+esc(k)+` ×`+esc(fmtScalar(x[k]))+`</bdi>`)
+			parts = append(parts, `<bdi class="ltr" dir="ltr">`+esc(k)+` ×`+esc(localNum(lang, fmtScalar(x[k])))+`</bdi>`)
 		}
 		return `<span class="v list">` + strings.Join(parts, `<span class="sep" aria-hidden="true">·</span>`) + `</span>`
 	case []any:

@@ -27,7 +27,7 @@
   <header class="panel-head"><h2>{{icon "card"}}{{t "user.subH"}}</h2></header>
   {{with .Suspicious}}<div class="flash bad">{{icon "flag"}}<p>{{t "user.suspicious" (when .)}}</p></div>{{end}}
   <div class="table-wrap"><table><thead><tr><th>{{t "col.plan"}}</th><th>{{t "col.state"}}</th><th>{{t "col.validUntil"}}</th><th>{{t "col.autoRenew"}}</th><th>{{t "col.refunded"}}</th><th>{{t "col.lastVerified"}}</th><th class="num">{{t "col.failedChecks"}}</th><th>{{t "col.bought"}}</th><th></th></tr></thead><tbody>
-  {{range .Purchases}}<tr><td><code>{{.SKU}}</code></td><td><span class="chip st-{{.State}}">{{code "state" .State}}</span></td><td>{{when .ValidUntil}}</td><td>{{if .AutoRenew}}<span class="chip good">{{t "on"}}</span>{{else}}<span class="chip">{{t "off"}}</span>{{end}}</td><td>{{when .Refunded}}</td><td>{{when .LastVerified}}</td><td class="num">{{.CheckFailures}}</td><td>{{when .Created}}</td>
+  {{range .Purchases}}<tr><td><code>{{.SKU}}</code></td><td><span class="chip st-{{.State}}">{{code "state" .State}}</span></td><td>{{when .ValidUntil}}</td><td>{{if .AutoRenew}}<span class="chip good">{{t "on"}}</span>{{else}}<span class="chip">{{t "off"}}</span>{{end}}</td><td>{{when .Refunded}}</td><td>{{when .LastVerified}}</td><td class="num">{{num .CheckFailures}}</td><td>{{when .Created}}</td>
   <td class="act"><form method="post" action="/users/{{$.U.ID}}/recheck#subscription"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="purchase" value="{{.ID}}"><button class="ghost sm">{{icon "refresh"}}<span>{{t "user.recheck"}}</span></button></form></td></tr>
   {{else}}<tr class="nil-row"><td colspan="9">{{template "empty" (blank "card" (t "user.noPurchases"))}}</td></tr>{{end}}</tbody></table></div>
 </section>
@@ -89,7 +89,7 @@
 <form method="post" action="/users/{{.ID}}/grant#actions" class="act accent" data-confirm="{{t "confirm.grant.q" .Name}}" data-confirm-x="{{t "confirm.grant.x"}}" data-confirm-ok="{{t "user.grantH"}}"><input type="hidden" name="csrf" value="{{$.CSRF}}">
   <span class="act-icon">{{icon "gift"}}</span>
   <div class="act-text"><h4>{{t "user.grantH"}}</h4><p>{{t "user.grantP"}}</p></div>
-  <div class="act-do"><label class="act-months">{{t "label.months"}} <select name="months"><option>1</option><option>3</option><option>6</option><option>12</option></select></label>
+  <div class="act-do"><label class="act-months">{{t "label.months"}} <select name="months">{{range list 1 3 6 12}}<option value="{{.}}">{{num .}}</option>{{end}}</select></label>
   <label class="act-reason">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500" placeholder="{{t "user.grantHint"}}"></label><button>{{t "user.grantH"}}</button></div>
 </form>
 {{range .Grants}}{{if .Live}}

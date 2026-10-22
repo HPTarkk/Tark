@@ -40,39 +40,39 @@
 {{with .M}}
 <section class="kpis wide stats">
   <article class="kpi{{if index .Five.ByClass 3}} flag{{end}}"><div class="kpi-head"><span class="kpi-icon">{{icon "zap"}}</span><h2>{{t "system.last5"}}</h2></div>
-    <p class="big">{{.Five.Requests}}</p><p class="kpi-sub">{{t "system.requests"}}</p>
+    <p class="big">{{num .Five.Requests}}</p><p class="kpi-sub">{{t "system.requests"}}</p>
     <dl class="mini">
-      <div><dt>{{t "system.errors"}}</dt><dd{{if index .Five.ByClass 3}} class="error-text"{{end}}>{{index .Five.ByClass 3}}</dd></div>
-      <div><dt>{{t "system.slowN"}}</dt><dd{{if .Five.Slow}} class="warn-text"{{end}}>{{.Five.Slow}}</dd></div>
-      <div><dt>{{t "system.p50"}}</dt><dd class="ltr">{{p .Five.Latency 0.5}}</dd></div>
-      <div><dt>{{t "system.p95"}}</dt><dd class="ltr">{{p .Five.Latency 0.95}}</dd></div>
+      <div><dt>{{t "system.errors"}}</dt><dd{{if index .Five.ByClass 3}} class="error-text"{{end}}>{{num (index .Five.ByClass 3)}}</dd></div>
+      <div><dt>{{t "system.slowN"}}</dt><dd{{if .Five.Slow}} class="warn-text"{{end}}>{{num .Five.Slow}}</dd></div>
+      <div><dt>{{t "system.p50"}}</dt><dd>{{p .Five.Latency 0.5}}</dd></div>
+      <div><dt>{{t "system.p95"}}</dt><dd>{{p .Five.Latency 0.95}}</dd></div>
     </dl></article>
   <article class="kpi{{if .Pool.Canceled}} flag{{end}}"><div class="kpi-head"><span class="kpi-icon">{{icon "backups"}}</span><h2>{{t "system.db"}}</h2></div>
-    <p class="big ltr">{{.Now.InUse}}<span class="of"> / {{.Now.Max}}</span></p><p class="kpi-sub">{{t "system.inUse" .Now.Total}}</p>
+    <p class="big ltr">{{num .Now.InUse}}<span class="of"> / {{num .Now.Max}}</span></p><p class="kpi-sub">{{t "system.inUse" .Now.Total}}</p>
     <div class="meter" aria-hidden="true"><span class="w{{.DBMeter}}"></span></div>
     <dl class="mini">
-      <div><dt>{{t "system.taken"}}</dt><dd>{{.Pool.Acquires}}</dd></div>
-      <div><dt>{{t "system.avgWait"}}</dt><dd class="ltr">{{dur .Pool.AvgWait}}</dd></div>
-      <div><dt>{{t "system.gaveUp"}}</dt><dd{{if .Pool.Canceled}} class="error-text"{{end}}>{{.Pool.Canceled}}</dd></div>
+      <div><dt>{{t "system.taken"}}</dt><dd>{{num .Pool.Acquires}}</dd></div>
+      <div><dt>{{t "system.avgWait"}}</dt><dd>{{dur .Pool.AvgWait}}</dd></div>
+      <div><dt>{{t "system.gaveUp"}}</dt><dd{{if .Pool.Canceled}} class="error-text"{{end}}>{{num .Pool.Canceled}}</dd></div>
     </dl></article>
   <article class="kpi{{if .CallsFailed}} warn{{end}}"><div class="kpi-head"><span class="kpi-icon">{{icon "cloud"}}</span><h2>{{t "system.outside"}}</h2></div>
-    <p class="big ltr">{{.CallsOK}}</p><p class="kpi-sub">{{if .Calls}}{{t "system.okRate" .Calls}}{{else}}{{t "system.noCalls"}}{{end}}</p>
+    <p class="big ltr">{{digits .CallsOK}}</p><p class="kpi-sub">{{if .Calls}}{{t "system.okRate" .Calls}}{{else}}{{t "system.noCalls"}}{{end}}</p>
     <dl class="mini">
-      <div><dt>{{t "system.bazaarH"}}</dt><dd>{{t "system.okFailed" .Hour.Bazaar.OK .Hour.Bazaar.Failed}}{{if .Hour.Bazaar.Latency.N}}<small class="ltr">{{p .Hour.Bazaar.Latency 0.95}}</small>{{end}}</dd></div>
-      <div><dt>{{t "system.emailH"}}</dt><dd>{{t "system.okFailed" .Hour.Mail.OK .Hour.Mail.Failed}}{{if .Hour.Mail.Latency.N}}<small class="ltr">{{p .Hour.Mail.Latency 0.95}}</small>{{end}}</dd></div>
+      <div><dt>{{t "system.bazaarH"}}</dt><dd>{{t "system.okFailed" .Hour.Bazaar.OK .Hour.Bazaar.Failed}}{{if .Hour.Bazaar.Latency.N}}<small>{{p .Hour.Bazaar.Latency 0.95}}</small>{{end}}</dd></div>
+      <div><dt>{{t "system.emailH"}}</dt><dd>{{t "system.okFailed" .Hour.Mail.OK .Hour.Mail.Failed}}{{if .Hour.Mail.Latency.N}}<small>{{p .Hour.Mail.Latency 0.95}}</small>{{end}}</dd></div>
     </dl></article>
   <article class="kpi"><div class="kpi-head"><span class="kpi-icon">{{icon "server"}}</span><h2>{{t "system.process"}}</h2></div>
     <p class="big">{{span .Started}}</p><p class="kpi-sub">{{t "system.upFor" (when .Started)}}</p>
     <dl class="mini">
-      <div><dt>{{t "system.heap"}}</dt><dd class="ltr">{{bytes .Runtime.HeapBytes}}</dd></div>
-      <div><dt>{{t "system.sys"}}</dt><dd class="ltr">{{bytes .Runtime.SysBytes}}</dd></div>
-      <div><dt>{{t "system.gr"}}</dt><dd>{{.Runtime.Goroutines}}</dd></div>
+      <div><dt>{{t "system.heap"}}</dt><dd>{{bytes .Runtime.HeapBytes}}</dd></div>
+      <div><dt>{{t "system.sys"}}</dt><dd>{{bytes .Runtime.SysBytes}}</dd></div>
+      <div><dt>{{t "system.gr"}}</dt><dd>{{num .Runtime.Goroutines}}</dd></div>
     </dl></article>
 </section>
 <section class="panel">
   <header class="panel-head"><h2>{{icon "chart"}}{{t "system.byRoute"}}</h2><p>{{if lt .Covered.Minutes 59.0}}{{t "system.partial" (ago .Started)}}{{end}}{{t "system.buckets"}}</p></header>
   <div class="table-wrap"><table><thead><tr><th>{{t "col.route"}}</th><th class="num">{{t "col.requests"}}</th><th class="num">4xx</th><th class="num">5xx</th><th class="num">{{t "col.slow"}}</th><th>{{t "col.typical"}}</th><th>{{t "col.slowest"}}</th></tr></thead><tbody>
-  {{range .Hour.Sorted}}<tr><td><code class="route">{{.Method}} {{.Route}}</code></td><td class="num">{{.Requests}}</td><td class="num">{{index .ByClass 2}}</td><td class="num">{{if index .ByClass 3}}<span class="chip bad">{{index .ByClass 3}}</span>{{else}}0{{end}}</td><td class="num">{{.Slow}}</td><td>{{p .Latency 0.5}}</td><td>{{p .Latency 0.95}}</td></tr>
+  {{range .Hour.Sorted}}<tr><td><code class="route">{{.Method}} {{.Route}}</code></td><td class="num">{{num .Requests}}</td><td class="num">{{num (index .ByClass 2)}}</td><td class="num">{{if index .ByClass 3}}<span class="chip bad">{{num (index .ByClass 3)}}</span>{{else}}{{num 0}}{{end}}</td><td class="num">{{num .Slow}}</td><td>{{p .Latency 0.5}}</td><td>{{p .Latency 0.95}}</td></tr>
   {{else}}<tr class="nil-row"><td colspan="7">{{template "empty" (blank "chart" (t "system.noReqs"))}}</td></tr>{{end}}</tbody></table></div>
 </section>
 {{end}}

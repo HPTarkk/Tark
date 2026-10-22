@@ -12,21 +12,16 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/HPTarkk/Tark/backend/internal/i18n"
 	"github.com/HPTarkk/Tark/backend/internal/metrics"
 )
 
 var funcs = template.FuncMap{
-	// money writes a whole amount with thousands separators: 1,250,000.
-	"money": func(n int64) string { return i18n.GroupedDigits(i18n.EN, n) },
-	// factor writes a multiplier without trailing zeros: 2.7, 1.15, 9.
-	"factor":  func(f float64) string { return strconv.FormatFloat(f, 'f', -1, 64) },
-	"round":   func(f float64) int64 { return int64(math.Round(f)) },
-	"latency": latency,
-	"list":    func(v ...int) []int { return v },
-	"p":       func(h metrics.Hist, q float64) string { return latency(h.Quantile(q)) },
-	"bytes":   func(n uint64) string { return fmt.Sprintf("%.1f MB", float64(n)/(1<<20)) },
-	"dur":     func(d time.Duration) string { return d.Round(time.Millisecond).String() },
+	// fieldMoney and fieldFactor fill form fields: Latin digits, so the
+	// value posts back as it reads (the digit font draws them Persian).
+	"fieldMoney":  func(n int64) string { return grouped(n) },
+	"fieldFactor": func(f float64) string { return strconv.FormatFloat(f, 'f', -1, 64) },
+	"round":       func(f float64) int64 { return int64(math.Round(f)) },
+	"list":        func(v ...int) []int { return v },
 	// bar maps a count to one of ten height classes for the CSS bar chart
 	// (the CSP forbids inline styles).
 	"bar": func(n, max int) int {
@@ -106,16 +101,6 @@ var funcs = template.FuncMap{
 		}
 		return s
 	},
-	"mb": func(v any) string {
-		rv := reflect.ValueOf(v)
-		if !rv.IsValid() || (rv.Kind() == reflect.Pointer && rv.IsNil()) {
-			return "-"
-		}
-		if rv.Kind() == reflect.Pointer {
-			rv = rv.Elem()
-		}
-		return fmt.Sprintf("%.1f MB", float64(rv.Int())/(1<<20))
-	},
 }
 
 // funcsFor adds the functions whose output depends on the language: t looks
@@ -132,6 +117,26 @@ func funcsFor(lang string) template.FuncMap {
 	m["lang"] = func() string { return lang }
 	m["dir"] = func() string { return dir }
 	m["t"] = func(key string, args ...any) string { return tr(lang, key, args...) }
+	// Numbers, in the page's digits (numbers.go): num is a count, money
+	// a whole amount, factor a multiplier, pct a percentage, digits a
+	// number already written ("97%", "2026-10-21").
+	m["num"] = func(v any) string { return num(lang, v) }
+	m["money"] = func(n int64) string { return localNum(lang, grouped(n)) }
+	m["factor"] = func(f float64) string { return decimal(lang, f) }
+	m["pct"] = func(v any) string { return pct(lang, v) }
+	m["digits"] = func(s string) string { return localNum(lang, s) }
+	m["latency"] = func(sec float64) string { return latencyIn(lang, sec) }
+	m["p"] = func(h metrics.Hist, q float64) string { return latencyIn(lang, h.Quantile(q)) }
+	m["dur"] = func(d time.Duration) string { return duration(lang, d) }
+	m["bytes"] = func(n uint64) string { return megabytes(lang, float64(n)) }
+	// mb is a size that may be missing (nil shows a dash).
+	m["mb"] = func(v any) string {
+		n, ok := intOf(v)
+		if !ok {
+			return "-"
+		}
+		return megabytes(lang, float64(n))
+	}
 	// code names a stored code (a role, a status) in words, or keeps it as
 	// it is when there is no text for it.
 	m["code"] = func(prefix string, v any) string {

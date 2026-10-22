@@ -6,6 +6,6 @@
 </header>
 <section class="panel">
   <div class="table-wrap"><table><thead><tr><th>{{t "col.started"}}</th><th>{{t "col.result"}}</th><th>{{t "col.file"}}</th><th class="num">{{t "col.size"}}</th><th class="num">{{t "col.rows"}}</th></tr></thead><tbody>
-  {{range .Runs}}<tr><td>{{when .Started}}</td><td>{{if .OK}}<span class="chip good">{{icon "check"}}{{t "backups.ok"}}</span>{{else if .Finished}}<span class="chip bad">{{t "backups.failed" (deref .Error)}}</span>{{else}}<span class="chip warn live">{{t "backups.running"}}</span>{{end}}</td><td><code>{{deref .File}}</code></td><td class="num">{{mb .Bytes}}</td><td class="num">{{deref .Rows}}</td></tr>{{else}}<tr class="nil-row"><td colspan="5">{{template "empty" (blank "backups" (t "backups.none") (t "backups.noneX"))}}</td></tr>{{end}}</tbody></table></div>
+  {{range .Runs}}<tr><td>{{when .Started}}</td><td>{{if .OK}}<span class="chip good">{{icon "check"}}{{t "backups.ok"}}</span>{{else if .Finished}}<span class="chip bad">{{t "backups.failed" (deref .Error)}}</span>{{else}}<span class="chip warn live">{{t "backups.running"}}</span>{{end}}</td><td><code>{{deref .File}}</code></td><td class="num">{{mb .Bytes}}</td><td class="num">{{num .Rows}}</td></tr>{{else}}<tr class="nil-row"><td colspan="5">{{template "empty" (blank "backups" (t "backups.none") (t "backups.noneX"))}}</td></tr>{{end}}</tbody></table></div>
 </section>
 {{end}}

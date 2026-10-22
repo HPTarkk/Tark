@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -153,19 +152,6 @@ func (s *Server) logs(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, http.StatusOK, "logs", map[string]any{
 		"Lines": lines, "Cut": cut, "Kept": kept, "Days": days, "Level": level, "Q": text, "Max": logLines,
 	})
-}
-
-// latency formats a bucket bound in seconds.
-func latency(sec float64) string {
-	switch {
-	case math.IsInf(sec, 1):
-		return "> 10 s"
-	case sec == 0:
-		return "-"
-	case sec < 1:
-		return "≤ " + strconv.Itoa(int(sec*1000)) + " ms"
-	}
-	return "≤ " + strconv.FormatFloat(sec, 'f', -1, 64) + " s"
 }
 
 // meter maps n out of max to one of eleven width classes (0 to 10) for the

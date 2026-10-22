@@ -38,8 +38,10 @@
 * { box-sizing: border-box; }
 @font-face { font-family: Vazirmatn; src: url(Vazirmatn-Regular.ttf) format("truetype"); font-weight: 100 500; font-display: swap; }
 @font-face { font-family: Vazirmatn; src: url(Vazirmatn-Bold.ttf) format("truetype"); font-weight: 600 900; font-display: swap; }
-/* Draws 0-9 as Persian digits on Persian pages while the text stays Latin,
-   so prices, ids and codes copy as they are (scripts/admin_digit_font.py). */
+/* Draws 0-9 as Persian digits while the text stays Latin, for the few
+   numbers that must post or copy as Latin digits: number fields and the
+   Rial price for Bazaar (scripts/admin_digit_font.py). Everything else is
+   written in Persian digits by the server (numbers.go). */
 @font-face { font-family: "Vazirmatn Digits"; src: url(VazirmatnDigits-Regular.woff2) format("woff2"); font-weight: 100 500; font-display: swap; }
 @font-face { font-family: "Vazirmatn Digits"; src: url(VazirmatnDigits-Bold.woff2) format("woff2"); font-weight: 600 900; font-display: swap; }
 /* No page scrollbar: it looked out of place and made pages shift sideways
@@ -313,7 +315,7 @@ main.content > .flash.bad { animation: rise .45s var(--ease) both, shake .42s .1
 .col:nth-child(n+16) .bar { animation-delay: .15s; } .col:nth-child(n+21) .bar { animation-delay: .2s; }
 .col:nth-child(n+26) .bar { animation-delay: .25s; }
 .col:hover .bar { filter: brightness(1.1); box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 55%, transparent); }
-.bar::after { content: attr(data-n); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translate(-50%, 4px); padding: 3px 8px; border-radius: 8px; white-space: nowrap; font-size: .75rem; font-weight: 600; direction: ltr; background: var(--fg); color: var(--bg); opacity: 0; pointer-events: none; transition: opacity .15s ease, transform .2s var(--ease); z-index: 2; }
+.bar::after { content: attr(data-n); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translate(-50%, 4px); padding: 3px 8px; border-radius: 8px; white-space: nowrap; font-size: .75rem; font-weight: 600; background: var(--fg); color: var(--bg); opacity: 0; pointer-events: none; transition: opacity .15s ease, transform .2s var(--ease); z-index: 2; }
 .col:hover .bar::after { opacity: 1; transform: translate(-50%, 0); }
 .h0 { height: 3px; background: var(--line-2); } .h1 { height: 10%; } .h2 { height: 20%; } .h3 { height: 30%; } .h4 { height: 40%; } .h5 { height: 50%; }
 .h6 { height: 60%; } .h7 { height: 70%; } .h8 { height: 80%; } .h9 { height: 90%; } .h10 { height: 100%; }
@@ -847,8 +849,9 @@ body.posted .drawn > *, body.posted .nil-title, body.posted .nil-hint { animatio
 @media (prefers-reduced-motion: reduce) { body.posted .nil-tile { animation: none; } }
 
 /* Persian: no capitals and no letter spacing, which break joined letters. */
-:root[lang="fa"] body { font-family: "Vazirmatn Digits", Vazirmatn, Tahoma, system-ui, sans-serif; }
-:root[lang="fa"] .email, :root[lang="fa"] .kv .ltr, :root[lang="fa"] input[type="email"], :root[lang="fa"] .lang[lang="en"] { font-family: Vazirmatn, Tahoma, system-ui, sans-serif; }
+:root[lang="fa"] body { font-family: Vazirmatn, Tahoma, system-ui, sans-serif; }
+:root[lang="fa"] input[inputmode="numeric"]:not(.otp), :root[lang="fa"] input[inputmode="decimal"] { font-family: "Vazirmatn Digits", Vazirmatn, Tahoma, system-ui, sans-serif; }
+:root[lang="fa"] code.rial { font-family: "Vazirmatn Digits", Vazirmatn, Tahoma, system-ui, sans-serif; font-size: 1em; }
 :root[lang="fa"] input[dir="ltr"]::placeholder { direction: ltr; }
 :root[lang="fa"] th, :root[lang="fa"] .nav-group { text-transform: none; letter-spacing: 0; font-size: .8rem; }
 :root[lang="fa"] .page-head h1, :root[lang="fa"] .profile h1, :root[lang="fa"] .search-hero h1, :root[lang="fa"] .brand, :root[lang="fa"] .kpi .big { letter-spacing: 0; }
