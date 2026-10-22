@@ -56,8 +56,12 @@ try {
     [IO.File]::WriteAllText((Join-Path $fixtureRoot 'pubspec.yaml'), 'version: 1.2.3+42', $utf8)
     [IO.File]::WriteAllText((Join-Path $fixtureRoot 'bin/flutter.ps1'), @'
 $root = Split-Path -Parent $PSScriptRoot
-$args | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'flutter-args.json')
-$args | ConvertTo-Json -Compress | Add-Content -LiteralPath (Join-Path $root 'flutter-calls.jsonl')
+$commandArgs = $args
+if ($null -ne $env:TARK_FIXTURE_ARGC) {
+    $commandArgs = @(for ($i = 0; $i -lt [int]$env:TARK_FIXTURE_ARGC; $i++) { [Environment]::GetEnvironmentVariable("TARK_FIXTURE_ARG_$i") })
+}
+$commandArgs | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'flutter-args.json')
+$commandArgs | ConvertTo-Json -Compress | Add-Content -LiteralPath (Join-Path $root 'flutter-calls.jsonl')
 if (Test-Path -LiteralPath (Join-Path $root 'fail-build')) { exit 7 }
 $out = Join-Path $root 'build/web'
 New-Item -ItemType Directory -Path $out -Force | Out-Null
@@ -67,17 +71,33 @@ exit 0
 '@, $utf8)
     [IO.File]::WriteAllText((Join-Path $fixtureRoot 'bin/wrangler.ps1'), @'
 $root = Split-Path -Parent $PSScriptRoot
-$args | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'wrangler-args.json')
+$commandArgs = $args
+if ($null -ne $env:TARK_FIXTURE_ARGC) {
+    $commandArgs = @(for ($i = 0; $i -lt [int]$env:TARK_FIXTURE_ARGC; $i++) { [Environment]::GetEnvironmentVariable("TARK_FIXTURE_ARG_$i") })
+}
+$commandArgs | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'wrangler-args.json')
 Set-Content -LiteralPath (Join-Path $root 'wrangler-ci.txt') -Value $env:CI
 if (Test-Path -LiteralPath (Join-Path $root 'fail-upload')) { exit 9 }
 exit 0
 '@, $utf8)
     # Unix command discovery requires an executable filename without .ps1.
+    # Each command is a sh shim around the real .ps1: an extensionless pwsh
+    # script gets no $PSScriptRoot, and `pwsh -File` splits an argument such as
+    # --dart-define=GUEST_APP_URL=https://... at its colon, so the shim passes
+    # each argument through the environment exactly as the release script gave it.
     if ([IO.Path]::DirectorySeparatorChar -eq '/') {
+        $pwshPath = (Get-Process -Id $PID).Path.Replace("'", "'\''")
         foreach ($command in @('flutter', 'wrangler')) {
-            $scriptPath = Join-Path $fixtureRoot "bin/$command.ps1"
             $commandPath = Join-Path $fixtureRoot "bin/$command"
-            [IO.File]::WriteAllText($commandPath, ("#!/usr/bin/env pwsh`n" + [IO.File]::ReadAllText($scriptPath)), $utf8)
+            $shim = @"
+#!/bin/sh
+i=0
+for arg in "`$@"; do export "TARK_FIXTURE_ARG_`$i=`$arg"; i=`$((i + 1)); done
+export TARK_FIXTURE_ARGC=`$i
+exec '$pwshPath' -NoLogo -NoProfile -NonInteractive -File "`$(dirname "`$0")/$command.ps1"
+
+"@
+            [IO.File]::WriteAllText($commandPath, $shim, $utf8)
             & chmod +x $commandPath
             if ($LASTEXITCODE -ne 0) { throw 'Could not make fixture command executable.' }
         }
