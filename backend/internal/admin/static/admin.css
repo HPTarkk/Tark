@@ -762,12 +762,14 @@ html.theme-shift::view-transition-new(root) { z-index: 1; }
 /* ---- empty lists ---------------------------------------------------------
    One look for every list with nothing in it: a tile springs in, its icon
    draws itself stroke by stroke, the words rise after it, and then the
-   tile floats while a dashed halo breathes out now and then. */
+   tile floats while a dashed halo breathes out now and then. The float is
+   on the art, not the tile, so the halo rides along and always leaves
+   from the tile's centre. */
 .nil { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 34px 16px 30px; }
-.nil-art { position: relative; display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 16px; }
-.nil-art::before, .nil-art::after { content: ""; position: absolute; inset: -9px; border-radius: 27px; border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); opacity: 0; animation: nil-halo 4.2s ease-out 1.1s infinite; pointer-events: none; }
+.nil-art { position: relative; display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 16px; animation: nil-float 5.4s ease-in-out .9s infinite; }
+.nil-art::before, .nil-art::after { content: ""; position: absolute; inset: -9px; border-radius: 29px; border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); opacity: 0; animation: nil-halo 4.2s ease-out 1.1s infinite; pointer-events: none; }
 .nil-art::after { animation-delay: 3.2s; }
-.nil-tile { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; color: var(--accent); background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 15%, var(--surface)), color-mix(in srgb, var(--accent) 4%, var(--surface-2))); border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line)); box-shadow: 0 16px 30px -18px var(--accent), inset 0 1px 0 rgba(255, 255, 255, .07); animation: nil-pop .75s cubic-bezier(.34, 1.56, .64, 1) .06s both, nil-float 5.4s ease-in-out .9s infinite; }
+.nil-tile { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; color: var(--accent); background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 15%, var(--surface)), color-mix(in srgb, var(--accent) 4%, var(--surface-2))); border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line)); box-shadow: 0 16px 30px -18px var(--accent), inset 0 1px 0 rgba(255, 255, 255, .07); animation: nil-pop .75s cubic-bezier(.34, 1.56, .64, 1) .06s both; }
 .nil-tile .i { width: 28px; height: 28px; }
 .drawn > * { stroke-dasharray: 1 1; animation: nil-draw .95s var(--ease) .28s both; }
 .drawn > :nth-child(2) { animation-delay: .4s; } .drawn > :nth-child(n+3) { animation-delay: .52s; }
@@ -840,16 +842,15 @@ tbody tr.nil-row:hover { background: none; }
 @keyframes ghost-dash { to { stroke-dashoffset: -26; } }
 @media (prefers-reduced-motion: reduce) {
   .nil-tile, .nil-title, .nil-hint, .drawn > *, .finder .scene, .finder h2, .finder-x, .finder-q, .finder-ways li, .finder-tips li, .missed .cross { animation: auth-fade .4s ease both; }
-  .nil-art::before, .nil-art::after { animation: none; }
+  .nil-art, .nil-art::before, .nil-art::after { animation: none; }
   .idle .lens-at { animation: none; transform: translate(122px, 75px); }
   .idle .row .card, .idle .row .dot, .idle .lens, .missed .lens, .missed .card.ghost { animation: none; }
   .idle .r2 .card { fill: color-mix(in srgb, var(--accent) 10%, var(--surface)); stroke: color-mix(in srgb, var(--accent) 55%, var(--line-2)); }
   .idle .r2 .dot { fill: color-mix(in srgb, var(--accent) 45%, var(--line)); }
 }
 /* A form result is the same page again: the empty lists are already there. */
-body.posted .nil-tile { animation: nil-float 5.4s ease-in-out infinite; }
-body.posted .drawn > *, body.posted .nil-title, body.posted .nil-hint { animation: none; }
-@media (prefers-reduced-motion: reduce) { body.posted .nil-tile { animation: none; } }
+body.posted .nil-art { animation-delay: 0s; }
+body.posted .nil-tile, body.posted .drawn > *, body.posted .nil-title, body.posted .nil-hint { animation: none; }
 
 /* Persian: no capitals and no letter spacing, which break joined letters. */
 :root[lang="fa"] body { font-family: Vazirmatn, Tahoma, system-ui, sans-serif; }
