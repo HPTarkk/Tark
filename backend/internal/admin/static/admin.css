@@ -591,7 +591,8 @@ button.danger-soft:hover { filter: none; color: #fff; background: var(--bad); bo
 /* ---- settings ----------------------------------------------------------- */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 /* Jump links to each section; on phones they stay under the top bar. */
-.settings-jump { display: flex; gap: 8px; margin: -8px 0 22px; overflow-x: auto; scrollbar-width: none; }
+/* overflow-x: auto also clips vertically, so the strip keeps room for the hover lift and the focus ring and gives it back in margin */
+.settings-jump { display: flex; gap: 8px; margin: -13px -5px 17px; padding: 5px; overflow-x: auto; scrollbar-width: none; }
 .settings-jump::-webkit-scrollbar { display: none; }
 .settings-jump a { display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); font-size: .86rem; font-weight: 600; text-decoration: none; transition: border-color .18s ease, color .18s ease, background-color .18s ease, transform .3s var(--spring); }
 .settings-jump a .i { width: 16px; height: 16px; color: var(--muted); transition: color .18s ease; }
@@ -599,7 +600,9 @@ button.danger-soft:hover { filter: none; color: #fff; background: var(--bad); bo
 .settings-jump a:hover .i { color: var(--accent); }
 .settings-jump a:active { transform: scale(.96); }
 .settings { max-width: 920px; }
-.settings > .panel { animation: rise .55s var(--ease) both; }
+.settings > .panel { animation: rise .55s var(--ease) both; scroll-margin-top: 24px; }
+/* Jump links glide to their section; the glow below lands as it arrives. */
+@media (prefers-reduced-motion: no-preference) { html:has(.settings-jump) { scroll-behavior: smooth; } }
 .settings > .panel:nth-child(2) { animation-delay: .06s; } .settings > .panel:nth-child(3) { animation-delay: .12s; } .settings > .panel:nth-child(4) { animation-delay: .18s; }
 /* A section reached from a jump link glows for a moment. */
 .settings > .panel:target { animation: rise .55s var(--ease) both, target-glow 1.6s .1s ease both; }
@@ -741,7 +744,7 @@ html.theme-shift::view-transition-new(root) { z-index: 1; }
   .search-hero .search button { flex-basis: 100%; }
   .settings-jump { position: sticky; top: 61px; z-index: 10; margin: -6px -16px 16px; padding: 8px 16px; background: color-mix(in srgb, var(--bg) 82%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
   .settings-jump a { padding: 6px 12px; font-size: .82rem; }
-  [id] { scroll-margin-top: 130px; }
+  [id], .settings > .panel { scroll-margin-top: 130px; }
   .choices { gap: 8px; }
   .choice { padding: 6px 6px 10px; gap: 8px; border-radius: 14px; }
   .swatch, .glyph { height: 64px; border-radius: 9px; }
