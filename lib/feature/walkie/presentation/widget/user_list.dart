@@ -220,6 +220,7 @@ class _RoomRoster extends StatelessWidget {
                           ),
                           transportSenderId: verifiedStatus
                               ?.transportSenderIdFor(member),
+                          coach: member == confirmedRemoteMembers.first,
                         ),
                       ),
                     const Padding(
@@ -254,12 +255,16 @@ class _RoomMemberPresenceTile extends StatefulWidget {
     required this.member,
     required this.phase,
     required this.transportSenderId,
+    this.coach = false,
   });
 
   final SavedRoom room;
   final RoomMember member;
   final RoomConnectionUiPhase phase;
   final String? transportSenderId;
+
+  /// The rider who demonstrates, once, that a rider can be tapped.
+  final bool coach;
 
   @override
   State<_RoomMemberPresenceTile> createState() =>
@@ -382,6 +387,7 @@ class _RoomMemberPresenceTileState extends State<_RoomMemberPresenceTile> {
                           premium: premium,
                           back: _back,
                           senderId: senderId,
+                          coach: widget.coach,
                         );
                       },
                     ),
@@ -402,8 +408,10 @@ class _RoomMemberTile extends StatelessWidget {
     this.avatarId,
     this.premium,
     this.senderId,
+    this.coach = false,
   });
 
+  final bool coach;
   final SavedRoom room;
   final RoomMember member;
   final RoomConnectionUiPhase phase;
@@ -434,7 +442,10 @@ class _RoomMemberTile extends StatelessWidget {
         final sender = senderId;
         if (sender != null) mutes.bindSender(roomId, member.id.value, sender);
         final muted = mutes.isMemberMuted(roomId, member.id.value);
-        return _row(context, name: name, muted: muted);
+        return _coached(
+          coach: coach,
+          row: _row(context, name: name, muted: muted),
+        );
       },
     );
   }
@@ -451,6 +462,7 @@ class _RoomMemberTile extends StatelessWidget {
           avatarId: avatarId,
           premium: premium,
         ),
+        avatarId: avatarId ?? member.avatarId,
         roomId: room.room.id.value,
         roomName: room.room.name,
         memberId: member.id.value,
@@ -493,14 +505,18 @@ class _RoomMemberTile extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  _TalkingFace(
-                    talking: isTalking,
-                    away: away,
-                    child: MemberAvatar(
-                      member: member,
-                      size: _kFaceSize,
-                      avatarId: avatarId,
-                      premium: premium,
+                  TapCoachFace(
+                    active: coach,
+                    size: _kFaceSize,
+                    child: _TalkingFace(
+                      talking: isTalking,
+                      away: away,
+                      child: MemberAvatar(
+                        member: member,
+                        size: _kFaceSize,
+                        avatarId: avatarId,
+                        premium: premium,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -612,7 +628,10 @@ class _LegacyTransportRoster extends StatelessWidget {
                             Padding(
                               key: ValueKey(user.id),
                               padding: const EdgeInsets.only(bottom: 8),
-                              child: UserTile(user: user),
+                              child: UserTile(
+                                user: user,
+                                coach: user == users.first,
+                              ),
                             ),
                           const Padding(
                             padding: EdgeInsets.only(top: 6),
@@ -665,15 +684,20 @@ class _EmptyRoster extends StatelessWidget {
 }
 
 class UserTile extends StatelessWidget {
-  const UserTile({required this.user, super.key});
+  const UserTile({required this.user, this.coach = false, super.key});
+
+  /// The rider who demonstrates, once, that a rider can be tapped.
+  final bool coach;
 
   final ChannelUser user;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: ListenerMutes.instance,
-    builder: (context, _) =>
-        _row(context, muted: ListenerMutes.instance.isSenderMuted(user.id)),
+    builder: (context, _) => _coached(
+      coach: coach,
+      row: _row(context, muted: ListenerMutes.instance.isSenderMuted(user.id)),
+    ),
   );
 
   void _openCard(BuildContext context) => unawaited(
@@ -689,6 +713,7 @@ class UserTile extends StatelessWidget {
           avatarId: user.avatarId,
           premium: user.isPremium ?? false,
         ),
+        avatarId: user.avatarId,
         senderId: user.id,
       ),
     ),
@@ -707,14 +732,18 @@ class UserTile extends StatelessWidget {
         decoration: _memberRowDecoration(talking: isTalking, live: isTalking),
         child: Row(
           children: [
-            _TalkingFace(
-              talking: isTalking,
-              child: TintedAvatar(
-                seed: user.id,
-                name: user.name,
-                size: _kFaceSize,
-                avatarId: user.avatarId,
-                premium: user.isPremium ?? false,
+            TapCoachFace(
+              active: coach,
+              size: _kFaceSize,
+              child: _TalkingFace(
+                talking: isTalking,
+                child: TintedAvatar(
+                  seed: user.id,
+                  name: user.name,
+                  size: _kFaceSize,
+                  avatarId: user.avatarId,
+                  premium: user.isPremium ?? false,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -774,6 +803,24 @@ class UserTile extends StatelessWidget {
 // is live. Talking lights the row green — the channel's colour for "them".
 
 const double _kFaceSize = 40;
+
+/// A roster row with the one-time "tap a rider" callout under it, when it is
+/// the row doing the coaching.
+Widget _coached({required bool coach, required Widget row}) {
+  if (!coach || !ReportConfig.enabled) return row;
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      row,
+      TapCoachNote(
+        active: true,
+        faceCenter: _kRowPadding.left + _kFaceSize / 2,
+      ),
+    ],
+  );
+}
+
 const EdgeInsets _kRowPadding = EdgeInsets.symmetric(
   horizontal: 12,
   vertical: 10,

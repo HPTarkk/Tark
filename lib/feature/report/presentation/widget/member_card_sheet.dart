@@ -8,7 +8,11 @@ import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/sheet_shell.dart';
 import '../../domain/listener_mutes.dart';
+import '../../domain/member_tap_hint.dart';
+import '../../../../core/profile/avatar_catalog.dart';
+import '../../../../core/profile/local_profile.dart';
 import '../member_subject.dart';
+import 'avatar_images.dart';
 import 'report_story_sheet.dart';
 
 /// Opens [subject]'s card: who they are, and the two things a listener can do
@@ -22,6 +26,13 @@ Future<void> showMemberCard(
 }) async {
   final registry = mutes ?? ListenerMutes.instance;
   unawaited(registry.load());
+  // They found it: the roster can stop showing them how.
+  unawaited(MemberTapHint.instance.learned());
+  // Decoded now, so the report story's cast is ready if they go on to it.
+  unawaited(
+    AvatarImages.load(LocalProfile.avatarId ?? AvatarCatalog.defaultId),
+  );
+  unawaited(AvatarImages.load(subject.avatarId));
   final report = await showModalBottomSheet<bool>(
     context: context,
     routeSettings: const RouteSettings(name: 'MemberCardSheet'),

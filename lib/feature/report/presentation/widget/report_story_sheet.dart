@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
@@ -11,6 +12,8 @@ import '../../../../core/config/support_config.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
+import '../../../../core/profile/avatar_catalog.dart';
+import '../../../../core/profile/local_profile.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/copy_chip.dart';
 import '../../../../core/widget/sheet_shell.dart';
@@ -18,6 +21,7 @@ import '../../../room/presentation/widget/room_visuals.dart';
 import '../../domain/listener_mutes.dart';
 import '../../domain/abuse_report.dart';
 import '../member_subject.dart';
+import 'avatar_images.dart';
 import 'report_scene_painter.dart';
 
 /// Opens the report story for [subject].
@@ -142,6 +146,8 @@ class _ReportStorySheetState extends State<ReportStorySheet>
   String? _appVersion;
   String? _mailText;
   bool _started = false;
+  ui.Image? _youImage;
+  ui.Image? _themImage;
 
   /// The mute and Send block, scrolled into view when it first appears: on a
   /// short phone it lands below the fold, right where nobody is looking.
@@ -155,6 +161,25 @@ class _ReportStorySheetState extends State<ReportStorySheet>
     _mute = widget.subject.canMute;
     _intro.addListener(_onIntro);
     unawaited(_readVersion());
+    unawaited(_readFaces());
+  }
+
+  /// Casts the story: you as your own avatar (the mascot until you pick
+  /// one), them as theirs.
+  Future<void> _readFaces() async {
+    final youId = LocalProfile.avatarId ?? AvatarCatalog.defaultId;
+    final themId = widget.subject.avatarId;
+    _youImage = AvatarImages.peek(youId);
+    _themImage = AvatarImages.peek(themId);
+    if (_youImage != null && (_themImage != null || themId == null)) return;
+    final you = AvatarImages.load(youId);
+    final them = AvatarImages.load(themId);
+    final images = await Future.wait([you, them]);
+    if (!mounted) return;
+    setState(() {
+      _youImage = images[0];
+      _themImage = images[1];
+    });
   }
 
   Future<void> _readVersion() async {
@@ -362,6 +387,11 @@ class _ReportStorySheetState extends State<ReportStorySheet>
       paper: const Color(0xFFFFF6EC),
       danger: AppColors.red,
       road: AppColors.border.withValues(alpha: cs ? 1 : 0.9),
+      youImage: _youImage,
+      themImage: _themImage,
+      themInitial: widget.subject.name.isEmpty
+          ? '?'
+          : widget.subject.name.characters.first.toUpperCase(),
     );
   }
 

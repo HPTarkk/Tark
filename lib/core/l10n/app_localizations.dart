@@ -6674,6 +6674,12 @@ abstract class AppLocalizations {
   /// **'اگه کسی اذیتت کرده، به ما بگو'**
   String get member_report_hint;
 
+  /// No description provided for @member_tap_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی هر نفر بزن تا بی‌صداش کنی یا گزارش بدی'**
+  String get member_tap_hint;
+
   /// No description provided for @report_story_title.
   ///
   /// In fa, this message translates to:
