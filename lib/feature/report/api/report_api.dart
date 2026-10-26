@@ -3,5 +3,6 @@
 library;
 
 export '../domain/listener_mutes.dart' show ListenerMutes;
+export '../domain/report_config.dart' show ReportConfig;
 export '../presentation/member_subject.dart' show MemberSubject;
 export '../presentation/widget/member_card_sheet.dart' show showMemberCard;

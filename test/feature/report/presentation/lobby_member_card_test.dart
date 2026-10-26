@@ -49,6 +49,8 @@ Future<void> _pumpLobby(WidgetTester tester) async {
 }
 
 void main() {
+  setUpAll(() => ReportConfig.debugOverride = true);
+  tearDownAll(() => ReportConfig.debugOverride = null);
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     ListenerMutes.instance.resetForTest();
@@ -84,4 +86,24 @@ void main() {
     await _pumpLobby(tester);
     expect(find.byIcon(Icons.volume_off_rounded), findsOneWidget);
   });
+
+  testWidgets(
+    'with the build flag off, rows open nothing and mutes are inert',
+    (tester) async {
+      await ListenerMutes.instance.setMemberMuted(_roomId, _peer, true);
+      ReportConfig.debugOverride = false;
+      addTearDown(() => ReportConfig.debugOverride = true);
+
+      await _pumpLobby(tester);
+      expect(find.byIcon(Icons.volume_off_rounded), findsNothing);
+      expect(ListenerMutes.instance.isMemberMuted(_roomId, _peer), isFalse);
+      ListenerMutes.instance.bindSender(_roomId, _peer, 'sender');
+      expect(ListenerMutes.instance.isSenderMuted('sender'), isFalse);
+
+      await tester.tap(find.text('Rider two'), warnIfMissed: false);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.byType(MemberCardSheet), findsNothing);
+    },
+  );
 }

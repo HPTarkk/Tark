@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'report_config.dart';
+
 /// Who this phone has chosen not to hear.
 ///
 /// A mute is the listener's own business: nothing goes on the wire, the muted
@@ -63,10 +65,11 @@ class ListenerMutes extends ChangeNotifier {
   }
 
   /// Hot path: called for every received audio packet.
-  bool isSenderMuted(String senderId) => _senders.contains(senderId);
+  bool isSenderMuted(String senderId) =>
+      ReportConfig.enabled && _senders.contains(senderId);
 
   bool isMemberMuted(String roomId, String memberId) =>
-      _members.contains(memberKey(roomId, memberId));
+      ReportConfig.enabled && _members.contains(memberKey(roomId, memberId));
 
   /// Mutes or unmutes a durable Room member, and [senderId] with them when
   /// their live sender is already known.

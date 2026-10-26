@@ -1,8 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/feature/report/domain/listener_mutes.dart';
+import 'package:tark/feature/report/domain/report_config.dart';
 
 void main() {
+  setUpAll(() => ReportConfig.debugOverride = true);
+  tearDownAll(() => ReportConfig.debugOverride = null);
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() => SharedPreferences.setMockInitialValues({}));

@@ -474,9 +474,9 @@ class _RoomMemberTile extends StatelessWidget {
 
     return Semantics(
       container: true,
-      button: true,
+      button: ReportConfig.enabled,
       child: PressableScale(
-        onTap: () => _openCard(context, name),
+        onTap: ReportConfig.enabled ? () => _openCard(context, name) : null,
         borderRadius: BorderRadius.circular(18),
         child: AnimatedContainer(
           duration: AppMotion.card,
@@ -698,7 +698,7 @@ class UserTile extends StatelessWidget {
     final isTalking = user.isTalking && !muted;
     final s = context.getString;
     return PressableScale(
-      onTap: () => _openCard(context),
+      onTap: ReportConfig.enabled ? () => _openCard(context) : null,
       borderRadius: BorderRadius.circular(18),
       child: AnimatedContainer(
         duration: AppMotion.card,

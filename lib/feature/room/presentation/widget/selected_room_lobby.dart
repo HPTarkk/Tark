@@ -900,10 +900,12 @@ class _MemberRow extends StatelessWidget {
             !isYou && mutes.isMemberMuted(room.room.id.value, member.id.value);
         return Semantics(
           container: true,
-          button: !isYou,
+          button: !isYou && ReportConfig.enabled,
           child: PressableScale(
             // Your own row is not somebody you can mute or report.
-            onTap: isYou ? null : () => _openCard(context, name),
+            onTap: isYou || !ReportConfig.enabled
+                ? null
+                : () => _openCard(context, name),
             borderRadius: BorderRadius.circular(18),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

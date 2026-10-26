@@ -34,6 +34,8 @@ MemberSubject _subject() => MemberSubject(
 );
 
 void main() {
+  setUpAll(() => ReportConfig.debugOverride = true);
+  tearDownAll(() => ReportConfig.debugOverride = null);
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets('mute on the card mutes them for this listener', (tester) async {

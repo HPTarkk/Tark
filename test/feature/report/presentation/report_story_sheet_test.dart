@@ -106,6 +106,8 @@ Future<void> _openStory(
 }
 
 void main() {
+  setUpAll(() => ReportConfig.debugOverride = true);
+  tearDownAll(() => ReportConfig.debugOverride = null);
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
