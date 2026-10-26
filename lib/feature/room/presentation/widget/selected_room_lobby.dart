@@ -15,6 +15,7 @@ import '../../../../core/widget/state_emblems.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../report/api/report_api.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/room.dart';
 import '../../domain/repository/room_repository.dart';
@@ -855,6 +856,7 @@ class _MembersCard extends StatelessWidget {
         ),
         for (var index = 0; index < members.length; index++) ...[
           _MemberRow(
+            room: room,
             member: members[index],
             isYou: members[index].id == room.membership.localMemberId,
             phase: connectionPhase,
@@ -868,11 +870,13 @@ class _MembersCard extends StatelessWidget {
 
 class _MemberRow extends StatelessWidget {
   const _MemberRow({
+    required this.room,
     required this.member,
     required this.isYou,
     required this.phase,
   });
 
+  final SavedRoom room;
   final RoomMember member;
   final bool isYou;
   final RoomConnectionUiPhase phase;
@@ -888,85 +892,136 @@ class _MemberRow extends StatelessWidget {
     // says nothing about it. A "ready" badge here would be a claim about a
     // phone that may still be at home.
     final showStatus = !isYou && phase != RoomConnectionUiPhase.readyToConnect;
-    return Semantics(
-      container: true,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            MemberAvatar(member: member, size: 42),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+    final mutes = ListenerMutes.instance;
+    return ListenableBuilder(
+      listenable: mutes,
+      builder: (context, _) {
+        final muted =
+            !isYou && mutes.isMemberMuted(room.room.id.value, member.id.value);
+        return Semantics(
+          container: true,
+          button: !isYou && ReportConfig.enabled,
+          child: PressableScale(
+            // Your own row is not somebody you can mute or report.
+            onTap: isYou || !ReportConfig.enabled
+                ? null
+                : () => _openCard(context, name),
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
                 children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
+                  MemberAvatar(member: member, size: 42),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                        // Status sits under the name, so a long name and a long
+                        // status never compete for one line on a narrow phone.
+                        AnimatedSize(
+                          duration: AppMotion.chip,
+                          curve: AppMotion.easeOut,
+                          alignment: AlignmentDirectional.topStart,
+                          child: AnimatedSwitcher(
+                            duration: AppMotion.chip,
+                            switchInCurve: AppMotion.easeOut,
+                            switchOutCurve: AppMotion.leaving,
+                            child: showStatus
+                                ? Padding(
+                                    key: ValueKey(phase),
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: RoomConnectionStatusChip(
+                                      phase: phase,
+                                    ),
+                                  )
+                                : const SizedBox(
+                                    key: ValueKey('none'),
+                                    width: double.infinity,
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  // Status sits under the name, so a long name and a long
-                  // status never compete for one line on a narrow phone.
-                  AnimatedSize(
-                    duration: AppMotion.chip,
-                    curve: AppMotion.easeOut,
-                    alignment: AlignmentDirectional.topStart,
-                    child: AnimatedSwitcher(
-                      duration: AppMotion.chip,
-                      switchInCurve: AppMotion.easeOut,
-                      switchOutCurve: AppMotion.leaving,
-                      child: showStatus
-                          ? Padding(
-                              key: ValueKey(phase),
-                              padding: const EdgeInsets.only(top: 4),
-                              child: RoomConnectionStatusChip(phase: phase),
-                            )
-                          : const SizedBox(
-                              key: ValueKey('none'),
-                              width: double.infinity,
-                            ),
+                  if (isYou) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.amber.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        context.getString.people_you,
+                        style: TextStyle(
+                          color: AppColors.amber,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
+                  ],
+                  AnimatedSwitcher(
+                    duration: AppMotion.chip,
+                    switchInCurve: Curves.easeOutBack,
+                    switchOutCurve: AppMotion.leaving,
+                    transitionBuilder: (child, animation) =>
+                        ScaleTransition(scale: animation, child: child),
+                    child: muted
+                        ? Padding(
+                            key: const ValueKey('muted'),
+                            padding: const EdgeInsetsDirectional.only(start: 8),
+                            child: Icon(
+                              Icons.volume_off_rounded,
+                              size: 18,
+                              color: AppColors.amber,
+                              semanticLabel: context.getString.member_muted,
+                            ),
+                          )
+                        : const SizedBox.shrink(key: ValueKey('unmuted')),
                   ),
                 ],
               ),
             ),
-            if (isYou) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.amber.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  context.getString.people_you,
-                  style: TextStyle(
-                    color: AppColors.amber,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
+
+  void _openCard(BuildContext context, String name) => unawaited(
+    showMemberCard(
+      context,
+      subject: MemberSubject(
+        name: name,
+        seed: member.id.value,
+        avatar: (size) => MemberAvatar(member: member, size: size),
+        roomId: room.room.id.value,
+        roomName: room.room.name,
+        memberId: member.id.value,
+      ),
+    ),
+  );
 }
 
 class _RoomAction extends StatelessWidget {

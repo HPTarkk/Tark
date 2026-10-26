@@ -6643,6 +6643,187 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'رمزی که پایین نوشته رو بزن'**
   String get manual_join_step_password_host;
+
+  /// No description provided for @member_mute.
+  ///
+  /// In fa, this message translates to:
+  /// **'بی‌صدا برای من'**
+  String get member_mute;
+
+  /// No description provided for @member_mute_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'فقط روی همین گوشی. خودش متوجه نمی‌شه.'**
+  String get member_mute_hint;
+
+  /// No description provided for @member_muted.
+  ///
+  /// In fa, this message translates to:
+  /// **'بی‌صدا'**
+  String get member_muted;
+
+  /// No description provided for @member_report.
+  ///
+  /// In fa, this message translates to:
+  /// **'گزارش تخلف'**
+  String get member_report;
+
+  /// No description provided for @member_report_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'اگه کسی اذیتت کرده، به ما بگو'**
+  String get member_report_hint;
+
+  /// No description provided for @report_story_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name} حالت رو گرفت؟'**
+  String report_story_title(String name);
+
+  /// No description provided for @report_story_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'بگو چی شد. تَرک صدا رو ضبط نمی‌کنه، پس روایت تو خودِ گزارشه.'**
+  String get report_story_body;
+
+  /// No description provided for @report_reason_insult.
+  ///
+  /// In fa, this message translates to:
+  /// **'فحش و توهین'**
+  String get report_reason_insult;
+
+  /// No description provided for @report_reason_threat.
+  ///
+  /// In fa, this message translates to:
+  /// **'تهدید'**
+  String get report_reason_threat;
+
+  /// No description provided for @report_reason_profile.
+  ///
+  /// In fa, this message translates to:
+  /// **'اسم یا عکس زشت'**
+  String get report_reason_profile;
+
+  /// No description provided for @report_reason_spam.
+  ///
+  /// In fa, this message translates to:
+  /// **'مزاحمت و سروصدا'**
+  String get report_reason_spam;
+
+  /// No description provided for @report_reason_other.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه چیز دیگه'**
+  String get report_reason_other;
+
+  /// No description provided for @report_mute_toggle.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name} رو برای من بی‌صدا کن'**
+  String report_mute_toggle(String name);
+
+  /// No description provided for @report_mute_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'همین الان و فقط روی گوشی خودت'**
+  String get report_mute_hint;
+
+  /// No description provided for @report_send.
+  ///
+  /// In fa, this message translates to:
+  /// **'فرستادن گزارش'**
+  String get report_send;
+
+  /// No description provided for @report_not_now.
+  ///
+  /// In fa, this message translates to:
+  /// **'فعلاً نه'**
+  String get report_not_now;
+
+  /// No description provided for @report_send_note.
+  ///
+  /// In fa, this message translates to:
+  /// **'برنامه‌ی ایمیلت با گزارشِ آماده باز می‌شه. هر چی یادته اضافه کن و بفرست.'**
+  String get report_send_note;
+
+  /// No description provided for @report_done_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'ممنون که گفتی'**
+  String get report_done_title;
+
+  /// No description provided for @report_done_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'گزارش توی ایمیلت آماده‌ست؛ فقط بفرستش. ما همه‌ی گزارش‌ها رو می‌خونیم.'**
+  String get report_done_body;
+
+  /// No description provided for @report_done_muted.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name} دیگه برای تو بی‌صداست.'**
+  String report_done_muted(String name);
+
+  /// No description provided for @report_done.
+  ///
+  /// In fa, this message translates to:
+  /// **'تمام'**
+  String get report_done;
+
+  /// No description provided for @report_no_mail_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'برنامه‌ی ایمیل پیدا نشد'**
+  String get report_no_mail_title;
+
+  /// No description provided for @report_no_mail_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'گزارش رو کپی کن و برای {email} بفرست.'**
+  String report_no_mail_body(String email);
+
+  /// No description provided for @report_copy.
+  ///
+  /// In fa, this message translates to:
+  /// **'کپی گزارش'**
+  String get report_copy;
+
+  /// No description provided for @report_copied.
+  ///
+  /// In fa, this message translates to:
+  /// **'کپی شد'**
+  String get report_copied;
+
+  /// No description provided for @report_mail_subject.
+  ///
+  /// In fa, this message translates to:
+  /// **'گزارش تخلف تَرک: {reason}'**
+  String report_mail_subject(String reason);
+
+  /// No description provided for @report_mail_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'فرد گزارش‌شده: {name}\nدلیل: {reason}\nاتاق: {room}\nشناسه‌ی عضو: {member}\nزمان: {time}\nنسخه‌ی برنامه: {version}\n\nچی شد؟ (اختیاری)\n'**
+  String report_mail_body(
+    String name,
+    String reason,
+    String room,
+    String member,
+    String time,
+    String version,
+  );
+
+  /// No description provided for @report_mail_quick_channel.
+  ///
+  /// In fa, this message translates to:
+  /// **'کانال سریع (بدون اتاق)'**
+  String get report_mail_quick_channel;
+
+  /// No description provided for @report_scene_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name} با حرف‌هاش ناراحتت کرد'**
+  String report_scene_label(String name);
 }
 
 class _AppLocalizationsDelegate
