@@ -66,8 +66,9 @@ class _TapCoachFaceState extends State<TapCoachFace>
     super.didUpdateWidget(old);
     // The coached rider can change as people come and go.
     if (old.active != widget.active || old.hint != widget.hint) {
-      if (old.active)
+      if (old.active) {
         (old.hint ?? MemberTapHint.instance).removeListener(_sync);
+      }
       if (widget.active) {
         _hint.addListener(_sync);
         unawaited(_hint.load());
