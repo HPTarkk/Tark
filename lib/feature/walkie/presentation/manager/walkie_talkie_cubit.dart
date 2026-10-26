@@ -12,6 +12,7 @@ import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/home_widget/home_widget_service.dart';
 import '../../../../core/identity/device_identity.dart';
+import '../../../report/api/report_api.dart';
 import '../../../transfer/domain/service/hotspot_link_keeper.dart';
 import '../../../../core/home_widget/home_widget_snapshot.dart';
 import '../../../../core/home_widget/widget_control_channel.dart';
@@ -977,6 +978,17 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         _syncWireFormat();
       case AudioPacket():
         _rememberConnectedTransport();
+        // Muted by this listener: still present, still keyed as talking (the
+        // roster shows them muted rather than gone), but never played.
+        if (ListenerMutes.instance.isSenderMuted(packet.senderId)) {
+          _updateUser(
+            packet.senderId,
+            packet.senderName,
+            true,
+            SessionRole.unknown,
+          );
+          return;
+        }
         // Audio carries no role — the roster keeps whatever this peer last
         // announced (see [ChannelRoster.upsert]).
         _updateUser(
@@ -1011,6 +1023,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         // "who's talking" (see MusicCastStopReason and the independent-mode
         // notes on [_onAudioFrame]); this exists purely to get the samples
         // to the independent media receive buffer.
+        if (ListenerMutes.instance.isSenderMuted(packet.senderId)) return;
         try {
           final channels =
               _transferRepository.negotiatedMediaFormat?.channels ?? 1;

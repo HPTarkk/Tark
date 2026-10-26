@@ -3783,4 +3783,115 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get manual_join_step_password_host => 'رمزی که پایین نوشته رو بزن';
+
+  @override
+  String get member_mute => 'بی‌صدا برای من';
+
+  @override
+  String get member_mute_hint => 'فقط روی همین گوشی. خودش متوجه نمی‌شه.';
+
+  @override
+  String get member_muted => 'بی‌صدا';
+
+  @override
+  String get member_report => 'گزارش تخلف';
+
+  @override
+  String get member_report_hint => 'اگه کسی اذیتت کرده، به ما بگو';
+
+  @override
+  String report_story_title(String name) {
+    return '$name حالت رو گرفت؟';
+  }
+
+  @override
+  String get report_story_body =>
+      'بگو چی شد. تَرک صدا رو ضبط نمی‌کنه، پس روایت تو خودِ گزارشه.';
+
+  @override
+  String get report_reason_insult => 'فحش و توهین';
+
+  @override
+  String get report_reason_threat => 'تهدید';
+
+  @override
+  String get report_reason_profile => 'اسم یا عکس زشت';
+
+  @override
+  String get report_reason_spam => 'مزاحمت و سروصدا';
+
+  @override
+  String get report_reason_other => 'یه چیز دیگه';
+
+  @override
+  String report_mute_toggle(String name) {
+    return '$name رو برای من بی‌صدا کن';
+  }
+
+  @override
+  String get report_mute_hint => 'همین الان و فقط روی گوشی خودت';
+
+  @override
+  String get report_send => 'فرستادن گزارش';
+
+  @override
+  String get report_not_now => 'فعلاً نه';
+
+  @override
+  String get report_send_note =>
+      'برنامه‌ی ایمیلت با گزارشِ آماده باز می‌شه. هر چی یادته اضافه کن و بفرست.';
+
+  @override
+  String get report_done_title => 'ممنون که گفتی';
+
+  @override
+  String get report_done_body =>
+      'گزارش توی ایمیلت آماده‌ست؛ فقط بفرستش. ما همه‌ی گزارش‌ها رو می‌خونیم.';
+
+  @override
+  String report_done_muted(String name) {
+    return '$name دیگه برای تو بی‌صداست.';
+  }
+
+  @override
+  String get report_done => 'تمام';
+
+  @override
+  String get report_no_mail_title => 'برنامه‌ی ایمیل پیدا نشد';
+
+  @override
+  String report_no_mail_body(String email) {
+    return 'گزارش رو کپی کن و برای $email بفرست.';
+  }
+
+  @override
+  String get report_copy => 'کپی گزارش';
+
+  @override
+  String get report_copied => 'کپی شد';
+
+  @override
+  String report_mail_subject(String reason) {
+    return 'گزارش تخلف تَرک: $reason';
+  }
+
+  @override
+  String report_mail_body(
+    String name,
+    String reason,
+    String room,
+    String member,
+    String time,
+    String version,
+  ) {
+    return 'فرد گزارش‌شده: $name\nدلیل: $reason\nاتاق: $room\nشناسه‌ی عضو: $member\nزمان: $time\nنسخه‌ی برنامه: $version\n\nچی شد؟ (اختیاری)\n';
+  }
+
+  @override
+  String get report_mail_quick_channel => 'کانال سریع (بدون اتاق)';
+
+  @override
+  String report_scene_label(String name) {
+    return '$name با حرف‌هاش ناراحتت کرد';
+  }
 }

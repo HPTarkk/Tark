@@ -12,6 +12,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/section_header.dart';
 import '../../../room/api/room_api.dart';
+import '../../../report/api/report_api.dart';
 import '../../../room/presentation/widget/room_visuals.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/channel_user.dart';
@@ -110,6 +111,7 @@ class _UserListState extends State<UserList> {
   @override
   void initState() {
     super.initState();
+    unawaited(ListenerMutes.instance.load());
     if (GetIt.instance.isRegistered<RoomRepository>()) {
       _rooms = GetIt.instance<RoomRepository>();
       _roomChanges = _rooms!.changes.listen((_) => unawaited(_reload()));
@@ -379,6 +381,7 @@ class _RoomMemberPresenceTileState extends State<_RoomMemberPresenceTile> {
                           avatarId: avatarId,
                           premium: premium,
                           back: _back,
+                          senderId: senderId,
                         );
                       },
                     ),
@@ -398,6 +401,7 @@ class _RoomMemberTile extends StatelessWidget {
     required this.back,
     this.avatarId,
     this.premium,
+    this.senderId,
   });
 
   final SavedRoom room;
@@ -406,6 +410,10 @@ class _RoomMemberTile extends StatelessWidget {
   final bool isTalking;
   final ValueListenable<bool> back;
   final int? avatarId;
+
+  /// The live sender this member's verified route proof arrived with, when
+  /// there is one: what a mute has to silence today.
+  final String? senderId;
 
   /// What the live channel says, or null for what the Room remembers.
   final bool? premium;
@@ -418,105 +426,151 @@ class _RoomMemberTile extends StatelessWidget {
       fa: Localizations.localeOf(context).languageCode == 'fa',
       unnamed: s.people_unnamed,
     );
+    final mutes = ListenerMutes.instance;
+    return ListenableBuilder(
+      listenable: mutes,
+      builder: (context, _) {
+        final roomId = room.room.id.value;
+        final sender = senderId;
+        if (sender != null) mutes.bindSender(roomId, member.id.value, sender);
+        final muted = mutes.isMemberMuted(roomId, member.id.value);
+        return _row(context, name: name, muted: muted);
+      },
+    );
+  }
+
+  void _openCard(BuildContext context, String name) => unawaited(
+    showMemberCard(
+      context,
+      subject: MemberSubject(
+        name: name,
+        seed: member.id.value,
+        avatar: (size) => MemberAvatar(
+          member: member,
+          size: size,
+          avatarId: avatarId,
+          premium: premium,
+        ),
+        roomId: room.room.id.value,
+        roomName: room.room.name,
+        memberId: member.id.value,
+        senderId: senderId,
+      ),
+      status: RoomConnectionStatusChip(phase: phase),
+    ),
+  );
+
+  Widget _row(
+    BuildContext context, {
+    required String name,
+    required bool muted,
+  }) {
+    // A muted member still talks to everybody else; on this phone they are
+    // simply not heard, so their row stops lighting up for it.
+    final isTalking = this.isTalking && !muted;
     final connected = phase == RoomConnectionUiPhase.connected;
     final away = phase == RoomConnectionUiPhase.away;
     final active = connected || isTalking;
 
     return Semantics(
       container: true,
-      child: AnimatedContainer(
-        duration: AppMotion.card,
-        curve: AppMotion.easeOut,
-        padding: _kRowPadding,
-        decoration: _memberRowDecoration(
-          talking: isTalking,
-          live: active,
-          away: away,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                _TalkingFace(
-                  talking: isTalking,
-                  away: away,
-                  child: MemberAvatar(
-                    member: member,
-                    size: _kFaceSize,
-                    avatarId: avatarId,
-                    premium: premium,
+      button: true,
+      child: PressableScale(
+        onTap: () => _openCard(context, name),
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: AppMotion.card,
+          curve: AppMotion.easeOut,
+          padding: _kRowPadding,
+          decoration: _memberRowDecoration(
+            talking: isTalking,
+            live: active,
+            away: away,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  _TalkingFace(
+                    talking: isTalking,
+                    away: away,
+                    child: MemberAvatar(
+                      member: member,
+                      size: _kFaceSize,
+                      avatarId: avatarId,
+                      premium: premium,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedDefaultTextStyle(
-                        duration: AppMotion.card,
-                        curve: AppMotion.easeOut,
-                        style: TextStyle(
-                          color: away
-                              ? AppColors.textSecondary
-                              : AppColors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          // AnimatedDefaultTextStyle replaces the inherited
-                          // style rather than merging, so the font is named.
-                          fontFamily: 'Vazirmatn',
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedDefaultTextStyle(
+                          duration: AppMotion.card,
+                          curve: AppMotion.easeOut,
+                          style: TextStyle(
+                            color: away
+                                ? AppColors.textSecondary
+                                : AppColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            // AnimatedDefaultTextStyle replaces the inherited
+                            // style rather than merging, so the font is named.
+                            fontFamily: 'Vazirmatn',
+                          ),
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        child: Text(
-                          name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      RoomConnectionStatusChip(phase: phase),
-                    ],
+                        const SizedBox(height: 4),
+                        RoomConnectionStatusChip(phase: phase),
+                      ],
+                    ),
                   ),
-                ),
-                if (isTalking) ...[
                   const SizedBox(width: 8),
-                  _TalkingMark(
-                    key: ValueKey('room-member-tx-${member.id.value}'),
-                    label: s.tx_label,
+                  _RowTrailing(
+                    muted: muted,
+                    talking: isTalking,
+                    talkingKey: ValueKey('room-member-tx-${member.id.value}'),
                   ),
                 ],
-              ],
-            ),
-            // Opens under the row rather than replacing it: the person is
-            // still in the Room, and this is only what the Room is doing
-            // about them.
-            AnimatedSize(
-              duration: AppMotion.sheet,
-              curve: AppMotion.easeOut,
-              alignment: AlignmentDirectional.topStart,
-              child: AnimatedSwitcher(
-                duration: AppMotion.card,
-                switchInCurve: AppMotion.easeOut,
-                switchOutCurve: AppMotion.leaving,
-                child: away
-                    ? Padding(
-                        key: ValueKey('room-member-away-${member.id.value}'),
-                        padding: const EdgeInsetsDirectional.only(
-                          top: 10,
-                          start: _kFaceSize + 16,
-                        ),
-                        child: RoomAwayMemberHelp(
-                          room: room,
-                          member: member,
-                          name: name,
-                          back: back,
-                        ),
-                      )
-                    : const SizedBox(width: double.infinity),
               ),
-            ),
-          ],
+              // Opens under the row rather than replacing it: the person is
+              // still in the Room, and this is only what the Room is doing
+              // about them.
+              AnimatedSize(
+                duration: AppMotion.sheet,
+                curve: AppMotion.easeOut,
+                alignment: AlignmentDirectional.topStart,
+                child: AnimatedSwitcher(
+                  duration: AppMotion.card,
+                  switchInCurve: AppMotion.easeOut,
+                  switchOutCurve: AppMotion.leaving,
+                  child: away
+                      ? Padding(
+                          key: ValueKey('room-member-away-${member.id.value}'),
+                          padding: const EdgeInsetsDirectional.only(
+                            top: 10,
+                            start: _kFaceSize + 16,
+                          ),
+                          child: RoomAwayMemberHelp(
+                            room: room,
+                            member: member,
+                            name: name,
+                            back: back,
+                          ),
+                        )
+                      : const SizedBox(width: double.infinity),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -616,68 +670,98 @@ class UserTile extends StatelessWidget {
   final ChannelUser user;
 
   @override
-  Widget build(BuildContext context) {
-    final isTalking = user.isTalking;
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: ListenerMutes.instance,
+    builder: (context, _) =>
+        _row(context, muted: ListenerMutes.instance.isSenderMuted(user.id)),
+  );
+
+  void _openCard(BuildContext context) => unawaited(
+    showMemberCard(
+      context,
+      subject: MemberSubject(
+        name: user.name,
+        seed: user.id,
+        avatar: (size) => TintedAvatar(
+          seed: user.id,
+          name: user.name,
+          size: size,
+          avatarId: user.avatarId,
+          premium: user.isPremium ?? false,
+        ),
+        senderId: user.id,
+      ),
+    ),
+  );
+
+  Widget _row(BuildContext context, {required bool muted}) {
+    final isTalking = user.isTalking && !muted;
     final s = context.getString;
-    return AnimatedContainer(
-      duration: AppMotion.card,
-      curve: AppMotion.easeOut,
-      padding: _kRowPadding,
-      decoration: _memberRowDecoration(talking: isTalking, live: isTalking),
-      child: Row(
-        children: [
-          _TalkingFace(
-            talking: isTalking,
-            child: TintedAvatar(
-              seed: user.id,
-              name: user.name,
-              size: _kFaceSize,
-              avatarId: user.avatarId,
-              premium: user.isPremium ?? false,
+    return PressableScale(
+      onTap: () => _openCard(context),
+      borderRadius: BorderRadius.circular(18),
+      child: AnimatedContainer(
+        duration: AppMotion.card,
+        curve: AppMotion.easeOut,
+        padding: _kRowPadding,
+        decoration: _memberRowDecoration(talking: isTalking, live: isTalking),
+        child: Row(
+          children: [
+            _TalkingFace(
+              talking: isTalking,
+              child: TintedAvatar(
+                seed: user.id,
+                name: user.name,
+                size: _kFaceSize,
+                avatarId: user.avatarId,
+                premium: user.isPremium ?? false,
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  user.name,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    user.name,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (user.role != SessionRole.unknown) ...[
-                  const SizedBox(height: 3),
-                  RoleBadge(role: user.role),
+                  if (user.role != SessionRole.unknown) ...[
+                    const SizedBox(height: 3),
+                    RoleBadge(role: user.role),
+                  ],
                 ],
-              ],
-            ),
-          ),
-          if (isTalking)
-            _TalkingMark(label: s.tx_label)
-          else
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.border.withAlpha(80),
-                borderRadius: BorderRadius.circular(6),
               ),
-              child: Text(
-                s.user_idle,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1,
+            ),
+            if (muted)
+              const _MutedMark()
+            else if (isTalking)
+              _TalkingMark(label: s.tx_label)
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.border.withAlpha(80),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  s.user_idle,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1,
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -907,6 +991,71 @@ class _WaveformBarsState extends State<WaveformBars>
               ),
             );
           }),
+        ),
+      ),
+    );
+  }
+}
+
+/// What sits at the end of a member row: their TX mark while you can hear
+/// them talk, the muted mark while you have chosen not to.
+class _RowTrailing extends StatelessWidget {
+  const _RowTrailing({
+    required this.muted,
+    required this.talking,
+    required this.talkingKey,
+  });
+
+  final bool muted;
+  final bool talking;
+  final Key talkingKey;
+
+  @override
+  Widget build(BuildContext context) => AnimatedSwitcher(
+    duration: AppMotion.chip,
+    switchInCurve: Curves.easeOutBack,
+    switchOutCurve: AppMotion.leaving,
+    transitionBuilder: (child, animation) => ScaleTransition(
+      scale: animation,
+      child: FadeTransition(opacity: animation, child: child),
+    ),
+    child: muted
+        ? const _MutedMark(key: ValueKey('muted'))
+        : talking
+        ? _TalkingMark(key: talkingKey, label: context.getString.tx_label)
+        : const SizedBox.shrink(key: ValueKey('none')),
+  );
+}
+
+class _MutedMark extends StatelessWidget {
+  const _MutedMark({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = context.getString.member_muted;
+    return Semantics(
+      label: label,
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.amber.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.volume_off_rounded, size: 13, color: AppColors.amber),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: AppColors.amber,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
         ),
       ),
     );

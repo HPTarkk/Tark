@@ -3815,4 +3815,115 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get manual_join_step_password_host => 'Type the password shown below';
+
+  @override
+  String get member_mute => 'Mute for me';
+
+  @override
+  String get member_mute_hint => 'Only on this phone. They won\'t be told.';
+
+  @override
+  String get member_muted => 'Muted';
+
+  @override
+  String get member_report => 'Report';
+
+  @override
+  String get member_report_hint => 'If someone was out of line, tell us';
+
+  @override
+  String report_story_title(String name) {
+    return 'Did $name spoil the ride?';
+  }
+
+  @override
+  String get report_story_body =>
+      'Tell us what happened. Tarkk never records voice, so your account is the report.';
+
+  @override
+  String get report_reason_insult => 'Insults or swearing';
+
+  @override
+  String get report_reason_threat => 'Threats';
+
+  @override
+  String get report_reason_profile => 'Offensive name or picture';
+
+  @override
+  String get report_reason_spam => 'Harassment or nonstop noise';
+
+  @override
+  String get report_reason_other => 'Something else';
+
+  @override
+  String report_mute_toggle(String name) {
+    return 'Mute $name for me';
+  }
+
+  @override
+  String get report_mute_hint => 'Right away, on your phone only';
+
+  @override
+  String get report_send => 'Send report';
+
+  @override
+  String get report_not_now => 'Not now';
+
+  @override
+  String get report_send_note =>
+      'Your email app opens with the report filled in. Add anything you remember, then send it.';
+
+  @override
+  String get report_done_title => 'Thanks for speaking up';
+
+  @override
+  String get report_done_body =>
+      'The report is waiting in your email app; just send it. We read every report.';
+
+  @override
+  String report_done_muted(String name) {
+    return '$name stays muted for you.';
+  }
+
+  @override
+  String get report_done => 'Done';
+
+  @override
+  String get report_no_mail_title => 'No email app found';
+
+  @override
+  String report_no_mail_body(String email) {
+    return 'Copy the report and send it to $email.';
+  }
+
+  @override
+  String get report_copy => 'Copy report';
+
+  @override
+  String get report_copied => 'Copied';
+
+  @override
+  String report_mail_subject(String reason) {
+    return 'Tarkk report: $reason';
+  }
+
+  @override
+  String report_mail_body(
+    String name,
+    String reason,
+    String room,
+    String member,
+    String time,
+    String version,
+  ) {
+    return 'Reported person: $name\nReason: $reason\nRoom: $room\nMember ID: $member\nTime: $time\nApp version: $version\n\nWhat happened? (optional)\n';
+  }
+
+  @override
+  String get report_mail_quick_channel => 'Quick channel (no room)';
+
+  @override
+  String report_scene_label(String name) {
+    return '$name upset you with what they said';
+  }
 }
