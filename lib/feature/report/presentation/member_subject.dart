@@ -13,6 +13,7 @@ class MemberSubject {
     required this.name,
     required this.seed,
     required this.avatar,
+    this.avatarId,
     this.roomId,
     this.roomName,
     this.memberId,
@@ -27,6 +28,11 @@ class MemberSubject {
 
   /// Their face as the roster draws it, at whatever size the caller asks.
   final Widget Function(double size) avatar;
+
+  /// Their picked avatar, so the report story can cast them as themselves.
+  /// Null, or an id this build has no picture for, plays them as their
+  /// initial on their colour.
+  final int? avatarId;
 
   final String? roomId;
   final String? roomName;

@@ -3800,6 +3800,9 @@ class AppLocalizationsFa extends AppLocalizations {
   String get member_report_hint => 'اگه کسی اذیتت کرده، به ما بگو';
 
   @override
+  String get member_tap_hint => 'روی هر نفر بزن تا بی‌صداش کنی یا گزارش بدی';
+
+  @override
   String report_story_title(String name) {
     return '$name حالت رو گرفت؟';
   }

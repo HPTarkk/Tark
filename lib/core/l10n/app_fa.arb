@@ -1169,6 +1169,7 @@
     "member_muted": "بی‌صدا",
     "member_report": "گزارش تخلف",
     "member_report_hint": "اگه کسی اذیتت کرده، به ما بگو",
+    "member_tap_hint": "روی هر نفر بزن تا بی‌صداش کنی یا گزارش بدی",
     "report_story_title": "{name} حالت رو گرفت؟",
     "@report_story_title": {"placeholders": {"name": {"type": "String"}}},
     "report_story_body": "بگو چی شد. تَرک صدا رو ضبط نمی‌کنه، پس روایت تو خودِ گزارشه.",

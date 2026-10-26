@@ -8,6 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/feature/report/api/report_api.dart';
+import 'package:tark/core/profile/local_profile.dart';
+import 'package:tark/feature/report/presentation/widget/avatar_images.dart';
+import 'package:tark/feature/report/presentation/widget/report_scene_painter.dart';
 import 'package:tark/feature/report/presentation/widget/report_story_sheet.dart';
 
 /// Set `REPORT_SHOTS=<dir>` to write the story's frames out as PNGs.
@@ -49,6 +52,7 @@ MemberSubject _roomMember() => MemberSubject(
   name: 'Kian',
   seed: 'member-kian',
   avatar: (size) => SizedBox(width: size, height: size),
+  avatarId: 5,
   roomId: 'room-1',
   roomName: 'Sunday ride',
   memberId: 'member-kian',
@@ -126,7 +130,12 @@ void main() {
         );
       await icons.load();
     }
+    // Decoded for real here, outside the widget tests' fake clock.
+    LocalProfile.avatarId = 3;
+    await AvatarImages.load(3);
+    await AvatarImages.load(5);
   });
+  tearDownAll(() => LocalProfile.avatarId = null);
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -332,5 +341,49 @@ void main() {
     );
     expect(subject, 'گزارش تخلف تَرک: اسم یا عکس زشت');
     expect(find.text('ممنون که گفتی'), findsOneWidget);
+  });
+
+  ReportSceneFrame sceneFrame(WidgetTester tester) =>
+      (tester
+                  .widget<CustomPaint>(find.byKey(const Key('report-scene')))
+                  .painter!
+              as ReportScenePainter)
+          .frame;
+
+  testWidgets('casts both riders as their own avatars', (tester) async {
+    await _openStory(
+      tester,
+      subject: _roomMember(),
+      mutes: ListenerMutes(),
+      launchMail: (_) async => true,
+    );
+    final frame = sceneFrame(tester);
+    expect(frame.youImage, isNotNull);
+    expect(frame.themImage, isNotNull);
+    expect(frame.youImage, same(AvatarImages.peek(3)));
+    expect(frame.themImage, same(AvatarImages.peek(5)));
+  });
+
+  testWidgets('plays a rider with no known avatar as their initial', (
+    tester,
+  ) async {
+    await _openStory(
+      tester,
+      subject: MemberSubject(
+        name: 'roya',
+        seed: 'member-roya',
+        avatar: (size) => SizedBox(width: size, height: size),
+        avatarId: 200,
+        senderId: 'sender-roya',
+      ),
+      mutes: ListenerMutes(),
+      launchMail: (_) async => true,
+    );
+    final frame = sceneFrame(tester);
+    expect(frame.themImage, isNull);
+    expect(frame.themInitial, 'R');
+    expect(frame.youImage, isNotNull);
+    await _run(tester, 2600);
+    expect(tester.takeException(), isNull);
   });
 }

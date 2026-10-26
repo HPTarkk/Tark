@@ -834,6 +834,11 @@ class _MembersCard extends StatelessWidget {
   final List<RoomMember> members;
   final RoomConnectionUiPhase connectionPhase;
 
+  /// The first rider who is not you: the one who demonstrates the tap.
+  int get _firstOther => members.indexWhere(
+    (member) => member.id != room.membership.localMemberId,
+  );
+
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
@@ -860,7 +865,11 @@ class _MembersCard extends StatelessWidget {
             member: members[index],
             isYou: members[index].id == room.membership.localMemberId,
             phase: connectionPhase,
+            coach: index == _firstOther,
           ),
+          if (index == _firstOther && ReportConfig.enabled)
+            // Row padding (12) plus half the 42 px face: points at it.
+            const TapCoachNote(active: true, faceCenter: 12 + 21),
           if (index != members.length - 1) const SizedBox(height: 8),
         ],
       ],
@@ -874,11 +883,15 @@ class _MemberRow extends StatelessWidget {
     required this.member,
     required this.isYou,
     required this.phase,
+    this.coach = false,
   });
 
   final SavedRoom room;
   final RoomMember member;
   final bool isYou;
+
+  /// Shows, once, that a rider can be tapped.
+  final bool coach;
   final RoomConnectionUiPhase phase;
 
   @override
@@ -916,7 +929,11 @@ class _MemberRow extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  MemberAvatar(member: member, size: 42),
+                  TapCoachFace(
+                    active: coach,
+                    size: 42,
+                    child: MemberAvatar(member: member, size: 42),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -1016,6 +1033,7 @@ class _MemberRow extends StatelessWidget {
         name: name,
         seed: member.id.value,
         avatar: (size) => MemberAvatar(member: member, size: size),
+        avatarId: member.avatarId,
         roomId: room.room.id.value,
         roomName: room.room.name,
         memberId: member.id.value,

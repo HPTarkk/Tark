@@ -1114,6 +1114,7 @@
     "member_muted": "Muted",
     "member_report": "Report",
     "member_report_hint": "If someone was out of line, tell us",
+    "member_tap_hint": "Tap anyone to mute or report them",
     "report_story_title": "Did {name} spoil the ride?",
     "report_story_body": "Tell us what happened. Tarkk never records voice, so your account is the report.",
     "report_reason_insult": "Insults or swearing",

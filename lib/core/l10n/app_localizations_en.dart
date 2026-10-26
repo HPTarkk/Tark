@@ -3832,6 +3832,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get member_report_hint => 'If someone was out of line, tell us';
 
   @override
+  String get member_tap_hint => 'Tap anyone to mute or report them';
+
+  @override
   String report_story_title(String name) {
     return 'Did $name spoil the ride?';
   }
