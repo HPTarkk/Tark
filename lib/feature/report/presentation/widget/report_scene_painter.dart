@@ -224,13 +224,10 @@ class ReportScenePainter extends CustomPainter {
     final pop = frame.themIn;
     if (pop <= 0) return;
     final landed = _domeLanded;
-    final bob = math.sin(frame.ambient * math.pi * 4 + 1.3) * 2.2;
-    // Shouting rocks them toward you; under the dome they just sulk.
-    final shout = frame.waves * (1 - 0.7 * landed);
-    final syllable = math.sin(frame.ambient * math.pi * 12);
-    final lean = syllable * 2.5 * shout;
+    final shout = _shout;
+    final syllable = _syllable;
     final pulse = 0.75 + 0.25 * math.sin(frame.ambient * math.pi * 8);
-    final center = _themAt + Offset(-_dir * lean, bob);
+    final center = _themCenter;
     _face(
       canvas,
       center: center,
@@ -261,6 +258,30 @@ class ReportScenePainter extends CustomPainter {
   }
 
   double get _domeLanded => frame.dome.clamp(0.0, 1.0);
+
+  /// How hard they are shouting: under the dome they just sulk.
+  double get _shout => frame.waves * (1 - 0.7 * _domeLanded);
+
+  double get _syllable => math.sin(frame.ambient * math.pi * 12);
+
+  /// Where their face is this frame: bobbing, and rocking toward you with
+  /// every shouted syllable. Their speech bubble rides the same motion.
+  Offset get _themCenter {
+    final bob = math.sin(frame.ambient * math.pi * 4 + 1.3) * 2.2;
+    final lean = _syllable * 2.5 * _shout;
+    return _themAt + Offset(-_dir * lean, bob);
+  }
+
+  /// The top of their head on your side, as the face is drawn this frame
+  /// (it stretches up from the chin on each syllable): where the bubble's
+  /// tail points.
+  Offset get _themCrown {
+    final stretch = _shout * _syllable.abs();
+    final sx = frame.themIn * (1 - 0.06 * stretch);
+    final sy = frame.themIn * (1 + 0.09 * stretch);
+    final chin = _themCenter + const Offset(0, _faceR);
+    return chin + Offset(-_dir * _faceR * 0.62 * sx, -_faceR * 1.8 * sy);
+  }
 
   void _face(
     Canvas canvas, {
@@ -617,7 +638,7 @@ class ReportScenePainter extends CustomPainter {
 
   // ── What they said ───────────────────────────────────────────────────────
 
-  Offset get _bubbleAt => _themAt + Offset(-_dir * 46, -76);
+  Offset get _bubbleAt => _themAt + Offset(-_dir * 64, -86);
 
   Offset get _mouth => _themAt + Offset(-_dir * 3, _faceR * 0.42);
 
@@ -654,29 +675,20 @@ class ReportScenePainter extends CustomPainter {
     // there, still changing with what you pick, but trapped in the dome.
     final scale = grow * (1 - 0.66 * muffled);
     if (scale <= 0.02) return;
-    final jitter = Offset(
-      math.sin(frame.ambient * math.pi * 22) * 1.2 * (1 - muffled),
-      0,
-    );
+    final jitter = math.sin(frame.ambient * math.pi * 22) * 1.2 * (1 - muffled);
+    // The bubble rides their head's motion, so it and its tail move as one
+    // with the speaker instead of hanging still while they rock.
+    final head = _themCenter - _themAt;
     final center = Offset.lerp(
-      _bubbleAt,
-      _themAt + const Offset(0, -_faceR - 4),
+      _bubbleAt + head + Offset(jitter, 0),
+      _themAt + head + const Offset(0, -_faceR - 4),
       muffled,
     )!;
-    canvas.save();
-    canvas.translate(center.dx + jitter.dx, center.dy);
-    canvas.scale(scale);
 
     final body = RRect.fromRectAndRadius(
       Rect.fromCenter(center: Offset.zero, width: 98, height: 52),
       const Radius.circular(20),
     );
-    // Tail toward the speaker's mouth.
-    final tail = Path()
-      ..moveTo(_dir * 14, 20)
-      ..lineTo(_dir * 40, 42)
-      ..lineTo(_dir * 30, 18)
-      ..close();
     final fill = Paint()
       ..color = Color.lerp(frame.paper, const Color(0xFF9AA4AE), muffled)!;
     final stroke = Paint()
@@ -684,22 +696,68 @@ class ReportScenePainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.6
       ..strokeJoin = StrokeJoin.round;
+    // Tail from the bubble's underside to the speaker's head, built in
+    // stage space each frame so its tip stays on them whatever either does.
+    Offset onBubble(double x, double y) => center + Offset(x, y) * scale;
+    final tip = Offset.lerp(
+      onBubble(_dir * 26, 34),
+      _themCrown,
+      scale.clamp(0.0, 1.0),
+    )!;
+    final a = onBubble(_dir * 12, 18);
+    final b = onBubble(_dir * 30, 18);
+    final tail = Path()
+      ..moveTo(a.dx, a.dy)
+      ..lineTo(tip.dx, tip.dy)
+      ..lineTo(b.dx, b.dy)
+      ..close();
+    // Where each side of the tail crosses the bubble's bottom edge.
+    final edgeY = center.dy + 26 * scale;
+    Offset cross(Offset from) {
+      final t = ((edgeY - from.dy) / (tip.dy - from.dy)).clamp(0.0, 1.0);
+      return Offset.lerp(from, tip, t)!;
+    }
+
+    final tailStroke = Paint()
+      ..color = stroke.color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.6 * scale
+      ..strokeJoin = StrokeJoin.round;
+
+    void drawBody(Paint paint) {
+      canvas.save();
+      canvas.translate(center.dx, center.dy);
+      canvas.scale(scale);
+      canvas.drawRRect(body, paint);
+      canvas.restore();
+    }
+
     // A mutter over their head has no one to point at.
     final pointed = muffled < 0.5;
-    if (pointed) canvas.drawPath(tail, fill);
-    canvas.drawRRect(body, fill);
-    if (pointed) canvas.drawPath(tail, stroke);
-    canvas.drawRRect(body, stroke);
     if (pointed) {
-      // Re-cover the seam where the tail meets the body.
+      canvas.drawPath(tail, fill);
+      canvas.drawPath(tail, tailStroke);
+    }
+    // The body covers the tail's root, so tail and bubble read as one shape.
+    drawBody(fill);
+    drawBody(stroke);
+    if (pointed) {
+      // Open the outline where the tail leaves the bubble.
+      final l = cross(a);
+      final r = cross(b);
+      final inset = (r - l) * (1.6 * scale / math.max(1, (r - l).distance));
       canvas.drawLine(
-        Offset(_dir * 15, 24.6),
-        Offset(_dir * 29, 24.6),
+        l + inset,
+        r - inset,
         Paint()
           ..color = fill.color
-          ..strokeWidth = 3,
+          ..strokeWidth = 3.6 * scale,
       );
     }
+
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.scale(scale);
 
     final hot = Color.lerp(frame.danger, const Color(0xFF59626B), muffled)!;
     switch (frame.glyph) {
