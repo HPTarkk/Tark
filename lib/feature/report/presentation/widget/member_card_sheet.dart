@@ -157,10 +157,10 @@ class MemberCardSheet extends StatelessWidget {
                   title: s.member_report,
                   subtitle: s.member_report_hint,
                   accent: AppColors.red,
+                  // Mirrors itself in RTL (matchTextDirection), so it always
+                  // points the way the row reads.
                   trailing: Icon(
-                    Directionality.of(context) == TextDirection.rtl
-                        ? Icons.chevron_left_rounded
-                        : Icons.chevron_right_rounded,
+                    Icons.chevron_right_rounded,
                     color: AppColors.textSecondary,
                   ),
                   onTap: () => Navigator.of(context).pop(true),

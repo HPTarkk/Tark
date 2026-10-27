@@ -170,38 +170,54 @@ class ReportScenePainter extends CustomPainter {
 
   // ── Characters ───────────────────────────────────────────────────────────
   //
-  // The riders are their own avatars, as everyone in the room knows them. The
-  // artwork's faces are fixed, so feelings are acted around them instead:
-  // posture (tilt, sink, squash, shake), colour (drained to a cold grey when
-  // hurt, flushed red when shouting) and weather (a rain cloud, an anger mark,
-  // steam, a warm glow). That works on every avatar, a fox or a robot alike.
+  // Cartoon riders with real faces that blink, frown, shout and cry, because
+  // that is where the story's life is. What makes them *these* two riders is
+  // the sticker on each helmet: their own avatar, slapped on the side the way
+  // riders sticker their lids. It pops on after them and wobbles when they
+  // flinch or shout.
 
   void _you(Canvas canvas) {
     final pop = frame.youIn;
     if (pop <= 0) return;
     final sad = math.max(0.0, -frame.youMood);
     final happy = math.max(0.0, frame.youMood);
-    final bob = math.sin(frame.ambient * math.pi * 4) * 2.2 * (1 - 0.6 * sad);
+    // Happy riders hop; sad ones barely move.
+    final beat = frame.ambient * math.pi * 4;
+    final hop = happy > 0.5
+        ? math.sin(beat).abs() * 9 * (happy - 0.5) * 2
+        : 0.0;
+    final bob = math.sin(beat) * 2.2 * (1 - 0.7 * sad);
     final recoil = frame.flinch;
-    final center = _youAt + Offset(-_dir * 9 * recoil, bob + 2 * recoil);
-    _avatar(
+    final center =
+        _youAt + Offset(-_dir * 9 * recoil, bob + 2 * recoil + 3 * sad - hop);
+    _glow(canvas, center, happy);
+    _face(
       canvas,
       center: center,
-      pop: pop * (1 - 0.06 * sad),
+      pop: pop,
+      color: frame.youColor,
+      mood: frame.youMood,
+      anger: 0,
+      lookToward: _dir,
+      squash: recoil + (hop > 0 ? (1 - hop / 9) * 0.6 : 0),
+      talking: 0,
+      tear: frame.tear,
+      tilt: -_dir * 0.12 * sad,
+      shift: const Color(0xFF8FA3B8),
+      shiftBy: 0.45 * sad,
+    );
+    _sticker(
+      canvas,
+      center: center,
+      pop: pop,
+      side: -_dir,
       image: frame.youImage,
       initial: frame.youInitial,
       tint: frame.youColor,
-      squash: recoil,
-      tilt: -_dir * 0.16 * sad,
-      sink: 5 * sad,
-      grey: 0.8 * sad,
-      red: 0,
-      blue: sad,
-      glow: happy,
+      wobble: recoil,
     );
     _impact(canvas, center, recoil);
     _cloud(canvas, center, sad);
-    _tear(canvas, center, frame.tear);
   }
 
   void _them(Canvas canvas) {
@@ -210,25 +226,35 @@ class ReportScenePainter extends CustomPainter {
     final landed = _domeLanded;
     final bob = math.sin(frame.ambient * math.pi * 4 + 1.3) * 2.2;
     // Shouting rocks them toward you; under the dome they just sulk.
-    final shout = frame.waves * frame.themAnger * (1 - 0.75 * landed);
-    final lean = math.sin(frame.ambient * math.pi * 12) * 2.8 * shout;
+    final shout = frame.waves * (1 - 0.7 * landed);
+    final syllable = math.sin(frame.ambient * math.pi * 12);
+    final lean = syllable * 2.5 * shout;
     final pulse = 0.75 + 0.25 * math.sin(frame.ambient * math.pi * 8);
     final center = _themAt + Offset(-_dir * lean, bob);
-    _avatar(
+    _face(
       canvas,
       center: center,
-      pop: pop * (1 - 0.05 * landed),
+      pop: pop,
+      color: frame.themColor,
+      mood: -0.35 * frame.themAnger,
+      anger: frame.themAnger,
+      lookToward: -_dir,
+      squash: 0,
+      talking: shout,
+      tear: 0,
+      stretch: shout * syllable.abs(),
+      shift: frame.danger,
+      shiftBy: 0.35 * frame.themAnger * pulse * (1 - 0.6 * landed),
+    );
+    _sticker(
+      canvas,
+      center: center,
+      pop: pop,
+      side: _dir,
       image: frame.themImage,
       initial: frame.themInitial,
       tint: frame.themColor,
-      squash: 0,
-      tilt:
-          _dir * 0.05 * frame.themAnger * math.sin(frame.ambient * math.pi * 6),
-      sink: 2 * landed,
-      grey: 0.4 * landed,
-      red: frame.themAnger * pulse * (1 - 0.65 * landed),
-      blue: 0,
-      glow: 0,
+      wobble: shout * syllable.abs() * 0.6,
     );
     _angerMark(canvas, center, frame.themAnger * (1 - 0.4 * landed), pulse);
     _steam(canvas, center, shout);
@@ -236,69 +262,204 @@ class ReportScenePainter extends CustomPainter {
 
   double get _domeLanded => frame.dome.clamp(0.0, 1.0);
 
-  /// A colour matrix that drains toward grey, flushes red or chills blue.
-  static List<double> _mood({
-    required double grey,
-    required double red,
-    required double blue,
-  }) {
-    const lr = 0.2126, lg = 0.7152, lb = 0.0722;
-    final k = 1 - grey;
-    return <double>[
-      lr * grey + k, lg * grey, lb * grey, 0, 70 * red, //
-      lr * grey, lg * grey + k, lb * grey, 0, -28 * red - 6 * blue,
-      lr * grey, lg * grey, lb * grey + k, 0, -28 * red + 34 * blue,
-      0, 0, 0, 1, 0,
-    ];
-  }
-
-  void _avatar(
+  void _face(
     Canvas canvas, {
     required Offset center,
     required double pop,
+    required Color color,
+    required double mood,
+    required double anger,
+    required double lookToward,
+    required double squash,
+    required double talking,
+    required double tear,
+    double stretch = 0,
+    double tilt = 0,
+    Color? shift,
+    double shiftBy = 0,
+  }) {
+    const r = _faceR;
+    if (shift != null && shiftBy > 0) {
+      color = Color.lerp(color, shift, shiftBy)!;
+    }
+    canvas.save();
+    canvas.translate(center.dx, center.dy + r);
+    canvas.scale(
+      pop * (1 + 0.08 * squash - 0.06 * stretch),
+      pop * (1 - 0.08 * squash + 0.09 * stretch),
+    );
+    canvas.translate(0, -r);
+    canvas.rotate(tilt);
+
+    // Ground shadow.
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(0, r + 14), width: r * 1.6, height: 9),
+      Paint()..color = Colors.black.withValues(alpha: 0.22),
+    );
+
+    // Head, lit from the top.
+    final head = Rect.fromCircle(center: Offset.zero, radius: r);
+    canvas.drawCircle(
+      Offset.zero,
+      r,
+      Paint()
+        ..shader = ui.Gradient.linear(head.topLeft, head.bottomRight, [
+          Color.lerp(color, Colors.white, 0.18)!,
+          Color.lerp(color, Colors.black, 0.22)!,
+        ]),
+    );
+
+    // Helmet shell over the crown, with a visor stripe: they are riders.
+    final shell = Color.lerp(color, Colors.black, 0.45)!;
+    const from = math.pi + 0.42;
+    const sweep = math.pi - 0.84;
+    final left = Offset(math.cos(from) * r, math.sin(from) * r);
+    final helmet = Path()
+      ..moveTo(left.dx, left.dy)
+      ..arcTo(head.inflate(3), from, sweep, false)
+      ..quadraticBezierTo(0, -r * 0.18, left.dx, left.dy)
+      ..close();
+    canvas.drawPath(helmet, Paint()..color = shell);
+    canvas.drawPath(
+      Path()
+        ..moveTo(-r * 0.62, -r * 0.42)
+        ..quadraticBezierTo(0, -r * 0.62, r * 0.62, -r * 0.42),
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.35)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round,
+    );
+
+    final ink = frame.ink;
+    final look = lookToward * 2.4;
+
+    // Cheeks, only while happy.
+    final blush = math.max(0.0, mood);
+    if (blush > 0) {
+      final cheek = Paint()
+        ..color = const Color(0xFFFF6B8A).withValues(alpha: 0.38 * blush);
+      canvas.drawCircle(Offset(-r * 0.55, r * 0.28), 6, cheek);
+      canvas.drawCircle(Offset(r * 0.55, r * 0.28), 6, cheek);
+    }
+
+    // Eyes: blink every loop, droop when sad, narrow when angry.
+    final blinkT = (frame.ambient * 2 + (anger > 0 ? 0.37 : 0)) % 1;
+    final blink = blinkT > 0.94 ? 0.15 : 1.0;
+    final sad = math.max(0.0, -mood);
+    final eyeH = 9.5 * blink * (1 - 0.35 * anger) * (1 - 0.2 * sad);
+    for (final side in const [-1.0, 1.0]) {
+      final eye = Offset(side * r * 0.34, r * 0.0);
+      canvas.drawOval(
+        Rect.fromCenter(center: eye, width: 11, height: eyeH + 2),
+        Paint()..color = Colors.white,
+      );
+      canvas.drawCircle(
+        eye + Offset(look, sad * 1.5),
+        math.min(3.6, eyeH / 2),
+        Paint()..color = ink,
+      );
+      // Brows: inner end down for anger, inner end up for sadness.
+      final inner = side < 0 ? 1.0 : -1.0;
+      final tilt = anger * 5 - sad * 4.5;
+      final browY = -r * 0.24 - 2 * (1 - anger) + sad * 1;
+      canvas.drawLine(
+        eye + Offset(-inner * 6.5, browY - tilt * 0.4),
+        eye + Offset(inner * 5, browY + tilt),
+        Paint()
+          ..color = ink
+          ..strokeWidth = 2.8 + anger * 1.2
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+
+    // Mouth: a curve that turns over from smile to frown, or an open shout.
+    final mouthY = r * 0.42;
+    if (talking > 0.05) {
+      final open =
+          (0.45 + 0.55 * math.sin(frame.ambient * math.pi * 16).abs()) *
+          talking;
+      final mouth = Rect.fromCenter(
+        center: Offset(look * 0.6, mouthY + 1),
+        width: 15 + 4 * open,
+        height: 4 + 10 * open,
+      );
+      canvas.drawOval(mouth, Paint()..color = const Color(0xFF3A0E12));
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: mouth.center + Offset(0, mouth.height * 0.22),
+          width: mouth.width * 0.55,
+          height: mouth.height * 0.35,
+        ),
+        Paint()..color = const Color(0xFFE5566B),
+      );
+    } else {
+      final w = r * 0.36;
+      final bend = mood * 9;
+      canvas.drawPath(
+        Path()
+          ..moveTo(-w + look * 0.4, mouthY - bend * 0.35)
+          ..quadraticBezierTo(
+            look * 0.4,
+            mouthY + bend,
+            w + look * 0.4,
+            mouthY - bend * 0.35,
+          ),
+        Paint()
+          ..color = ink
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3.2
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+
+    // A tear from the eye away from them, swelling then falling.
+    if (tear > 0) {
+      final grow = (tear / 0.35).clamp(0.0, 1.0);
+      final fall = ((tear - 0.35) / 0.65).clamp(0.0, 1.0);
+      final at = Offset(-lookToward * r * 0.42, r * 0.12 + fall * fall * 30);
+      final size = 3.5 + 2.5 * grow;
+      final drop = Path()
+        ..moveTo(at.dx, at.dy - size * 1.6)
+        ..quadraticBezierTo(at.dx + size, at.dy, at.dx, at.dy + size)
+        ..quadraticBezierTo(at.dx - size, at.dy, at.dx, at.dy - size * 1.6)
+        ..close();
+      canvas.drawPath(
+        drop,
+        Paint()
+          ..color = const Color(0xFF7FD3FF).withValues(alpha: 1 - fall * 0.8),
+      );
+    }
+
+    canvas.restore();
+  }
+
+  /// Their avatar as a sticker on the helmet's outer side.
+  void _sticker(
+    Canvas canvas, {
+    required Offset center,
+    required double pop,
+    required double side,
     required ui.Image? image,
     required String initial,
     required Color tint,
-    required double squash,
-    required double tilt,
-    required double sink,
-    required double grey,
-    required double red,
-    required double blue,
-    required double glow,
+    required double wobble,
   }) {
-    const r = _faceR;
+    // Lands a beat after the rider does, with its own little overshoot.
+    final t = ((pop - 0.55) / 0.45).clamp(0.0, 1.2);
+    if (t <= 0) return;
+    const r = 13.0;
+    final at = center + Offset(side * _faceR * 0.7, -_faceR * 0.62);
     canvas.save();
-    canvas.translate(center.dx, center.dy + r + sink);
-    canvas.scale(pop * (1 + 0.08 * squash), pop * (1 - 0.08 * squash));
-    canvas.translate(0, -r);
-
-    // Ground shadow, left behind when the rider sinks or tilts.
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(0, r + 14 - sink),
-        width: r * 1.6,
-        height: 9,
-      ),
-      Paint()..color = Colors.black.withValues(alpha: 0.22),
+    canvas.translate(at.dx, at.dy);
+    canvas.rotate(side * (0.22 + 0.25 * wobble * math.sin(frame.ambient * 40)));
+    canvas.scale(t);
+    canvas.drawCircle(
+      const Offset(0, 1.5),
+      r + 2.5,
+      Paint()..color = Colors.black.withValues(alpha: 0.25),
     );
-    canvas.rotate(tilt);
-
-    // A warm halo: the glow of being fine again.
-    if (glow > 0.01) {
-      for (var i = 0; i < 3; i++) {
-        canvas.drawCircle(
-          Offset.zero,
-          r + 4 + i * 4.0,
-          Paint()
-            ..color = frame.youColor.withValues(alpha: 0.22 * glow / (i + 1))
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 4,
-        );
-      }
-    }
-
-    final filter = ColorFilter.matrix(_mood(grey: grey, red: red, blue: blue));
+    canvas.drawCircle(Offset.zero, r + 2.5, Paint()..color = Colors.white);
     if (image != null) {
       final scale = 2 * r / math.min(image.width, image.height);
       final m = Matrix4.identity()
@@ -314,27 +475,16 @@ class ReportScenePainter extends CustomPainter {
             TileMode.clamp,
             m.storage,
             filterQuality: FilterQuality.medium,
-          )
-          ..colorFilter = filter,
+          ),
       );
     } else {
-      final head = Rect.fromCircle(center: Offset.zero, radius: r);
-      canvas.drawCircle(
-        Offset.zero,
-        r,
-        Paint()
-          ..shader = ui.Gradient.linear(head.topLeft, head.bottomRight, [
-            Color.lerp(tint, Colors.white, 0.12)!,
-            Color.lerp(tint, Colors.black, 0.28)!,
-          ])
-          ..colorFilter = filter,
-      );
+      canvas.drawCircle(Offset.zero, r, Paint()..color = tint);
       final letter = TextPainter(
         text: TextSpan(
           text: initial,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 30,
+            fontSize: 13,
             fontWeight: FontWeight.w800,
             fontFamily: 'Vazirmatn',
             height: 1,
@@ -344,17 +494,22 @@ class ReportScenePainter extends CustomPainter {
       )..layout();
       letter.paint(canvas, Offset(-letter.width / 2, -letter.height / 2));
     }
-    // Their colour as a ring, so the two read apart at a glance.
-    canvas.drawCircle(
-      Offset.zero,
-      r,
-      Paint()
-        ..color = tint
-        ..colorFilter = filter
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
-    );
     canvas.restore();
+  }
+
+  /// A warm halo: the glow of being fine again.
+  void _glow(Canvas canvas, Offset center, double glow) {
+    if (glow < 0.01) return;
+    for (var i = 0; i < 3; i++) {
+      canvas.drawCircle(
+        center,
+        _faceR + 6 + i * 5.0,
+        Paint()
+          ..color = frame.youColor.withValues(alpha: 0.2 * glow / (i + 1))
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 4,
+      );
+    }
   }
 
   /// The comic "pow" where the words land.
@@ -412,29 +567,11 @@ class ReportScenePainter extends CustomPainter {
     }
   }
 
-  /// A tear sliding off the side away from them.
-  void _tear(Canvas canvas, Offset center, double tear) {
-    if (tear <= 0) return;
-    final grow = (tear / 0.35).clamp(0.0, 1.0);
-    final fall = ((tear - 0.35) / 0.65).clamp(0.0, 1.0);
-    final at = center + Offset(-_dir * _faceR * 0.78, -2 + fall * fall * 34);
-    final size = 3.5 + 2.5 * grow;
-    final drop = Path()
-      ..moveTo(at.dx, at.dy - size * 1.6)
-      ..quadraticBezierTo(at.dx + size, at.dy, at.dx, at.dy + size)
-      ..quadraticBezierTo(at.dx - size, at.dy, at.dx, at.dy - size * 1.6)
-      ..close();
-    canvas.drawPath(
-      drop,
-      Paint()
-        ..color = const Color(0xFF7FD3FF).withValues(alpha: 1 - fall * 0.8),
-    );
-  }
-
   /// The manga anger mark: four bulging strokes, throbbing.
   void _angerMark(Canvas canvas, Offset center, double anger, double pulse) {
     if (anger < 0.05) return;
-    final at = center + Offset(_dir * _faceR * 0.7, -_faceR * 0.72);
+    // On the outer temple: under the helmet sticker, clear of the bubble.
+    final at = center + Offset(_dir * _faceR * 0.98, _faceR * 0.12);
     final s = (7 + 2.5 * pulse) * anger;
     final paint = Paint()
       ..color = frame.danger
@@ -482,8 +619,7 @@ class ReportScenePainter extends CustomPainter {
 
   Offset get _bubbleAt => _themAt + Offset(-_dir * 46, -76);
 
-  /// Where their words leave them: the edge of their avatar facing you.
-  Offset get _mouth => _themAt + Offset(-_dir * _faceR * 0.6, _faceR * 0.3);
+  Offset get _mouth => _themAt + Offset(-_dir * 3, _faceR * 0.42);
 
   /// Half the dome's width: where the glass stands either side of them.
   static const double _domeHalf = _faceR + 17;
