@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/feature/report/api/report_api.dart';
+import 'package:tark/feature/report/presentation/widget/member_card_sheet.dart';
 import 'package:tark/feature/report/presentation/widget/report_story_sheet.dart';
 
 Widget _app(void Function(BuildContext) open) => MaterialApp(
@@ -99,5 +100,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('member-card-mute')), findsNothing);
     expect(find.byKey(const Key('member-card-report')), findsOneWidget);
+  });
+
+  testWidgets('the report row\'s chevron is the self-mirroring one', (
+    tester,
+  ) async {
+    // chevron_right flips itself in RTL; picking chevron_left there as well
+    // flipped it twice and pointed it backwards.
+    expect(Icons.chevron_right_rounded.matchTextDirection, isTrue);
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('fa'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: MemberCardSheet(subject: _subject(), mutes: ListenerMutes()),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byIcon(Icons.chevron_right_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.chevron_left_rounded), findsNothing);
   });
 }
