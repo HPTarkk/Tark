@@ -160,6 +160,16 @@ class AudioEngineImpl implements AudioEngine {
 
   Timer? _mediaCoordinatorTimer;
 
+  // Where playback is native: Shared Music's own queue in the audio callback,
+  // mixed on top of received voice. [_mediaBuffer] then only sequences and
+  // hands over (see its class doc); the callback paces, so no UI-isolate
+  // stall can starve the speaker mid-pull — which, with the 30 ms ring
+  // cushion this replaces, was heard as crackling music.
+  MediaQueue? _nativeMedia;
+  int _nativeMediaUnderruns = 0;
+  int _nativeMediaTrims = 0;
+  final Stopwatch _mediaGainClock = Stopwatch();
+
   StreamSubscription<List<double>>? _inputSub;
   final StreamController<AudioFrame> _frameController =
       StreamController<AudioFrame>.broadcast();
@@ -421,6 +431,19 @@ class AudioEngineImpl implements AudioEngine {
       // class and [_mediaCoordinatorTimer] for the stretches voice writes
       // nothing at all.
       _mediaBuffer = MediaReceiveBuffer(sampleRate: _outputRate.toInt());
+      _nativeMedia = _audioIo.voiceQueue == null ? null : _audioIo.mediaQueue;
+      final nativeMedia = _nativeMedia;
+      if (nativeMedia != null) {
+        nativeMedia
+          ..reset()
+          ..targetFrames = _mediaBuffer!.targetSamples
+          ..gain = 1.0;
+        _nativeMediaUnderruns = nativeMedia.underruns;
+        _nativeMediaTrims = nativeMedia.trims + nativeMedia.jumps;
+        _mediaGainClock
+          ..reset()
+          ..start();
+      }
       _rxMediaResampler?.dispose();
       _rxMediaResampler = _createResampler(48000, _outputRate);
       _buffer = AudioPlaybackBuffer(
@@ -478,6 +501,8 @@ class AudioEngineImpl implements AudioEngine {
     _mediaCoordinatorTimer = null;
     _mediaBuffer?.dispose();
     _mediaBuffer = null;
+    _nativeMedia?.reset();
+    _nativeMedia = null;
     _rxMediaResampler?.dispose();
     _rxMediaResampler = null;
   }
@@ -856,6 +881,7 @@ class AudioEngineImpl implements AudioEngine {
     if (!enabled) {
       _ducking.reset();
       _wasDucked = false;
+      _nativeMedia?.gain = 1.0;
     }
   }
 
@@ -937,7 +963,15 @@ class AudioEngineImpl implements AudioEngine {
         ? MediaChannelConverter.downmixToMono(samples)
         : samples;
     final upsampled = _rxMediaResampler?.process(mono) ?? mono;
-    _mediaBuffer?.feed(upsampled, seq, senderId);
+    final buffer = _mediaBuffer;
+    if (buffer == null) return;
+    buffer.feed(upsampled, seq, senderId);
+    final nativeMedia = _nativeMedia;
+    if (nativeMedia != null) {
+      // Straight through: the callback paces from here.
+      final ready = buffer.takeAll();
+      if (ready.isNotEmpty) nativeMedia.write(ready);
+    }
   }
 
   /// Writes media directly to the real output for stretches where [_buffer]
@@ -956,6 +990,11 @@ class AudioEngineImpl implements AudioEngine {
   void _mediaCoordinatorTick() {
     if (!_canUseDevice) return;
     final voiceQueue = _audioIo.voiceQueue;
+    final nativeMedia = _nativeMedia;
+    if (voiceQueue != null && nativeMedia != null) {
+      _mediaCoordinatorTickNativeQueue(voiceQueue, nativeMedia);
+      return;
+    }
     if (voiceQueue != null) {
       _mediaCoordinatorTickNative(voiceQueue);
       return;
@@ -973,6 +1012,38 @@ class AudioEngineImpl implements AudioEngine {
       frameDurationMs: _kCoordinatorFrameMs,
     );
     _audioIo.output.add(gain == 1.0 ? media : _scale(media, gain));
+  }
+
+  /// With a native media queue nothing is written here at all: this only
+  /// reports the queue's counters into [_mediaBuffer]'s health window and
+  /// drives the ducking gain, which the callback applies (smoothed) to what
+  /// is playing now. Advanced by real elapsed time, so a late tick changes
+  /// nothing but how often the gain is refreshed.
+  void _mediaCoordinatorTickNativeQueue(
+    VoiceQueue voiceQueue,
+    MediaQueue nativeMedia,
+  ) {
+    final elapsedMs = _mediaGainClock.elapsedMilliseconds;
+    _mediaGainClock
+      ..reset()
+      ..start();
+    final underruns = nativeMedia.underruns;
+    final trims = nativeMedia.trims + nativeMedia.jumps;
+    final queued = nativeMedia.queuedFrames;
+    _mediaBuffer?.notePlayout(
+      underruns: max(0, underruns - _nativeMediaUnderruns),
+      trims: max(0, trims - _nativeMediaTrims),
+      queuedSamples: queued,
+    );
+    _nativeMediaUnderruns = underruns;
+    _nativeMediaTrims = trims;
+    // Only while music is actually flowing, as on the other paths: the
+    // envelope advances per media frame there, never across silence.
+    if (queued == 0 && !nativeMedia.isPlaying) return;
+    nativeMedia.gain = _advanceDucking(
+      voiceActive: voiceQueue.isPlaying || _localVoiceActive,
+      frameDurationMs: elapsedMs.clamp(1, 100),
+    );
   }
 
   /// With native voice, the audio callback mixes voice and the output ring
@@ -1018,9 +1089,11 @@ class AudioEngineImpl implements AudioEngine {
   void resetPlayback() {
     _buffer?.reset();
     _mediaBuffer?.reset();
+    _nativeMedia?.reset();
     // #31: a reconnect must never leave shared music sitting ducked from
     // whatever voice activity was happening right before the link dropped.
     _ducking.reset();
+    _nativeMedia?.gain = 1.0;
   }
 
   // ── dispose ────────────────────────────────────────────────────────────────

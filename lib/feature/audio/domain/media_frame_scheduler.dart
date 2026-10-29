@@ -36,6 +36,17 @@ import 'media_channel_converter.dart';
 /// every frame for a second) when delivery has genuinely stalled and
 /// resumed — e.g. the app backgrounding.
 ///
+/// ## Keeping pace with the clock, and cutting cleanly
+///
+/// A Dart periodic timer that fires late does not deliver the ticks it
+/// missed — it skips them. Sending one frame per callback therefore sent
+/// fewer frames than capture produced whenever the UI isolate stalled, the
+/// queue crept up to [highWaterSamples], and the trims that walked it back
+/// were hard cuts in the waveform: a click in every listener's speaker, many
+/// times a minute. Each callback now sends every frame owed since the last
+/// one (bounded by [kMaxCatchUpFrames]), and every discard — trim or flood —
+/// is crossfaded over [kSpliceMs] the way the native playout splices.
+///
 /// Unlike [MusicMixer], there is no base track to mix onto and nothing else
 /// this must emit every tick: a starved tick simply sends nothing that
 /// round, which is the "stale media frames dropped rather than accumulating
@@ -59,7 +70,8 @@ class MediaFrameScheduler {
        highWaterSamples =
            captureSampleRateHz * captureChannels * highWaterMs ~/ 1000,
        floodSamples = captureSampleRateHz * captureChannels * floodMs ~/ 1000,
-       _trimStepSamples = captureSampleRateHz * captureChannels * 10 ~/ 1000;
+       _trimStepSamples = captureSampleRateHz * captureChannels * 10 ~/ 1000,
+       _spliceFrames = captureSampleRateHz * kSpliceMs ~/ 1000;
 
   /// The negotiated media profile this instance sends — see
   /// `TransferRepository.negotiatedMediaFormat`. Fixed for the scheduler's
@@ -90,7 +102,15 @@ class MediaFrameScheduler {
   static const int kDefaultHighWaterMs = 450;
   static const int kDefaultFloodMs = 900;
 
+  /// Most frames one late callback sends to catch up — the prefill's worth.
+  /// A stall longer than that is backlog for the flood splice, not pace.
+  static const int kMaxCatchUpFrames = 10;
+
+  /// Crossfade length at every discard.
+  static const int kSpliceMs = 5;
+
   final int _captureSamplesPerMs;
+  final int _spliceFrames;
 
   /// Cap on buffered capture audio — 1 s of interleaved capture. Only a
   /// memory backstop; [highWaterSamples] bounds latency well before this.
@@ -104,6 +124,7 @@ class MediaFrameScheduler {
   final Float64Fifo _queue = Float64Fifo();
   bool _priming = true;
   Timer? _timer;
+  int _lastTimerTick = 0;
 
   int _dropouts = 0;
   int _trims = 0;
@@ -151,10 +172,21 @@ class MediaFrameScheduler {
   /// than tracking whether it is already running.
   void start() {
     _timer?.cancel();
+    _lastTimerTick = 0;
     _timer = Timer.periodic(
       Duration(milliseconds: profile.frameDurationMs),
-      (_) => _tick(),
+      _onTimer,
     );
+  }
+
+  void _onTimer(Timer timer) {
+    // [Timer.tick] counts the periods elapsed, including the ones a late
+    // callback skipped — see "Keeping pace" in the class doc.
+    final owed = min(timer.tick - _lastTimerTick, kMaxCatchUpFrames);
+    _lastTimerTick = timer.tick;
+    for (var i = 0; i < owed; i++) {
+      if (!_tick()) return;
+    }
   }
 
   /// Stops the send clock without discarding buffered audio — a caller that
@@ -164,24 +196,25 @@ class MediaFrameScheduler {
     _timer = null;
   }
 
-  void _tick() {
+  /// Sends at most one frame; returns whether it did.
+  bool _tick() {
     if (_priming) {
       // Not enough banked yet — send nothing this round. Sending whatever
       // trickle exists would be exactly the fragmentary music the cushion
       // exists to prevent.
-      if (_queue.length < prefillSamples) return;
+      if (_queue.length < prefillSamples) return false;
       _priming = false;
     }
 
     // A backlog rather than drift: stepping it down would seam every frame
     // for the best part of a second, so take it in one splice.
     if (_queue.length > floodSamples) {
-      _queue.discardFirst(_queue.length - prefillSamples);
+      _spliceDiscard(_queue.length - prefillSamples);
       _floods++;
     } else if (_queue.length > highWaterSamples) {
       // Drift correction, one small step per tick.
       final excess = _queue.length - prefillSamples;
-      _queue.discardFirst(min(excess, _trimStepSamples));
+      _spliceDiscard(min(excess, _trimStepSamples));
       _trims++;
     }
 
@@ -191,7 +224,7 @@ class MediaFrameScheduler {
       // waits out a fresh cushion rather than resuming on a trickle.
       _dropouts++;
       _priming = true;
-      return;
+      return false;
     }
 
     final raw = _queue.takeFirst(frameInterleaved);
@@ -202,6 +235,26 @@ class MediaFrameScheduler {
         ? MediaChannelConverter.downmixToMono(raw)
         : raw;
     sendFrame(samples);
+    return true;
+  }
+
+  /// Drops [count] samples from the head, crossfading what would have played
+  /// next into what plays after the cut so the waveform never steps.
+  void _spliceDiscard(int count) {
+    final channels = captureChannels;
+    count -= count % channels;
+    if (count <= 0) return;
+    final fadeSamples = _spliceFrames * channels;
+    if (_queue.length >= count + fadeSamples) {
+      for (var frame = 0; frame < _spliceFrames; frame++) {
+        final w = (frame + 1) / (_spliceFrames + 1);
+        for (var c = 0; c < channels; c++) {
+          final i = frame * channels + c;
+          _queue[count + i] = _queue[i] * (1 - w) + _queue[count + i] * w;
+        }
+      }
+    }
+    _queue.discardFirst(count);
   }
 
   /// Discards buffered audio and returns to priming — call on a music-cast

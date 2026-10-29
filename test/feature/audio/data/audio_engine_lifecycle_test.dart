@@ -11,6 +11,7 @@ import 'package:tark/core/settings/settings_repository.dart';
 import 'package:tark/core/utils/logger.dart';
 import 'package:tark/feature/audio/data/audio_engine_impl.dart';
 import 'package:tark/feature/audio/domain/entity/audio_frame.dart';
+import 'package:tark/feature/audio/domain/media_receive_buffer.dart';
 import 'package:tark/feature/audio/domain/resampler.dart';
 
 const _profile = AudioProfile(
@@ -157,12 +158,20 @@ class _VoiceQueue implements VoiceQueue {
   }
 }
 
+class _MediaQueue extends _VoiceQueue implements MediaQueue {
+  final gains = <double>[];
+
+  @override
+  set gain(double value) => gains.add(value);
+}
+
 class _AudioIo extends AudioIo {
   final capture = StreamController<List<double>>.broadcast(sync: true);
   final playback = StreamController<List<double>>.broadcast();
   final processors = <_TrackedProcessor>[];
   final playedBlocks = <List<double>>[];
   _VoiceQueue? nativeQueue;
+  _MediaQueue? nativeMedia;
   int queuedOutputFrames = -1;
   int inputRate = 48000;
   int outputRate = 48000;
@@ -188,6 +197,8 @@ class _AudioIo extends AudioIo {
   Sink<List<double>> get output => _output;
   @override
   VoiceQueue? get voiceQueue => nativeQueue;
+  @override
+  MediaQueue? get mediaQueue => nativeMedia;
   @override
   int outputUnderrunFrames() => 0;
   @override
@@ -673,6 +684,59 @@ void main() {
       engine.resetPlayback();
       expect(io.nativeQueue!.resets, resetCount + 1);
       expect(io.nativeQueue!.queuedFrames, 0);
+      await engine.dispose();
+      await io.closeTestStreams();
+    },
+  );
+
+  test(
+    'native media plays from its own queue, paced by the callback',
+    () async {
+      final io = _AudioIo()
+        ..nativeQueue = _VoiceQueue()
+        ..nativeMedia = _MediaQueue()
+        ..queuedOutputFrames = 0;
+      final engine = AudioEngineImpl(io, _Settings());
+      await engine.start();
+      final media = io.nativeMedia!;
+      expect(media.target, 5760, reason: '120 ms at 48 kHz');
+      expect(media.gains.last, 1.0);
+
+      // Every packet goes straight through, in order, with nothing left for
+      // a UI-isolate timer to deliver late.
+      feedMedia(engine);
+      expect(media.writes, hasLength(7));
+      // (The test resampler holds back one sample.)
+      expect(media.queuedFrames, inInclusiveRange(7 * 960 - 1, 7 * 960));
+      // A two-packet hole is concealed in place, before the late packet.
+      engine.playReceivedMedia(List<double>.filled(960, 0.1), 1, 9, 'music');
+      expect(media.queuedFrames, inInclusiveRange(10 * 960 - 1, 10 * 960));
+      expect(media.writes.last.first, 0.0);
+      expect(media.writes.last.last, closeTo(0.1, 1e-12));
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+      expect(io.playedBlocks, isEmpty, reason: 'The output ring stays unused');
+
+      // Remote speech ducks it through the native gain, not the samples.
+      io.nativeQueue!.isPlaying = true;
+      media.isPlaying = true;
+      await waitUntil(() => media.gains.any((g) => g < 0.9));
+      io.nativeQueue!.isPlaying = false;
+
+      // Native counters reach the receiver-health window.
+      media.underruns = 2;
+      media.trims = 1;
+      media.jumps = 1;
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      final health = MediaReceiveBuffer.takeActiveHealthWindow()!;
+      expect(health.underruns, 2);
+      expect(health.outputStarvations, 2);
+      expect(health.trims, 2);
+      expect(health.queuedMs, inInclusiveRange(199, 200));
+
+      final resets = media.resets;
+      engine.resetPlayback();
+      expect(media.resets, resets + 1);
+      expect(media.gains.last, 1.0);
       await engine.dispose();
       await io.closeTestStreams();
     },

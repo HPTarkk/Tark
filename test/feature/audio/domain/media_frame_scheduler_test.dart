@@ -147,6 +147,66 @@ void main() {
     });
   });
 
+  group('clean cuts and pace', () {
+    /// The left channel of everything sent, in order.
+    List<double> leftOf(List<List<double>> sent) => [
+      for (final frame in sent)
+        for (var i = 0; i < frame.length; i += 2) frame[i],
+    ];
+
+    double largestStep(List<double> s) {
+      var worst = 0.0;
+      for (var i = 1; i < s.length; i++) {
+        worst = (s[i] - s[i - 1]).abs() > worst
+            ? (s[i] - s[i - 1]).abs()
+            : worst;
+      }
+      return worst;
+    }
+
+    test('a drift trim crossfades instead of stepping the waveform', () {
+      fakeAsync((async) {
+        final sent = <List<double>>[];
+        final scheduler = build(sent: sent)..start();
+        addTearDown(scheduler.dispose);
+
+        // A slow ramp: 0.01 per frame, so a 10-frame hard cut between two
+        // sent frames would be a 0.11 step.
+        scheduler.addChunk([
+          for (var f = 0; f < 100; f++) ...[f * 0.01, f * 0.01],
+        ]);
+        async.elapse(const Duration(milliseconds: 60));
+
+        expect(sent.length, greaterThanOrEqualTo(2));
+        expect(scheduler.trims, greaterThanOrEqualTo(2));
+        expect(largestStep(leftOf(sent)), lessThan(0.05));
+      });
+    });
+
+    test('a late timer sends every frame it owes, up to the cap', () async {
+      final sent = <List<double>>[];
+      final scheduler = build(
+        sent: sent,
+        prefillMs: 25,
+        highWaterMs: 900,
+        floodMs: 950,
+      )..start();
+      addTearDown(scheduler.dispose);
+      scheduler.addChunk(_stereoChunk(800)); // 800 ms of capture
+
+      // Hold the isolate for ~10 periods; Dart skips the missed callbacks.
+      final stall = Stopwatch()..start();
+      while (stall.elapsedMilliseconds < 210) {}
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+
+      expect(
+        sent.length,
+        greaterThanOrEqualTo(MediaFrameScheduler.kMaxCatchUpFrames),
+      );
+      expect(scheduler.trims, 0);
+    });
+  });
+
   group('queue cap', () {
     test('drops the oldest samples over maxQueuedSamples', () {
       final sent = <List<double>>[];
