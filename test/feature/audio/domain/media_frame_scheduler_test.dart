@@ -65,33 +65,30 @@ void main() {
       });
     });
 
-    test(
-      'a starved tick sends nothing and re-primes, counted once',
-      () {
-        fakeAsync((async) {
-          final sent = <List<double>>[];
-          final scheduler = build(sent: sent)..start();
-          addTearDown(scheduler.dispose);
+    test('a starved tick sends nothing and re-primes, counted once', () {
+      fakeAsync((async) {
+        final sent = <List<double>>[];
+        final scheduler = build(sent: sent)..start();
+        addTearDown(scheduler.dispose);
 
-          // 60 interleaved samples: past the 50-sample prefill and enough
-          // for one 40-sample frame, with 20 left over.
-          scheduler.addChunk(_stereoChunk(30));
-          async.elapse(const Duration(milliseconds: 20));
-          expect(sent, hasLength(1));
-          expect(scheduler.dropouts, 0);
+        // 60 interleaved samples: past the 50-sample prefill and enough
+        // for one 40-sample frame, with 20 left over.
+        scheduler.addChunk(_stereoChunk(30));
+        async.elapse(const Duration(milliseconds: 20));
+        expect(sent, hasLength(1));
+        expect(scheduler.dropouts, 0);
 
-          // Nothing left to feed the next tick.
-          async.elapse(const Duration(milliseconds: 20));
-          expect(sent, hasLength(1), reason: 'a starved tick sends nothing');
-          expect(scheduler.dropouts, 1);
-          expect(scheduler.isPriming, isTrue);
+        // Nothing left to feed the next tick.
+        async.elapse(const Duration(milliseconds: 20));
+        expect(sent, hasLength(1), reason: 'a starved tick sends nothing');
+        expect(scheduler.dropouts, 1);
+        expect(scheduler.isPriming, isTrue);
 
-          // Still empty: already priming, so this is the same dropout.
-          async.elapse(const Duration(milliseconds: 20));
-          expect(scheduler.dropouts, 1);
-        });
-      },
-    );
+        // Still empty: already priming, so this is the same dropout.
+        async.elapse(const Duration(milliseconds: 20));
+        expect(scheduler.dropouts, 1);
+      });
+    });
 
     test('clear returns the scheduler to priming and empties the queue', () {
       fakeAsync((async) {
@@ -224,8 +221,7 @@ void main() {
     test('a stereo profile sends the raw interleaved frame unchanged', () {
       fakeAsync((async) {
         final sent = <List<double>>[];
-        final scheduler = build(profile: _stereoProfile, sent: sent)
-          ..start();
+        final scheduler = build(profile: _stereoProfile, sent: sent)..start();
         addTearDown(scheduler.dispose);
 
         scheduler.addChunk(_stereoChunk(30, l: 1.0, r: 3.0));
