@@ -170,6 +170,14 @@ class AudioEngineImpl implements AudioEngine {
   int _nativeMediaTrims = 0;
   final Stopwatch _mediaGainClock = Stopwatch();
 
+  // Received music's playout counters since the last `.tarklog` line — see
+  // [_logNativeMedia].
+  int _mediaLogUnderruns = 0;
+  int _mediaLogTrims = 0;
+  int _mediaLogPlayedMs = 0;
+  final Stopwatch _mediaLogClock = Stopwatch();
+  static const _kMediaLogInterval = Duration(seconds: 10);
+
   StreamSubscription<List<double>>? _inputSub;
   final StreamController<AudioFrame> _frameController =
       StreamController<AudioFrame>.broadcast();
@@ -1030,20 +1038,52 @@ class AudioEngineImpl implements AudioEngine {
     final underruns = nativeMedia.underruns;
     final trims = nativeMedia.trims + nativeMedia.jumps;
     final queued = nativeMedia.queuedFrames;
+    final newUnderruns = max(0, underruns - _nativeMediaUnderruns);
+    final newTrims = max(0, trims - _nativeMediaTrims);
     _mediaBuffer?.notePlayout(
-      underruns: max(0, underruns - _nativeMediaUnderruns),
-      trims: max(0, trims - _nativeMediaTrims),
+      underruns: newUnderruns,
+      trims: newTrims,
       queuedSamples: queued,
     );
+    _mediaLogUnderruns += newUnderruns;
+    _mediaLogTrims += newTrims;
     _nativeMediaUnderruns = underruns;
     _nativeMediaTrims = trims;
     // Only while music is actually flowing, as on the other paths: the
     // envelope advances per media frame there, never across silence.
-    if (queued == 0 && !nativeMedia.isPlaying) return;
+    if (queued == 0 && !nativeMedia.isPlaying) {
+      _logNativeMedia(queued);
+      return;
+    }
+    _mediaLogPlayedMs += elapsedMs;
+    _logNativeMedia(queued);
     nativeMedia.gain = _advanceDucking(
       voiceActive: voiceQueue.isPlaying || _localVoiceActive,
       frameDurationMs: elapsedMs.clamp(1, 100),
     );
+  }
+
+  /// One `.tarklog` line per [_kMediaLogInterval] in which received music
+  /// actually played: how long, how often the speaker ran dry, how often
+  /// latency was trimmed, and how deep the queue is now. Without it a
+  /// "music crackles on the listening phone" report had nothing on that phone
+  /// to read.
+  void _logNativeMedia(int queued) {
+    if (!_mediaLogClock.isRunning) _mediaLogClock.start();
+    if (_mediaLogClock.elapsed < _kMediaLogInterval) return;
+    _mediaLogClock
+      ..reset()
+      ..start();
+    if (_mediaLogPlayedMs == 0 && _mediaLogUnderruns == 0) return;
+    final rate = _outputRate.toInt();
+    Logger.diagnostic(
+      'music rx: played ${_mediaLogPlayedMs}ms, '
+      'underruns=$_mediaLogUnderruns trims=$_mediaLogTrims '
+      'queued=${rate > 0 ? queued * 1000 ~/ rate : 0}ms',
+    );
+    _mediaLogPlayedMs = 0;
+    _mediaLogUnderruns = 0;
+    _mediaLogTrims = 0;
   }
 
   /// With native voice, the audio callback mixes voice and the output ring

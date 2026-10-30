@@ -65,8 +65,8 @@ abstract interface class ControlledOpusDecoder {
 
   /// Reconstructs the frame *before* [packet] from the FEC copy embedded in it.
   ///
-  /// [missingSamples] must be exactly the length of the lost frame — this is
-  /// libopus's `frame_size` for a FEC decode, and getting it wrong is the whole
+  /// [missingSamples] must be exactly the length of the lost frame, counted
+  /// per channel — this is libopus's `frame_size` for a FEC decode, and getting it wrong is the whole
   /// reason the package's own FEC path fails.
   ///
   /// Never returns silence to signal failure: if the packet carries no FEC data
