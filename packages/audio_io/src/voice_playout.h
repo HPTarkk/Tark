@@ -199,7 +199,7 @@ public:
     void mixInto(float* out, size_t n) {
         const double target = gainTarget_.load(std::memory_order_relaxed);
         while (n > 0) {
-            const size_t chunk = std::min(n, kMixChunk);
+            const size_t chunk = n < kMixChunk ? n : kMixChunk;
             render(mixScratch_, chunk);
             for (size_t i = 0; i < chunk; i++) {
                 gain_ += (target - gain_) * gainCoeff_;
