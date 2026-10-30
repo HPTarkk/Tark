@@ -64,7 +64,8 @@ typedef _EncDestroyDart = void Function(Pointer<_OpusEncoder>);
 //   OpusDecoder *opus_decoder_create(opus_int32 Fs, int channels, int *error);
 typedef _DecCreateNative =
     Pointer<_OpusDecoder> Function(Int32, Int32, Pointer<Int32>);
-typedef _DecCreateDart = Pointer<_OpusDecoder> Function(int, int, Pointer<Int32>);
+typedef _DecCreateDart =
+    Pointer<_OpusDecoder> Function(int, int, Pointer<Int32>);
 
 // opus.h:
 //   int opus_decode_float(OpusDecoder *st, const unsigned char *data,
@@ -119,6 +120,7 @@ class _FfiControlledOpusEncoder implements ControlledOpusEncoder {
     this._ctl,
     this._destroy,
     this._maxFrameSamples,
+    this._channels,
   ) : _pcmBuffer = malloc<Int16>(_maxFrameSamples),
       _packetBuffer = malloc<Uint8>(_kMaxPacketBytes);
 
@@ -126,7 +128,12 @@ class _FfiControlledOpusEncoder implements ControlledOpusEncoder {
   final _EncodeDart _encode;
   final _CtlDart _ctl;
   final _EncDestroyDart _destroy;
+
+  /// Interleaved samples the PCM buffer holds.
   final int _maxFrameSamples;
+
+  /// libopus counts `frame_size` per channel, not interleaved; see [encode].
+  final int _channels;
 
   // Allocated once and reused, not per frame: this runs fifty times a second
   // for the whole call, and the mic path already shares the UI isolate.
@@ -196,6 +203,7 @@ class _FfiControlledOpusEncoder implements ControlledOpusEncoder {
         ctl,
         destroy,
         _maxSamplesPerPacket(sampleRate, channels),
+        channels,
       );
       // The rest of the settings double as the ABI probe described above.
       if (!created.applyTuning(_probeTuning)) {
@@ -237,11 +245,19 @@ class _FfiControlledOpusEncoder implements ControlledOpusEncoder {
         'encoder was built for',
       );
     }
+    if (pcm.length % _channels != 0) {
+      throw ArgumentError(
+        'frame of ${pcm.length} samples is not whole $_channels-channel frames',
+      );
+    }
     _pcmBuffer.asTypedList(pcm.length).setAll(0, pcm);
+    // frame_size is per channel. Passing the interleaved length made every
+    // 20 ms stereo frame a 40 ms one whose second half was whatever the
+    // buffer last held — a seam at every frame boundary, heard as crackle.
     final written = _encode(
       _encoder,
       _pcmBuffer,
-      pcm.length,
+      pcm.length ~/ _channels,
       _packetBuffer,
       _kMaxPacketBytes,
     );
@@ -268,12 +284,18 @@ class _FfiControlledOpusDecoder implements ControlledOpusDecoder {
     this._decodeFloat,
     this._destroy,
     this._maxFrameSamples,
+    this._channels,
   ) : _pcmBuffer = malloc<Float>(_maxFrameSamples);
 
   final Pointer<_OpusDecoder> _decoder;
   final _DecodeFloatDart _decodeFloat;
   final _DecDestroyDart _destroy;
+
+  /// Interleaved samples the PCM buffer holds.
   final int _maxFrameSamples;
+
+  /// libopus's `frame_size` and return value both count per channel.
+  final int _channels;
   final Pointer<Float> _pcmBuffer;
 
   bool _destroyed = false;
@@ -303,6 +325,7 @@ class _FfiControlledOpusDecoder implements ControlledOpusDecoder {
         decodeFloat,
         destroy,
         _maxSamplesPerPacket(sampleRate, channels),
+        channels,
       );
     } catch (_) {
       return null;
@@ -310,14 +333,15 @@ class _FfiControlledOpusDecoder implements ControlledOpusDecoder {
   }
 
   @override
-  List<double> decode(Uint8List packet) => _run(packet, _maxFrameSamples, 0);
+  List<double> decode(Uint8List packet) =>
+      _run(packet, _maxFrameSamples ~/ _channels, 0);
 
   @override
   List<double> decodeFec(Uint8List packet, int missingSamples) {
     // Clamped rather than trusted: frame_size is what libopus writes into the
     // buffer, and a caller asking for more than was allocated would be a native
     // overrun rather than an exception.
-    final frameSize = missingSamples.clamp(1, _maxFrameSamples);
+    final frameSize = missingSamples.clamp(1, _maxFrameSamples ~/ _channels);
     return _run(packet, frameSize, 1);
   }
 
@@ -350,7 +374,8 @@ class _FfiControlledOpusDecoder implements ControlledOpusDecoder {
       // normalised [-1, 1] floats — so this reaches the resampler and the
       // jitter buffer with no conversion pass at all. The previous path decoded
       // to int16 and walked every sample to divide by 32768.
-      return Float32List.fromList(_pcmBuffer.asTypedList(samples));
+      // [samples] is per channel; the buffer holds them interleaved.
+      return Float32List.fromList(_pcmBuffer.asTypedList(samples * _channels));
     } finally {
       malloc.free(input);
     }

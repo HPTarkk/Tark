@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
@@ -165,6 +166,35 @@ String _languageOf(BuildContext context) =>
 
 // ── Optional ────────────────────────────────────────────────────────────────
 
+/// Where each beat of the optional sheet's arrival sits on its one shared
+/// controller, so every piece agrees on the order without talking to the
+/// others.
+///
+/// The order is the story of the update: the transmitter powers on and sends
+/// one pulse across the sheet, the headline tunes in line by line, the
+/// installed version is struck through and the new one counts over it, the
+/// notes tick off, and only then does the button land — with its first glint
+/// — and the way out appear.
+abstract final class _Arrival {
+  static const duration = Duration(milliseconds: 1500);
+
+  static const disc = Interval(0.02, 0.34, curve: Curves.easeOutBack);
+  static const discFade = Interval(0.02, 0.14);
+  static const pulse = Interval(0.12, 0.62);
+
+  /// Eyebrow, title, body: one after another.
+  static Interval line(int i) {
+    final start = 0.16 + 0.05 * i;
+    return Interval(start, start + 0.3, curve: AppMotion.easeOut);
+  }
+
+  static const hop = Interval(0.3, 0.84);
+  static const notes = Interval(0.4, 0.92);
+  static const action = Interval(0.6, 0.9, curve: Curves.easeOutBack);
+  static const actionFade = Interval(0.6, 0.74);
+  static const later = Interval(0.76, 1, curve: AppMotion.easeOut);
+}
+
 class _OptionalPrompt extends StatefulWidget {
   const _OptionalPrompt({
     required this.offer,
@@ -181,41 +211,166 @@ class _OptionalPrompt extends StatefulWidget {
 }
 
 class _OptionalPromptState extends State<_OptionalPrompt>
-    with SingleTickerProviderStateMixin, _StoreAction {
-  late final AnimationController _enter = AnimationController(
+    with TickerProviderStateMixin, _StoreAction {
+  /// Where the sheet sits: 0 off the bottom edge, 1 docked. Unbounded so the
+  /// spring can carry it a hair past docked and settle, and so a drag can
+  /// stretch it upward against resistance.
+  late final AnimationController _sheet = AnimationController.unbounded(
     vsync: this,
-    duration: const Duration(milliseconds: 520),
-    reverseDuration: AppMotion.sheet,
   );
+
+  /// The content's entrance, read by every piece through [_Arrival].
+  late final AnimationController _show = AnimationController(
+    vsync: this,
+    duration: _Arrival.duration,
+  );
+
+  /// A little under-damped: it lands with the faintest overshoot, which is
+  /// what makes it read as something with weight rather than a slide.
+  static final _rise = SpringDescription.withDampingRatio(
+    mass: 1,
+    stiffness: 260,
+    ratio: 0.8,
+  );
+
+  /// Critically damped on the way out: it never bounces off the bottom edge.
+  static final _fall = SpringDescription.withDampingRatio(
+    mass: 1,
+    stiffness: 640,
+    ratio: 1,
+  );
+
+  /// In sheet-heights: a hair from the edge is off screen already, so the
+  /// spring stops there instead of creeping through its last pixel.
+  static const _gone = Tolerance(distance: 0.004, velocity: 0.05);
+
+  final _sheetKey = GlobalKey();
+  final _emblemKey = GlobalKey();
+  final _pulseCentre = ValueNotifier<Offset?>(null);
+
   bool _started = false;
+  bool _leaving = false;
+
+  /// The drag's own position before resistance, so letting go above the
+  /// docked line springs back from where the finger actually is.
+  double _dragRaw = 1;
 
   @override
   void initState() {
     super.initState();
     // A beat after the home screen settles, so the prompt arrives on a page
     // rather than with it.
-    // Built only then, too, so the content's staggered entrance plays while
-    // the card rises instead of unseen before it.
+    // Built only then, too, so the content's entrance plays while the sheet
+    // rises instead of unseen before it.
     Future<void>.delayed(const Duration(milliseconds: 450), () {
       if (!mounted) return;
       setState(() => _started = true);
-      _enter.forward();
+      _open();
+      _show.forward();
+      _locateEmblem();
     });
   }
 
   @override
   void dispose() {
-    _enter.dispose();
+    _sheet.dispose();
+    _show.dispose();
+    _pulseCentre.dispose();
     super.dispose();
   }
 
-  Future<void> _leave(VoidCallback then) async {
-    await _enter.reverse();
-    then();
+  bool get _reduced => AppMotion.reduced(context);
+
+  void _open() {
+    if (_reduced) {
+      _sheet.animateTo(1, duration: AppMotion.sheet, curve: AppMotion.easeOut);
+    } else {
+      _sheet.animateWith(SpringSimulation(_rise, _sheet.value, 1, 0));
+    }
+  }
+
+  /// Where the emblem's centre sits inside the sheet, for the power-on
+  /// pulse. Measured rather than assumed, so a larger text scale or a
+  /// narrower phone still sends the pulse out of the disc.
+  void _locateEmblem() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final sheet = _sheetKey.currentContext?.findRenderObject() as RenderBox?;
+      final emblem =
+          _emblemKey.currentContext?.findRenderObject() as RenderBox?;
+      if (!mounted || sheet == null || emblem == null) return;
+      _pulseCentre.value = emblem.localToGlobal(
+        emblem.size.center(Offset.zero),
+        ancestor: sheet,
+      );
+    });
+  }
+
+  Future<void> _leave(VoidCallback then, {double velocity = 0}) async {
+    if (_leaving) return;
+    _leaving = true;
+    if (_reduced) {
+      await _sheet.animateTo(
+        0,
+        duration: AppMotion.card,
+        curve: AppMotion.easeOut,
+      );
+    } else {
+      // Aimed a touch past the edge so the spring's tail is spent off screen
+      // rather than creeping the last pixel.
+      await _sheet.animateWith(
+        SpringSimulation(
+          _fall,
+          _sheet.value,
+          -0.02,
+          velocity,
+          tolerance: _gone,
+        ),
+      );
+    }
+    if (mounted) then();
   }
 
   Future<void> _update() async {
     if (await openStore(widget.offer)) unawaited(_leave(widget.onOpened));
+  }
+
+  double get _sheetHeight =>
+      (_sheetKey.currentContext?.findRenderObject() as RenderBox?)
+          ?.size
+          .height ??
+      0;
+
+  void _dragStart(DragStartDetails _) {
+    if (_leaving) return;
+    _sheet.stop();
+    _dragRaw = _sheet.value;
+  }
+
+  void _dragUpdate(DragUpdateDetails details) {
+    final height = _sheetHeight;
+    if (_leaving || height <= 0) return;
+    _dragRaw -= details.primaryDelta! / height;
+    // Down follows the finger exactly; up past docked gives way less and
+    // less, so the sheet can be tugged but never pulled loose.
+    final over = _dragRaw - 1;
+    _sheet.value = over <= 0 ? _dragRaw : 1 + 0.1 * over / (over + 0.1);
+  }
+
+  void _dragEnd(DragEndDetails details) {
+    final height = _sheetHeight;
+    if (_leaving || height <= 0) return;
+    // Sheet-heights per second, upward positive like the controller.
+    final velocity = -details.velocity.pixelsPerSecond.dy / height;
+    final flung = velocity < -1.4;
+    final pulledDown = _sheet.value < 0.62 && velocity < 0.6;
+    if (flung || pulledDown) {
+      HapticFeedback.selectionClick();
+      unawaited(_leave(widget.onLater, velocity: velocity));
+    } else if (_reduced) {
+      _sheet.animateTo(1, duration: AppMotion.card, curve: AppMotion.easeOut);
+    } else {
+      _sheet.animateWith(SpringSimulation(_rise, _sheet.value, 1, velocity));
+    }
   }
 
   @override
@@ -223,12 +378,166 @@ class _OptionalPromptState extends State<_OptionalPrompt>
     if (!_started) return const SizedBox.shrink();
     final s = context.getString;
     final feed = widget.offer.feed;
-    final reduced = AppMotion.reduced(context);
-    final slide = CurvedAnimation(
-      parent: _enter,
-      curve: AppMotion.drawer,
-      reverseCurve: AppMotion.leaving,
+    final reduced = _reduced;
+    final insets = MediaQuery.paddingOf(context);
+    Animation<double> cue(Curve interval) =>
+        CurvedAnimation(parent: _show, curve: interval);
+
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _EmblemArrival(
+          disc: cue(_Arrival.disc),
+          fade: cue(_Arrival.discFade),
+          reduced: reduced,
+          child: BroadcastEmblem(key: _emblemKey, size: 84),
+        ),
+        const SizedBox(height: 14),
+        _Rising(
+          progress: cue(_Arrival.line(0)),
+          reduced: reduced,
+          child: _Eyebrow(text: s.update_eyebrow),
+        ),
+        const SizedBox(height: 6),
+        _Rising(
+          progress: cue(_Arrival.line(1)),
+          reduced: reduced,
+          child: _Title(
+            text: s.update_title(feed.latestVersion.localized(context)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _Rising(
+          progress: cue(_Arrival.line(2)),
+          reduced: reduced,
+          child: _Body(text: s.update_body),
+        ),
+        const SizedBox(height: 16),
+        VersionHop(
+          from: widget.offer.installedVersion,
+          to: feed.latestVersion,
+          arrival: cue(_Arrival.hop),
+        ),
+        const SizedBox(height: 16),
+        ReleaseNotes(
+          heading: s.update_whats_new,
+          lines: feed.notesFor(_languageOf(context)),
+          arrival: cue(_Arrival.notes),
+        ),
+      ],
     );
+
+    // Pinned under the scrolling content, so on a short screen or with long
+    // notes the way forward and the way out are never below the fold.
+    final actions = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _Landing(
+          progress: cue(_Arrival.action),
+          fade: cue(_Arrival.actionFade),
+          reduced: reduced,
+          child: SheenButton(
+            key: const Key('update-action'),
+            label: s.update_action,
+            icon: Icons.system_update_alt_rounded,
+            busy: busy,
+            startAfter: _show,
+            onTap: _update,
+          ),
+        ),
+        _OpenFailed(visible: failed),
+        FadeTransition(
+          opacity: cue(_Arrival.later),
+          child: TextButton(
+            key: const Key('update-later'),
+            onPressed: () => _leave(widget.onLater),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: Text(
+              s.update_later,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    final sheet = Stack(
+      key: _sheetKey,
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.86,
+          ),
+          // Keeps the power-on pulse on the sheet: it washes across it, never
+          // out over the app behind.
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+            // Uniform on purpose, as on the troubleshooting sheet: a rounded
+            // box can only be stroked with one colour.
+            border: Border.all(color: AppColors.amber.withValues(alpha: 0.22)),
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      painter: _PowerOnPainter(
+                        progress: cue(_Arrival.pulse),
+                        centre: _pulseCentre,
+                        color: AppColors.amber,
+                        reduced: reduced,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const _Grabber(),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+                      child: content,
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 2 + insets.bottom),
+                    child: actions,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // Below the docked edge, so the spring's overshoot and an upward tug
+        // lift the sheet without opening a gap under it.
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: -120,
+          height: 121,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              border: Border.symmetric(
+                vertical: BorderSide(
+                  color: AppColors.amber.withValues(alpha: 0.22),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
     return Material(
       type: MaterialType.transparency,
       child: Stack(
@@ -236,83 +545,41 @@ class _OptionalPromptState extends State<_OptionalPrompt>
           Positioned.fill(
             child: GestureDetector(
               onTap: () => _leave(widget.onLater),
-              child: FadeTransition(
-                opacity: _enter,
-                child: ColoredBox(color: Colors.black.withValues(alpha: 0.6)),
+              child: AnimatedBuilder(
+                animation: _sheet,
+                builder: (context, _) => ColoredBox(
+                  color: Colors.black.withValues(
+                    alpha: 0.6 * _sheet.value.clamp(0.0, 1.0),
+                  ),
+                ),
               ),
             ),
           ),
           Align(
             alignment: Alignment.bottomCenter,
-            child: SafeArea(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 480),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: GestureDetector(
+                key: const Key('update-sheet'),
+                behavior: HitTestBehavior.opaque,
+                onVerticalDragStart: _dragStart,
+                onVerticalDragUpdate: _dragUpdate,
+                onVerticalDragEnd: _dragEnd,
                 child: AnimatedBuilder(
-                  animation: slide,
-                  builder: (context, child) => Opacity(
-                    opacity: _enter.value.clamp(0, 1),
-                    child: Transform.translate(
-                      offset: Offset(0, reduced ? 0 : (1 - slide.value) * 120),
+                  animation: _sheet,
+                  builder: (context, child) {
+                    final v = _sheet.value;
+                    if (reduced) {
+                      // The arrival keeps its fade and loses its travel; a
+                      // drag still moves it, since that is the finger's.
+                      return Opacity(opacity: v.clamp(0.0, 1.0), child: child);
+                    }
+                    return FractionalTranslation(
+                      translation: Offset(0, 1 - v),
                       child: child,
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: _Card(
-                      child: StaggeredEntrance(
-                        builder: (context, children) => Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: children,
-                        ),
-                        children: [
-                          const BroadcastEmblem(size: 84),
-                          const SizedBox(height: 14),
-                          _Eyebrow(text: s.update_eyebrow),
-                          const SizedBox(height: 6),
-                          _Title(
-                            text: s.update_title(
-                              feed.latestVersion.localized(context),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          _Body(text: s.update_body),
-                          const SizedBox(height: 16),
-                          VersionHop(
-                            from: widget.offer.installedVersion,
-                            to: feed.latestVersion,
-                          ),
-                          const SizedBox(height: 16),
-                          ReleaseNotes(
-                            heading: s.update_whats_new,
-                            lines: feed.notesFor(_languageOf(context)),
-                          ),
-                          const SizedBox(height: 18),
-                          SheenButton(
-                            key: const Key('update-action'),
-                            label: s.update_action,
-                            icon: Icons.system_update_alt_rounded,
-                            busy: busy,
-                            onTap: _update,
-                          ),
-                          _OpenFailed(visible: failed),
-                          TextButton(
-                            key: const Key('update-later'),
-                            onPressed: () => _leave(widget.onLater),
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppColors.textSecondary,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            child: Text(
-                              s.update_later,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                    );
+                  },
+                  child: sheet,
                 ),
               ),
             ),
@@ -323,33 +590,157 @@ class _OptionalPromptState extends State<_OptionalPrompt>
   }
 }
 
-class _Card extends StatelessWidget {
-  const _Card({required this.child});
+class _Grabber extends StatelessWidget {
+  const _Grabber();
 
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Container(
+      width: 38,
+      height: 4,
+      margin: const EdgeInsets.only(top: 10),
+      decoration: BoxDecoration(
+        color: AppColors.textSecondary.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(2),
+      ),
+    ),
+  );
+}
+
+/// Fades and lifts one piece of the sheet into place.
+class _Rising extends StatelessWidget {
+  const _Rising({
+    required this.progress,
+    required this.reduced,
+    required this.child,
+  });
+
+  final Animation<double> progress;
+  final bool reduced;
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Container(
-    constraints: BoxConstraints(
-      maxHeight: MediaQuery.sizeOf(context).height * 0.86,
-    ),
-    decoration: BoxDecoration(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(28),
-      border: Border.all(color: AppColors.amber.withValues(alpha: 0.28)),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.5),
-          blurRadius: 40,
-          offset: const Offset(0, 14),
-        ),
-      ],
-    ),
-    child: SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 6),
-      child: child,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final faded = FadeTransition(opacity: progress, child: child);
+    if (reduced) return faded;
+    return AnimatedBuilder(
+      animation: progress,
+      builder: (context, child) => Transform.translate(
+        offset: Offset(0, AppMotion.rise * (1 - progress.value)),
+        child: child,
+      ),
+      child: faded,
+    );
+  }
+}
+
+/// The transmitter switching on: the disc drops into place with a little
+/// overshoot as its waves come up.
+class _EmblemArrival extends StatelessWidget {
+  const _EmblemArrival({
+    required this.disc,
+    required this.fade,
+    required this.reduced,
+    required this.child,
+  });
+
+  final Animation<double> disc;
+  final Animation<double> fade;
+  final bool reduced;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final faded = FadeTransition(opacity: fade, child: child);
+    if (reduced) return faded;
+    return AnimatedBuilder(
+      animation: disc,
+      builder: (context, child) => Transform.translate(
+        offset: Offset(0, -10 * (1 - disc.value)),
+        child: Transform.scale(scale: 0.5 + 0.5 * disc.value, child: child),
+      ),
+      child: faded,
+    );
+  }
+}
+
+/// The primary action landing: it rises, overshoots a little and settles,
+/// so it arrives as the answer to everything above it.
+class _Landing extends StatelessWidget {
+  const _Landing({
+    required this.progress,
+    required this.fade,
+    required this.reduced,
+    required this.child,
+  });
+
+  final Animation<double> progress;
+  final Animation<double> fade;
+  final bool reduced;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final faded = FadeTransition(opacity: fade, child: child);
+    if (reduced) return faded;
+    return AnimatedBuilder(
+      animation: progress,
+      builder: (context, child) {
+        final v = progress.value;
+        return Transform.translate(
+          offset: Offset(0, 18 * (1 - v)),
+          child: Transform.scale(scale: 0.92 + 0.08 * v, child: child),
+        );
+      },
+      child: faded,
+    );
+  }
+}
+
+/// The one pulse the transmitter sends when it powers on: two rings leaving
+/// the disc and washing across the whole sheet, so the sheet itself reads
+/// as having received the broadcast. Plays once; nothing here loops.
+class _PowerOnPainter extends CustomPainter {
+  _PowerOnPainter({
+    required this.progress,
+    required this.centre,
+    required this.color,
+    required this.reduced,
+  }) : super(repaint: Listenable.merge([progress, centre]));
+
+  final Animation<double> progress;
+  final ValueListenable<Offset?> centre;
+  final Color color;
+  final bool reduced;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = progress.value;
+    final c = centre.value;
+    if (reduced || c == null || t <= 0 || t >= 1) return;
+    final far = [
+      Offset.zero,
+      Offset(size.width, 0),
+      Offset(0, size.height),
+      Offset(size.width, size.height),
+    ].map((corner) => (corner - c).distance).reduce(math.max);
+    final paint = Paint()..style = PaintingStyle.stroke;
+    for (var i = 0; i < 2; i++) {
+      // The second ring trails the first, like an echo.
+      final local = ((t - i * 0.18) / (1 - 0.18)).clamp(0.0, 1.0);
+      if (local <= 0 || local >= 1) continue;
+      final eased = AppMotion.easeOut.transform(local);
+      final strength = (1 - local) * (i == 0 ? 0.55 : 0.3);
+      paint
+        ..strokeWidth = 2.4 - 1.6 * local
+        ..color = color.withValues(alpha: strength);
+      canvas.drawCircle(c, 24 + (far - 24) * eased, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PowerOnPainter old) =>
+      old.color != color || old.reduced != reduced;
 }
 
 // ── Required ────────────────────────────────────────────────────────────────
