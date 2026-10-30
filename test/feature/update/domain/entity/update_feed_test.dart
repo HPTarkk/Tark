@@ -38,7 +38,13 @@ void main() {
     });
 
     test('notes fall back to English, then to none', () {
-      final feed = UpdateFeed.fromJson(_json(notes: {'en': ['x']}));
+      final feed = UpdateFeed.fromJson(
+        _json(
+          notes: {
+            'en': ['x'],
+          },
+        ),
+      );
       expect(feed.notesFor('fa'), ['x']);
       expect(UpdateFeed.fromJson(_json()).notesFor('fa'), isEmpty);
     });
@@ -69,9 +75,8 @@ void main() {
 
   group('decideUpdate', () {
     final now = DateTime(2026, 9, 28, 12);
-    UpdateFeed feed({int latest = 32, int minimum = 0}) => UpdateFeed.fromJson(
-      _json(latestBuild: latest, minimumBuild: minimum),
-    );
+    UpdateFeed feed({int latest = 32, int minimum = 0}) =>
+        UpdateFeed.fromJson(_json(latestBuild: latest, minimumBuild: minimum));
 
     test('up to date: nothing', () {
       expect(decideUpdate(feed: feed(), installedBuild: 32, now: now), isNull);
