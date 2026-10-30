@@ -1,12 +1,22 @@
 {
   "android": {
-    "latestVersion": "1.2.0",
-    "latestBuild": 36,
+    "latestVersion": "1.2.3",
+    "latestBuild": 39,
     "minimumBuild": 0,
     "url": "https://cafebazaar.ir/app/com.b1101.tark",
     "notes": {
-      "en": [],
-      "fa": []
+      "en": [
+        "Improved Shared Music playback, fixing crackling and audio interruptions.",
+        "Redesigned the troubleshooting screen to provide clearer connection diagnostics and helpful solutions.",
+        "Revamped the update screen with engaging animations and a smoother user experience.",
+        "Under-the-hood improvements for more reliable audio playback."
+      ],
+      "fa": [
+        "بهبود پخش موسیقی اشتراکی و رفع مشکل خش‌خش و قطع‌ووصلی صدا",
+        "بازطراحی بخش عیب‌یابی برای نمایش واضح‌تر وضعیت اتصال و راهکارهای رفع مشکل",
+        "طراحی دوباره صفحه به‌روزرسانی با انیمیشن‌های جذاب‌تر و تجربه کاربری روان‌تر",
+        "بهبودهای فنی برای پایداری بیشتر پخش صدا"
+      ]
     }
   }
 }
