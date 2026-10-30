@@ -125,6 +125,13 @@ void main() {
     expect(find.text('Rider two'), findsOneWidget);
     expect(find.byKey(const Key('selected-room-held-seats')), findsNothing);
     expect(find.byKey(const Key('selected-room-start-ride')), findsOneWidget);
+    // The first-time tap coach under the rider can push the actions below
+    // the fold of the lazily built list, so bring Invite into view first.
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('selected-room-invite-callout')),
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
     // Invite comes first, above Start.
     expect(
       tester
