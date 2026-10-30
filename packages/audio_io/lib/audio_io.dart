@@ -192,6 +192,10 @@ class AudioIo {
   /// where playback is not driven by miniaudio (iOS, macOS, web).
   VoiceQueue? get voiceQueue => _impl.voiceQueue;
 
+  /// The native Shared Music queue, mixed on top of [voiceQueue] by the audio
+  /// callback, or null wherever [voiceQueue] is.
+  MediaQueue? get mediaQueue => _impl.mediaQueue;
+
   RealtimeResampler? createRealtimeResampler(double inRate, double outRate) =>
       _impl.createRealtimeResampler(inRate, outRate);
 

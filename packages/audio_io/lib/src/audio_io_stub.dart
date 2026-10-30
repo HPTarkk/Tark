@@ -33,6 +33,9 @@ abstract class AudioIoImpl {
   /// by miniaudio (iOS, macOS, web).
   VoiceQueue? get voiceQueue;
 
+  /// The native Shared Music queue, or null wherever [voiceQueue] is.
+  MediaQueue? get mediaQueue;
+
   RealtimeResampler? createRealtimeResampler(double inRate, double outRate);
   RealtimeLowPass? createRealtimeLowPass(double sampleRate, double cutoffHz);
   RealtimeSpectralSuppressor? createRealtimeSpectralSuppressor(int sampleRate);

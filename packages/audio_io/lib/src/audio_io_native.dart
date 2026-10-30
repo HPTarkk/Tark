@@ -79,6 +79,10 @@ class AudioIoNative implements AudioIoImpl {
       usePlatformImpl ? AudioIoFFI.instance.voiceQueue : null;
 
   @override
+  MediaQueue? get mediaQueue =>
+      usePlatformImpl ? AudioIoFFI.instance.mediaQueue : null;
+
+  @override
   RealtimeResampler? createRealtimeResampler(double inRate, double outRate) {
     if (!usePlatformImpl) return null;
     final bindings = _dspBindings;

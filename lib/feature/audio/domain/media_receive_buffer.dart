@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'float64_fifo.dart';
 
 /// Windowed receiver-health snapshot for Shared Music.
@@ -46,6 +48,12 @@ class MediaReceiveHealth {
 ///
 /// It is pull-based and owns no timer. `AudioEngineImpl` remains the only owner
 /// of output cadence, mixing media into the existing voice output path.
+///
+/// Where playback is native (`MediaQueue`), the native queue owns pacing —
+/// the fill to target, trims and running dry are decided in the audio
+/// callback against the device's real pulls, with crossfades. This class then
+/// only sequences: [takeAll] hands over whatever [feed] let through, and
+/// [notePlayout] folds the native counters back into the same health window.
 class MediaReceiveBuffer {
   MediaReceiveBuffer({
     int sampleRate = 48000,
@@ -112,8 +120,12 @@ class MediaReceiveBuffer {
   int _resyncs = 0;
   int _concealedSamples = 0;
 
-  int get queuedSamples => _queue.length;
-  int get queuedMs => _queue.length * 1000 ~/ _sampleRate;
+  /// Depth of the native queue, when one plays this buffer's output — see
+  /// [notePlayout]. Null while this buffer is itself the playout.
+  int? _playoutQueuedSamples;
+
+  int get queuedSamples => _playoutQueuedSamples ?? _queue.length;
+  int get queuedMs => queuedSamples * 1000 ~/ _sampleRate;
   int get targetSamples => _targetSamples;
   int get underruns => _underruns;
   int get outputStarvations => _outputStarvations;
@@ -256,6 +268,25 @@ class MediaReceiveBuffer {
       return null;
     }
     return _queue.takeFirst(count);
+  }
+
+  /// Everything sequencing has let through so far, in order, for a native
+  /// queue that does its own pacing. Leaves the buffer empty; never null.
+  Float64List takeAll() => _queue.takeFirst(_queue.length);
+
+  /// Folds a native playout's activity since the last call into this
+  /// buffer's health window: [underruns] ran dry mid-pull (each is also an
+  /// output starvation, as in [pullFrame]), [trims] walked latency back,
+  /// [queuedSamples] is its current depth.
+  void notePlayout({
+    required int underruns,
+    required int trims,
+    required int queuedSamples,
+  }) {
+    _underruns += underruns;
+    _outputStarvations += underruns;
+    _trims += trims;
+    _playoutQueuedSamples = queuedSamples;
   }
 
   /// Explicit stream boundary (reconnect, sender epoch renewal, profile

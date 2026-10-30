@@ -73,6 +73,10 @@ typedef AudioIoVoiceSetTarget = void Function(Pointer<Void> handle, int frames);
 typedef AudioIoVoiceResetNative = Void Function(Pointer<Void> handle);
 typedef AudioIoVoiceReset = void Function(Pointer<Void> handle);
 
+typedef AudioIoMediaSetGainNative = Void Function(
+    Pointer<Void> handle, Double gain);
+typedef AudioIoMediaSetGain = void Function(Pointer<Void> handle, double gain);
+
 typedef AudioIoReleaseAllNative = Int32 Function();
 typedef AudioIoReleaseAll = int Function();
 
@@ -137,6 +141,15 @@ class AudioIoBindings {
   late final AudioIoVoiceSetTarget voiceSetTarget;
   late final AudioIoVoiceReset voiceReset;
   late final AudioIoVoiceStat voiceStat;
+
+  // Shared Music's queue: the same playout, with the same signatures, plus a
+  // gain.
+  late final AudioIoVoiceWrite mediaWrite;
+  late final AudioIoVoiceWriteZeros mediaWriteZeros;
+  late final AudioIoVoiceSetTarget mediaSetTarget;
+  late final AudioIoVoiceReset mediaReset;
+  late final AudioIoMediaSetGain mediaSetGain;
+  late final AudioIoVoiceStat mediaStat;
   late final AudioIoDspCreate? resamplerCreate;
   late final AudioIoDspDestroy? resamplerDestroy;
   late final AudioIoResamplerCapacity? resamplerOutputCapacity;
@@ -247,6 +260,27 @@ class AudioIoBindings {
         .asFunction();
     voiceStat = _lib
         .lookup<NativeFunction<AudioIoVoiceStatNative>>('audio_io_voice_stat')
+        .asFunction();
+    mediaWrite = _lib
+        .lookup<NativeFunction<AudioIoVoiceWriteNative>>('audio_io_media_write')
+        .asFunction();
+    mediaWriteZeros = _lib
+        .lookup<NativeFunction<AudioIoVoiceWriteZerosNative>>(
+            'audio_io_media_write_zeros')
+        .asFunction();
+    mediaSetTarget = _lib
+        .lookup<NativeFunction<AudioIoVoiceSetTargetNative>>(
+            'audio_io_media_set_target')
+        .asFunction();
+    mediaReset = _lib
+        .lookup<NativeFunction<AudioIoVoiceResetNative>>('audio_io_media_reset')
+        .asFunction();
+    mediaSetGain = _lib
+        .lookup<NativeFunction<AudioIoMediaSetGainNative>>(
+            'audio_io_media_set_gain')
+        .asFunction();
+    mediaStat = _lib
+        .lookup<NativeFunction<AudioIoVoiceStatNative>>('audio_io_media_stat')
         .asFunction();
     _loadRealtimeDsp();
     releaseAll = _lib.providesSymbol('audio_io_release_all')

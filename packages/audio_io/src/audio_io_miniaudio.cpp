@@ -29,11 +29,11 @@ const size_t VOICE_QUEUE_SIZE = 65536;  // power of two — see VoicePlayout
 struct AudioContext {
     ma_device device;
     DoubleRingBuffer* inputRingBuffer;
-    // Media (Shared Music) and anything else written through
-    // audio_io_write. Received voice has its own queue below; the callback
-    // mixes the two.
+    // Anything written through audio_io_write. Received voice and Shared
+    // Music each have their own queue below; the callback mixes all three.
     DoubleRingBuffer* outputRingBuffer;
     VoicePlayout* voice;
+    VoicePlayout* media;
     std::atomic<bool> isRunning;
     std::atomic<bool> isDeviceInitialized;
     // Requested frame duration. Written under [lifecycle], but read without
@@ -48,6 +48,7 @@ struct AudioContext {
         : inputRingBuffer(new DoubleRingBuffer(RING_BUFFER_SIZE)),
           outputRingBuffer(new DoubleRingBuffer(RING_BUFFER_SIZE)),
           voice(new VoicePlayout(VOICE_QUEUE_SIZE, SAMPLE_RATE)),
+          media(new VoicePlayout(VOICE_QUEUE_SIZE, SAMPLE_RATE)),
           isRunning(false),
           isDeviceInitialized(false),
           frameDuration(0.003) {}  // Default 3ms (Balanced)
@@ -56,6 +57,7 @@ struct AudioContext {
         delete inputRingBuffer;
         delete outputRingBuffer;
         delete voice;
+        delete media;
     }
 };
 
@@ -72,11 +74,13 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
         context->inputRingBuffer->writeFromFloat((const float*)pInput, frameCount);
     }
 
-    // Handle output: received voice straight from its queue, with whatever
-    // the output ring holds (media) mixed on top.
+    // Handle output: received voice straight from its queue, with Shared
+    // Music from its own queue and whatever the output ring holds mixed on
+    // top.
     if (pOutput) {
         float* floatOutput = (float*)pOutput;
         context->voice->render(floatOutput, frameCount);
+        context->media->mixInto(floatOutput, frameCount);
         context->outputRingBuffer->readAddToFloatClamped(floatOutput, frameCount);
     }
 }
@@ -209,6 +213,7 @@ static int init_device_locked(AudioContext* context) {
     }
     // Before start, while the callback cannot be running.
     context->voice->configure((int)context->device.sampleRate);
+    context->media->configure((int)context->device.sampleRate);
     
     context->isDeviceInitialized = true;
     
@@ -335,6 +340,50 @@ long long audio_io_voice_stat(void* handle, int which) {
         case 5: return v->trims();
         case 6: return v->jumps();
         case 7: return (long long)v->burstFrames();
+        default: return -1;
+    }
+}
+
+// ── Shared Music queue (same playout as voice, mixed on top of it) ─────────
+
+int audio_io_media_write(void* handle, const double* buffer, int frameCount) {
+    if (!handle || !buffer || frameCount <= 0) return 0;
+    return (int)((AudioContext*)handle)->media->write(buffer, (size_t)frameCount);
+}
+
+int audio_io_media_write_zeros(void* handle, int frameCount) {
+    if (!handle || frameCount <= 0) return 0;
+    return (int)((AudioContext*)handle)->media->writeZeros((size_t)frameCount);
+}
+
+void audio_io_media_set_target(void* handle, int frames) {
+    if (!handle) return;
+    ((AudioContext*)handle)->media->setTarget(frames);
+}
+
+void audio_io_media_reset(void* handle) {
+    if (!handle) return;
+    ((AudioContext*)handle)->media->requestReset();
+}
+
+void audio_io_media_set_gain(void* handle, double gain) {
+    if (!handle) return;
+    ((AudioContext*)handle)->media->setGain(gain);
+}
+
+// Same selectors as audio_io_voice_stat.
+long long audio_io_media_stat(void* handle, int which) {
+    if (!handle) return -1;
+    VoicePlayout* m = ((AudioContext*)handle)->media;
+    switch (which) {
+        case 0: return (long long)m->queued();
+        case 1: return m->playing() ? 1 : 0;
+        case 2: return m->underruns();
+        case 3: return m->starvedFrames();
+        case 4: return m->playedFrames();
+        case 5: return m->trims();
+        case 6: return m->jumps();
+        case 7: return (long long)m->burstFrames();
         default: return -1;
     }
 }

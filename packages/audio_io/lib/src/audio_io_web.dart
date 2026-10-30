@@ -266,6 +266,9 @@ class AudioIoWeb implements AudioIoImpl {
   VoiceQueue? get voiceQueue => null;
 
   @override
+  MediaQueue? get mediaQueue => null;
+
+  @override
   RealtimeResampler? createRealtimeResampler(double inRate, double outRate) =>
       null;
 

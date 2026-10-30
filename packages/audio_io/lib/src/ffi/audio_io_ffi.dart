@@ -395,6 +395,10 @@ class AudioIoFFI {
   /// call resolves the handle afresh, and does nothing without one.
   late final VoiceQueue voiceQueue = _FfiVoiceQueue(this);
 
+  /// The native Shared Music queue, mixed on top of [voiceQueue] by the
+  /// callback. Same handle rules as [voiceQueue].
+  late final MediaQueue mediaQueue = _FfiMediaQueue(this);
+
   /// Samples in the output ring the device has not played yet, or -1 with no
   /// device. Counts only what has reached the ring: [outputAudioStream]
   /// delivers asynchronously, so a write made this same event-loop turn is
@@ -406,9 +410,26 @@ class AudioIoFFI {
 }
 
 class _FfiVoiceQueue implements VoiceQueue {
-  _FfiVoiceQueue(this._ffi);
+  _FfiVoiceQueue(this._ffi)
+      : _write = _ffi._bindings.voiceWrite,
+        _writeZeros = _ffi._bindings.voiceWriteZeros,
+        _setTarget = _ffi._bindings.voiceSetTarget,
+        _reset = _ffi._bindings.voiceReset,
+        _statFn = _ffi._bindings.voiceStat;
+
+  _FfiVoiceQueue._media(this._ffi)
+      : _write = _ffi._bindings.mediaWrite,
+        _writeZeros = _ffi._bindings.mediaWriteZeros,
+        _setTarget = _ffi._bindings.mediaSetTarget,
+        _reset = _ffi._bindings.mediaReset,
+        _statFn = _ffi._bindings.mediaStat;
 
   final AudioIoFFI _ffi;
+  final AudioIoVoiceWrite _write;
+  final AudioIoVoiceWriteZeros _writeZeros;
+  final AudioIoVoiceSetTarget _setTarget;
+  final AudioIoVoiceReset _reset;
+  final AudioIoVoiceStat _statFn;
 
   Pointer<Double>? _scratch;
   int _scratchFrames = 0;
@@ -427,32 +448,32 @@ class _FfiVoiceQueue implements VoiceQueue {
     }
     final scratch = _scratch!;
     scratch.asTypedList(samples.length).setAll(0, samples);
-    return _ffi._bindings.voiceWrite(handle, scratch, samples.length);
+    return _write(handle, scratch, samples.length);
   }
 
   @override
   int writeSilence(int count) {
     final handle = _ffi._handle;
     if (handle == null || count <= 0) return 0;
-    return _ffi._bindings.voiceWriteZeros(handle, count);
+    return _writeZeros(handle, count);
   }
 
   @override
   set targetFrames(int frames) {
     final handle = _ffi._handle;
-    if (handle != null) _ffi._bindings.voiceSetTarget(handle, frames);
+    if (handle != null) _setTarget(handle, frames);
   }
 
   @override
   void reset() {
     final handle = _ffi._handle;
-    if (handle != null) _ffi._bindings.voiceReset(handle);
+    if (handle != null) _reset(handle);
   }
 
   int _stat(int which) {
     final handle = _ffi._handle;
     if (handle == null) return 0;
-    final v = _ffi._bindings.voiceStat(handle, which);
+    final v = _statFn(handle, which);
     return v < 0 ? 0 : v;
   }
 
@@ -472,6 +493,16 @@ class _FfiVoiceQueue implements VoiceQueue {
   int get jumps => _stat(6);
   @override
   int get deviceBurstFrames => _stat(7);
+}
+
+class _FfiMediaQueue extends _FfiVoiceQueue implements MediaQueue {
+  _FfiMediaQueue(super._ffi) : super._media();
+
+  @override
+  set gain(double value) {
+    final handle = _ffi._handle;
+    if (handle != null) _ffi._bindings.mediaSetGain(handle, value);
+  }
 }
 
 class FfiRealtimeResampler implements RealtimeResampler {

@@ -234,4 +234,38 @@ void main() {
       expect(buffer.duplicateDrops, 1);
     });
   });
+
+  group('native playout', () {
+    test('takeAll hands over sequenced audio, holes concealed in place', () {
+      final buffer = build(targetBufferMs: 100, maxConcealMs: 10);
+      addTearDown(buffer.dispose);
+
+      buffer.feed(_tone(5, level: 0.5), 0, 'peer');
+      buffer.feed(_tone(5, level: 0.5), 0, 'peer'); // duplicate, dropped
+      buffer.feed(_tone(5, level: 0.25), 2, 'peer'); // one packet missing
+      final ready = buffer.takeAll();
+
+      expect(ready, [
+        ...List.filled(5, 0.5),
+        ...List.filled(5, 0.0),
+        ...List.filled(5, 0.25),
+      ]);
+      expect(buffer.takeAll(), isEmpty);
+      expect(buffer.duplicateDrops, 1);
+    });
+
+    test('notePlayout feeds the native counters into the health window', () {
+      final buffer = build();
+      addTearDown(buffer.dispose);
+
+      buffer.notePlayout(underruns: 2, trims: 3, queuedSamples: 100);
+      final health = buffer.takeHealthWindow();
+      expect(health.underruns, 2);
+      expect(health.outputStarvations, 2);
+      expect(health.trims, 3);
+      expect(health.queuedMs, 100);
+      expect(health.isDistressed, isTrue);
+      expect(buffer.takeHealthWindow().underruns, 0);
+    });
+  });
 }

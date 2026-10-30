@@ -204,6 +204,75 @@ static void test_threads_stay_consistent() {
     CHECK(v.playedFrames() > total / 2, "most samples delivered");
 }
 
+// ── Shared Music: a second queue mixed on top of voice ─────────────────────
+
+static void test_media_mixes_on_voice_with_smooth_gain() {
+    std::printf("media mixes on top of voice, and gain changes glide\n");
+    VoicePlayout voice(65536, kRate);
+    VoicePlayout media(65536, kRate);
+    voice.setTarget(0);
+    media.setTarget(0);
+    std::vector<float> out(480);
+    std::vector<float> played;
+    for (int i = 0; i < 40; i++) {
+        writeTone(voice, 480, 0.2);
+        writeTone(media, 480, 0.3);
+        if (i == 20) media.setGain(0.5);
+        voice.render(out.data(), out.size());
+        media.mixInto(out.data(), out.size());
+        played.insert(played.end(), out.begin(), out.end());
+    }
+    CHECK(std::fabs(played[20 * 480 - 1] - 0.5f) < 1e-6f, "voice + media at unity");
+    CHECK(std::fabs(played.back() - 0.35f) < 1e-3f, "media settles at the new gain");
+    CHECK(largestStep(played, 480) < 0.01f, "no zipper step on the gain change");
+}
+
+static void test_media_mix_clamps() {
+    std::printf("loud voice plus loud media clamps instead of wrapping\n");
+    VoicePlayout voice(65536, kRate);
+    VoicePlayout media(65536, kRate);
+    voice.setTarget(0);
+    media.setTarget(0);
+    std::vector<float> out(4800);
+    writeTone(voice, 9600, 0.8);
+    writeTone(media, 9600, 0.8);
+    voice.render(out.data(), out.size());
+    media.mixInto(out.data(), out.size());
+    voice.render(out.data(), out.size());
+    media.mixInto(out.data(), out.size());
+    CHECK(out[4799] == 1.0f, "clamped to full scale");
+}
+
+static void test_media_bursty_feed_never_starves() {
+    std::printf("music fed in UI-isolate bursts plays without a gap\n");
+    // The failure this replaces: Dart topped a ring up every 10 ms with
+    // ~30 ms of slack, so any UI stall longer than that ran the speaker dry
+    // mid-pull. Here the feed stalls for 80 ms out of every 100 and then
+    // delivers what it owes at once; the callback-paced queue rides it out.
+    VoicePlayout media(65536, kRate);
+    media.setTarget(kRate * 120 / 1000);
+    std::vector<float> silence(240, 0.0f);
+    std::vector<float> out(240);  // 5 ms pulls
+    std::vector<float> played;
+    long long nextPullUs = 0;
+    int owed = 0;
+    for (int t = 0; t < 4000; t++) {
+        if (t % 20 == 0) owed++;
+        if (t % 100 >= 80) {
+            for (; owed > 0; owed--) writeTone(media, kPacket);
+        }
+        while (nextPullUs <= (long long)t * 1000) {
+            std::copy(silence.begin(), silence.end(), out.begin());
+            media.mixInto(out.data(), out.size());
+            played.insert(played.end(), out.begin(), out.end());
+            nextPullUs += 5000;
+        }
+    }
+    CHECK(media.underruns() == 0, "no underruns");
+    CHECK(zerosFrom(played, kRate / 4) == 0, "no gaps after start");
+    CHECK(largestStep(played, kRate / 4) < 0.01f, "no clicks");
+}
+
 int main() {
     test_silent_until_target_then_plays();
     test_small_pulls_play_cleanly();
@@ -213,6 +282,9 @@ int main() {
     test_trim_never_dips();
     test_reset_drops_queue();
     test_threads_stay_consistent();
+    test_media_mixes_on_voice_with_smooth_gain();
+    test_media_mix_clamps();
+    test_media_bursty_feed_never_starves();
     if (g_failures == 0) {
         std::printf("All voice playout tests passed.\n");
         return 0;

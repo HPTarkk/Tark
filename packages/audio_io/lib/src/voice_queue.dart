@@ -37,3 +37,14 @@ abstract interface class VoiceQueue {
   /// Largest number of frames the device has asked for in one callback.
   int get deviceBurstFrames;
 }
+
+/// The native Shared Music queue (a second `VoicePlayout`, mixed on top of
+/// received voice by the audio callback).
+///
+/// Same contract as [VoiceQueue], plus a gain the callback applies — smoothed
+/// natively — so ducking acts on what is playing now rather than on samples
+/// written a jitter-target ahead of the speaker.
+abstract interface class MediaQueue implements VoiceQueue {
+  /// Linear gain, 0..1.
+  set gain(double value);
+}

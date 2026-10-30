@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <cstddef>
 #include <cstring>
 #include <vector>
@@ -28,6 +29,12 @@
 /// starts, the trim and the jump back to live, and what happens when the
 /// queue runs dry — the decisions that depend on when the device actually
 /// pulls.
+///
+/// Shared Music uses a second instance of the same queue, rendered with
+/// [mixInto] on top of the voice the first one wrote. Music had the same Dart
+/// timer problem voice did: 10 ms slices topped up from the UI isolate with
+/// ~30 ms of slack, so every UI stall longer than that ran the speaker dry
+/// mid-pull and stepped the music to silence — heard as crackling.
 class VoicePlayout {
 public:
     VoicePlayout(size_t capacity, int sampleRate)
@@ -45,6 +52,9 @@ public:
         trimEvery_ = ms(200);
         jumpSlack_ = ms(250);
         target_.store(ms(100), std::memory_order_relaxed);
+        // One-pole smoothing with a 5 ms time constant: gain updates arrive
+        // from a Dart timer every ~10 ms, and stepping by them would zipper.
+        gainCoeff_ = 1.0 - std::exp(-1.0 / (0.005 * (double)rate_));
     }
 
     // ── Producer (Dart isolate) ───────────────────────────────────────────
@@ -78,6 +88,13 @@ public:
     /// Drops everything queued at the consumer's next pull. Samples written
     /// after this call and before that pull are dropped with the rest.
     void requestReset() { resetRequested_.store(true, std::memory_order_release); }
+
+    /// Linear gain [mixInto] applies, approached smoothly. Clamped to 0..1.
+    void setGain(double gain) {
+        if (!(gain >= 0.0)) gain = 0.0;  // also catches NaN
+        if (gain > 1.0) gain = 1.0;
+        gainTarget_.store(gain, std::memory_order_relaxed);
+    }
 
     // ── Either side (diagnostics) ─────────────────────────────────────────
 
@@ -175,7 +192,28 @@ public:
         }
     }
 
+    /// Renders [n] samples through [render] and adds them, at the smoothed
+    /// gain, onto what [out] already holds (the received voice), clamped.
+    /// Same realtime rules as [render]: no allocation, no locks — it works
+    /// through a fixed scratch block in chunks.
+    void mixInto(float* out, size_t n) {
+        const double target = gainTarget_.load(std::memory_order_relaxed);
+        while (n > 0) {
+            const size_t chunk = n < kMixChunk ? n : kMixChunk;
+            render(mixScratch_, chunk);
+            for (size_t i = 0; i < chunk; i++) {
+                gain_ += (target - gain_) * gainCoeff_;
+                const double s = (double)out[i] + (double)mixScratch_[i] * gain_;
+                out[i] = (float)(s > 1.0 ? 1.0 : (s < -1.0 ? -1.0 : s));
+            }
+            out += chunk;
+            n -= chunk;
+        }
+    }
+
 private:
+    static constexpr size_t kMixChunk = 1024;
+
     size_t ms(int millis) const { return (size_t)rate_ * (size_t)millis / 1000; }
 
     /// Removes about [step] samples from the head, crossfading the two sides
@@ -213,7 +251,12 @@ private:
     std::atomic<bool> playing_{false};
     std::atomic<int> burst_{0};
 
+    std::atomic<double> gainTarget_{1.0};
+
     // Consumer-only state.
+    double gain_ = 1.0;
+    double gainCoeff_ = 1.0;
+    float mixScratch_[kMixChunk] = {};
     size_t fadeRemaining_ = 0;
     size_t sinceTrim_ = 0;
     double last_ = 0.0;
