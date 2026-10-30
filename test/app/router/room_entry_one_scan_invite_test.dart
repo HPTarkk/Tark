@@ -151,7 +151,13 @@ void main() {
 
   Future<void> tapInvite(WidgetTester tester) async {
     final invite = find.byKey(const Key('selected-room-invite-callout'));
-    await tester.ensureVisible(invite);
+    // With a rider already seated, the first-time tap coach can leave Invite
+    // below the fold of the lazily built lobby list, i.e. not built at all.
+    await tester.scrollUntilVisible(
+      invite,
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pump();
     await tester.tap(invite);
     await settle(tester);
