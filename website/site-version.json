@@ -1,7 +1,7 @@
 {
-  "version": "1.0.5",
-  "tag": "website-v1.0.5",
-  "builtAt": "2026-10-17T16:47:45Z",
-  "sourceCommit": "34e919c92f58cb593cdd4793072c5e8991a5a231",
+  "version": "1.0.6",
+  "tag": "website-v1.0.6",
+  "builtAt": "2026-10-31T01:10:17Z",
+  "sourceCommit": "6024250363e32e2c9f509e91a89f6854bd17d464",
   "sourceDirty": false
 }
