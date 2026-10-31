@@ -2,3 +2,9 @@
 backend/deploy/**/*.sh       text eol=lf
 backend/deploy/**/Caddyfile  text eol=lf
 backend/deploy/**/*.yml      text eol=lf
+
+# Generated website pages and the release version files are written with LF by
+# scripts/; keep them LF on Windows so a release leaves no line-ending noise.
+website/**/*.html             text eol=lf
+website/package.json          text eol=lf
+website/site-version.json     text eol=lf
