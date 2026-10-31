@@ -105,6 +105,8 @@ try {
             $branch = (& git symbolic-ref --quiet --short HEAD)
             if ($LASTEXITCODE -ne 0 -or -not $branch) { throw 'HEAD is detached.' }
             $branch = "$branch".Trim()
+            # A marker that has never been committed must be added before a pathspec commit can take it.
+            Invoke-CheckedCommand git (@('add', '--') + $versionFiles)
             Invoke-CheckedCommand git (@('commit', '--quiet', '-m', $Message, '--') + $versionFiles)
             if ($NoPush) {
                 Write-Host "Committed $tag on $branch (not pushed)."

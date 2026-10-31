@@ -56,16 +56,25 @@ exit 0
     try { & $fixtureRelease -Version 1.2.3 } catch { $failed = $true }
     Assert-Release $failed 'same/older version must be rejected'
 
-    & $fixtureRelease -Bump major -Message 'Fixture release'
+    $env:GIT_AUTHOR_NAME = $env:GIT_COMMITTER_NAME = 'ReleaseTest'
+    $env:GIT_AUTHOR_EMAIL = $env:GIT_COMMITTER_EMAIL = 'release-test@example.invalid'
+    Assert-Release ((& git -C $fixtureRoot rev-list --count HEAD) -eq '1') 'dry run and failed uploads must not commit'
+    & $fixtureRelease -Bump major -Message 'Fixture release' -NoPush
     $package = Get-Content -Raw -LiteralPath $fixturePackage | ConvertFrom-Json
     $manifest = Get-Content -Raw -LiteralPath $fixtureManifest | ConvertFrom-Json
     Assert-Release ($package.version -eq '2.0.0' -and $manifest.version -eq '2.0.0') 'successful release must keep matching versions'
     Assert-Release ($manifest.tag -eq 'website-v2.0.0' -and $manifest.sourceCommit -match '^[0-9a-f]{40}$') 'source metadata'
     $uploadArgs = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json') | ConvertFrom-Json
     Assert-Release ($uploadArgs -notcontains '--dry-run' -and $uploadArgs -contains 'Fixture release') 'production Wrangler arguments'
+    Assert-Release ((& git -C $fixtureRoot log -1 --format=%s) -eq 'Fixture release') 'successful release must commit the version files'
+    Assert-Release ((& git -C $fixtureRoot show --name-only --format= HEAD) -join ',' -eq 'website/package.json,website/site-version.json') 'release commit holds only the version files'
+    Assert-Release (-not (& git -C $fixtureRoot status --porcelain -- website)) 'release must leave the version files committed'
     Write-Host 'Website release regression checks passed.'
 } finally {
     $env:PATH = $savedPath
+    foreach ($name in @('GIT_AUTHOR_NAME', 'GIT_COMMITTER_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_EMAIL')) {
+        Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+    }
     # Only remove the newly created fixture, after verifying its resolved boundary.
     $resolvedFixture = [IO.Path]::GetFullPath($fixtureRoot)
     $buildBoundary = [IO.Path]::GetFullPath((Join-Path $repoRoot 'build')) + [IO.Path]::DirectorySeparatorChar
