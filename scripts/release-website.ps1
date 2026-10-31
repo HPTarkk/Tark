@@ -6,7 +6,9 @@ param(
     [ValidatePattern('^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$')]
     [string]$Version,
     [string]$Message,
-    [switch]$DryRun
+    [switch]$DryRun,
+    # Commit the version files but leave pushing to you.
+    [switch]$NoPush
 )
 
 $ErrorActionPreference = 'Stop'
@@ -94,7 +96,27 @@ try {
         if (-not $verified) {
             throw "Wrangler published $tag, but live verification failed. Version files were retained; check tarkk.ir/site-version.json before retrying."
         }
-        Write-Host "Live: https://tarkk.ir/ ($tag). Commit website/package.json and website/site-version.json."
+        Write-Host "Live: https://tarkk.ir/ ($tag)."
+
+        # Record the release. Commit only the two version files: the generators above
+        # can leave line-ending-only noise in website/*.html that must not ride along.
+        $versionFiles = @('website/package.json', 'website/site-version.json')
+        try {
+            $branch = (& git symbolic-ref --quiet --short HEAD)
+            if ($LASTEXITCODE -ne 0 -or -not $branch) { throw 'HEAD is detached.' }
+            $branch = "$branch".Trim()
+            Invoke-CheckedCommand git (@('commit', '--quiet', '-m', $Message, '--') + $versionFiles)
+            if ($NoPush) {
+                Write-Host "Committed $tag on $branch (not pushed)."
+            } else {
+                # --autostash: the tree is usually dirty with the generators' line-ending noise.
+                Invoke-CheckedCommand git @('pull', '--rebase', '--autostash', 'origin', $branch)
+                Invoke-CheckedCommand git @('push', 'origin', "HEAD:$branch")
+                Write-Host "Committed and pushed $tag to origin/$branch ($((& git rev-parse --short HEAD)))."
+            }
+        } catch {
+            throw "Site is live as $tag, but recording the release failed: $_ Commit and push $($versionFiles -join ' and ') by hand."
+        }
     }
 } finally {
     if ($staged -and -not $published) {
