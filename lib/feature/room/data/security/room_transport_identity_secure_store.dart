@@ -7,8 +7,8 @@ import '../../domain/service/room_member_transport_identity.dart';
 /// Persisted local cryptographic identity for one durable Room membership.
 ///
 /// Private key material is intentionally kept outside Room snapshots,
-/// SharedPreferences, invite payloads and diagnostics. Android production uses
-/// an Android-Keystore-backed encrypted file through [_channel].
+/// SharedPreferences, invite payloads and diagnostics. Android uses a Keystore-
+/// backed encrypted file; iOS uses device-local Keychain through [_channel].
 final class RoomTransportIdentityMaterial {
   const RoomTransportIdentityMaterial({
     required this.memberKeyPair,
@@ -91,10 +91,12 @@ abstract interface class RoomTransportIdentitySecureStore {
   Future<void> delete({required RoomId roomId, required RoomMemberId memberId});
 }
 
-/// Android production secure storage.
+/// Native platform secure storage.
 ///
 /// The native side uses Android Keystore AES-GCM and stores only ciphertext in
-/// an app-private file. Missing/corrupt/unsupported storage fails closed; this
+/// an app-private file; iOS stores the payload in its private, non-synchronizing
+/// Keychain with AfterFirstUnlockThisDeviceOnly accessibility.
+/// Missing/corrupt/unsupported storage fails closed; this
 /// class never falls back to SharedPreferences or plaintext persistence.
 final class PlatformRoomTransportIdentitySecureStore
     implements RoomTransportIdentitySecureStore {

@@ -27,6 +27,9 @@
 		7A11AB902F1000900000BE90 /* Vazirmatn-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7A11AB802F1000800000BE80 /* Vazirmatn-Bold.ttf */; };
 		7A11AB912F1000910000BE91 /* Vazirmatn-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7A11AB812F1000810000BE81 /* Vazirmatn-ExtraBold.ttf */; };
 		7A11AB922F1000920000BE92 /* Vazirmatn-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7A11AB822F1000820000BE82 /* Vazirmatn-Medium.ttf */; };
+		7A11AC022F2000020000BE02 /* RoomIdentitySecureStorageHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC012F2000010000BE01 /* RoomIdentitySecureStorageHandler.swift */; };
+		7A11AC032F2000030000BE03 /* RoomIdentitySecureStorageHandler.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC012F2000010000BE01 /* RoomIdentitySecureStorageHandler.swift */; };
+		7A11AC042F2000040000BE04 /* RoomIdentitySecureStorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC052F2000050000BE05 /* RoomIdentitySecureStorageTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -87,7 +90,7 @@
 		7A11AA012F0000010000BE01 /* AudioSessionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSessionHandler.swift; sourceTree = "<group>"; };
 		7A11AA032F0000030000BE03 /* HotspotJoinHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotspotJoinHandler.swift; sourceTree = "<group>"; };
 		7A11AA052F0000050000BE05 /* DiagnosticsHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsHandler.swift; sourceTree = "<group>"; };
-		7A11AA052F0000050000BE05 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
+		7A11AA072F0000070000BE07 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
@@ -108,6 +111,8 @@
 		7A11AB802F1000800000BE80 /* Vazirmatn-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = Vazirmatn-Bold.ttf; path = Fonts/Vazirmatn-Bold.ttf; sourceTree = "<group>"; };
 		7A11AB812F1000810000BE81 /* Vazirmatn-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = Vazirmatn-ExtraBold.ttf; path = Fonts/Vazirmatn-ExtraBold.ttf; sourceTree = "<group>"; };
 		7A11AB822F1000820000BE82 /* Vazirmatn-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = Vazirmatn-Medium.ttf; path = Fonts/Vazirmatn-Medium.ttf; sourceTree = "<group>"; };
+		7A11AC012F2000010000BE01 /* RoomIdentitySecureStorageHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomIdentitySecureStorageHandler.swift; sourceTree = "<group>"; };
+		7A11AC052F2000050000BE05 /* RoomIdentitySecureStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomIdentitySecureStorageTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -151,6 +156,7 @@
 			isa = PBXGroup;
 			children = (
 				331C807B294A618700263BE5 /* RunnerTests.swift */,
+				7A11AC052F2000050000BE05 /* RoomIdentitySecureStorageTests.swift */,
 			);
 			path = RunnerTests;
 			sourceTree = "<group>";
@@ -217,7 +223,8 @@
 				7A11AA012F0000010000BE01 /* AudioSessionHandler.swift */,
 				7A11AA032F0000030000BE03 /* HotspotJoinHandler.swift */,
 				7A11AA052F0000050000BE05 /* DiagnosticsHandler.swift */,
-				7A11AA052F0000050000BE05 /* Runner.entitlements */,
+				7A11AC012F2000010000BE01 /* RoomIdentitySecureStorageHandler.swift */,
+				7A11AA072F0000070000BE07 /* Runner.entitlements */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
@@ -481,6 +488,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */,
+				7A11AC032F2000030000BE03 /* RoomIdentitySecureStorageHandler.swift in Test Sources */,
+				7A11AC042F2000040000BE04 /* RoomIdentitySecureStorageTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -492,6 +501,7 @@
 				7A11AA022F0000020000BE02 /* AudioSessionHandler.swift in Sources */,
 				7A11AA042F0000040000BE04 /* HotspotJoinHandler.swift in Sources */,
 				7A11AA062F0000060000BE06 /* DiagnosticsHandler.swift in Sources */,
+				7A11AC022F2000020000BE02 /* RoomIdentitySecureStorageHandler.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 			);
@@ -584,7 +594,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = iphoneos;
@@ -715,7 +725,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -766,7 +776,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = iphoneos;
@@ -834,7 +844,7 @@
 				DEVELOPMENT_TEAM = FB99W975B7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TarkWidget/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -862,7 +872,7 @@
 				DEVELOPMENT_TEAM = FB99W975B7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TarkWidget/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -888,7 +898,7 @@
 				DEVELOPMENT_TEAM = FB99W975B7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TarkWidget/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

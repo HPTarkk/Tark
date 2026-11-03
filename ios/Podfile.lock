@@ -2,40 +2,33 @@ PODS:
   - audio_io (0.0.1):
     - Flutter
   - Flutter (1.0.0)
-  - flutter_webrtc (1.4.0):
-    - Flutter
-    - WebRTC-SDK (= 144.7559.09)
   - opus_flutter_ios (0.0.2):
     - Flutter
-  - WebRTC-SDK (144.7559.09)
+  - rnnoise (0.1.0):
+    - Flutter
 
 DEPENDENCIES:
   - audio_io (from `.symlinks/plugins/audio_io/ios`)
   - Flutter (from `Flutter`)
-  - flutter_webrtc (from `.symlinks/plugins/flutter_webrtc/ios`)
   - opus_flutter_ios (from `.symlinks/plugins/opus_flutter_ios/ios`)
-
-SPEC REPOS:
-  trunk:
-    - WebRTC-SDK
+  - rnnoise (from `.symlinks/plugins/rnnoise/ios`)
 
 EXTERNAL SOURCES:
   audio_io:
     :path: ".symlinks/plugins/audio_io/ios"
   Flutter:
     :path: Flutter
-  flutter_webrtc:
-    :path: ".symlinks/plugins/flutter_webrtc/ios"
   opus_flutter_ios:
     :path: ".symlinks/plugins/opus_flutter_ios/ios"
+  rnnoise:
+    :path: ".symlinks/plugins/rnnoise/ios"
 
 SPEC CHECKSUMS:
   audio_io: 17684c4996799736e806d723cb5508077f33d499
-  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  flutter_webrtc: ea1e854207d820fc0538ffa5632eb1e9193b0efc
+  Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
   opus_flutter_ios: 3df5f9d5bedf0818e7e2c9b94b7baf8d837101c4
-  WebRTC-SDK: e6006119cd730d6315d875e4a421b6cc8bb88833
+  rnnoise: 73fbfe27e0f9753ce4c8ea376060044ad44d0cac
 
-PODFILE CHECKSUM: e0d4f8d3a71d7d8fc755f1c8020cd0a2cffdc1ff
+PODFILE CHECKSUM: 415621687d5d335b21033294df1a3ec94b2fb8f7
 
 COCOAPODS: 1.16.2
