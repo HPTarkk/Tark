@@ -6,6 +6,7 @@ import 'dart:io';
 import '../utils/logger.dart';
 import 'build_provenance.dart';
 import 'diagnostics_bridge.dart';
+import 'freeze_watch.dart';
 import 'log_budget.dart';
 import 'tark_log_format.dart';
 
@@ -195,6 +196,10 @@ abstract final class DiagnosticLog {
       for (final line in anr.split('\n')) {
         if (line.isNotEmpty) _append('app:   $line');
       }
+    }
+    final frozen = exit['frozen'];
+    if (frozen is String && frozen.isNotEmpty) {
+      FreezeWatch.describeLeftover(frozen).forEach(_append);
     }
     final crash = exit['crash'];
     if (crash is String && crash.isNotEmpty) {
