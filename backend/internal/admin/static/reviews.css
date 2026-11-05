@@ -274,3 +274,6 @@ a.chip.rv-user:hover { color: var(--accent); border-color: color-mix(in srgb, va
   .pick input:checked + span .i, .composer > summary:hover .i, .composer-send:hover .i, .rv-more:hover .i, .rv-sync-form button:hover .i { transform: none; }
   [dir="rtl"] .composer > summary .i, [dir="rtl"] .composer > summary:hover .i, [dir="rtl"] .composer-send .i, [dir="rtl"] .composer-send:hover .i { transform: scaleX(-1); }
 }
+
+/* "38 hours" stays on one line; the label wraps instead. */
+.rv-health .rows dd { white-space: nowrap; }
