@@ -1,0 +1,222 @@
+{{define "title"}}{{t "nav.reviews"}} · {{t "brand"}}{{end}}
+{{define "main"}}
+{{if .Off}}
+<header class="page-head">
+  <span class="page-icon">{{icon "star"}}</span>
+  <div><h1>{{t "nav.reviews"}}</h1><p class="lead">{{t "lead.reviews"}}</p></div>
+</header>
+<section class="panel rv-setup">
+  {{template "empty" (blank "star" (t "rv.offT") (t "rv.offX"))}}
+  {{if eq .Admin.Role "owner"}}
+  <ol class="steps rv-steps">
+    <li>{{t "rv.off1"}}</li>
+    <li>{{t "rv.off2"}} <code>TARK_BAZAAR_REVIEWS_API_KEY</code>, <code>TARK_BAZAAR_REVIEWS_KEY_HEADER</code></li>
+    <li>{{t "rv.off3"}} <code>TARK_BAZAAR_REPLY_EMAIL</code></li>
+  </ol>
+  <p class="panel-note">{{icon "lock"}}{{t "rv.offSafe"}}</p>
+  {{else}}<p class="panel-note rv-ask">{{icon "info"}}{{t "rv.offAsk"}}</p>{{end}}
+</section>
+{{else}}{{with .V}}
+{{with .ToastBad}}<div class="flash bad toast" role="alert">{{icon "alert"}}<p>{{.}}</p></div>{{end}}
+{{with .Toast}}<div class="flash ok toast" role="status">{{icon "check"}}<p>{{.}}</p></div>{{end}}
+<header class="page-head">
+  <span class="page-icon">{{icon "star"}}</span>
+  <div><h1>{{t "nav.reviews"}}</h1><p class="lead">{{t "lead.reviews"}}</p></div>
+  <div class="page-tools rv-sync{{if .Running}} running{{else if .State.LastError}} failing{{end}}">
+    <p class="rv-sync-state" role="status">
+      <span class="rv-dot" aria-hidden="true"></span>
+      {{if .Running}}{{t "rv.syncing"}}
+      {{else if .State.LastSuccess}}<span title="{{when .State.LastSuccess}}">{{t "rv.syncedAgo" (ago .State.LastSuccess)}}</span>
+      {{else if .State.LastError}}{{t "rv.neverSynced"}}
+      {{else}}{{t "rv.firstSync"}}{{end}}
+    </p>
+    <form method="post" action="/reviews/sync" class="rv-sync-form" data-busy>
+      <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="back" value="{{.Here}}">
+      <button class="ghost sm" title="{{t "rv.syncHint" (waited .Every)}}">{{icon "refresh"}}<span>{{t "rv.syncNow"}}</span></button>
+    </form>
+  </div>
+</header>
+{{if and .State.LastError (gt .State.Failures 0)}}
+<div class="flash bad rv-trouble" role="alert">{{icon "alert"}}<div>
+  <p><b>{{t "rv.troubleT"}}</b> {{code "rv.code" .State.LastError}}</p>
+  <p class="muted">{{if .State.LastSuccess}}{{t "rv.troubleOld" (ago .State.LastSuccess)}}{{else}}{{t "rv.troubleNone"}}{{end}}</p>
+</div></div>
+{{end}}
+
+{{if eq .Stats.Total 0}}
+<section class="panel">
+  {{if .State.LastSuccess}}{{template "empty" (blank "star" (t "rv.noneT") (t "rv.noneX"))}}
+  {{else}}{{template "empty" (blank "refresh" (t "rv.waitT") (t "rv.waitX" (waited .Every)))}}{{end}}
+</section>
+{{else}}
+{{$s := .Stats}}
+<section class="kpis rv-kpis">
+  <article class="kpi rv-kpi-avg">
+    <div class="kpi-head"><span class="kpi-icon">{{icon "star"}}</span><h2>{{t "rv.avgH"}}</h2></div>
+    <p class="big">{{rating $s.Average}}<span class="of"> / {{num 5}}</span></p>
+    <p class="kpi-sub">{{if $s.Last30}}<span class="delta{{if $.V.Avg30Up}} up{{else if $.V.Avg30Dn}} down{{end}}">{{t "rv.avg30" (rating $s.Avg30)}}</span>{{else}}{{t "rv.avgAll" $s.Total}}{{end}}</p>
+  </article>
+  <article class="kpi">
+    <div class="kpi-head"><span class="kpi-icon">{{icon "trend"}}</span><h2>{{t "rv.newH"}}</h2></div>
+    <p class="big">{{num $s.Last30}}</p>
+    <p class="kpi-sub">{{t "rv.newSub" $s.Prev30}}</p>
+  </article>
+  <a class="kpi kpi-link{{if $s.Needs}} warn{{end}}" href="{{(index .Tabs 0).URL}}">
+    <div class="kpi-head"><span class="kpi-icon">{{icon "reply"}}</span><h2>{{t "rv.needsH"}}</h2></div>
+    <p class="big">{{num $s.Needs}}</p>
+    <p class="kpi-sub">{{if $s.Needs}}{{t "rv.needsSub"}}{{else}}{{t "rv.needsNone"}}{{end}}</p>
+  </a>
+  <a class="kpi kpi-link" href="{{(index .Tabs 1).URL}}">
+    <div class="kpi-head"><span class="kpi-icon">{{icon "hourglass"}}</span><h2>{{t "rv.awaitH"}}</h2></div>
+    <p class="big">{{num $s.Awaiting}}</p>
+    <p class="kpi-sub">{{t "rv.awaitSub"}}</p>
+  </a>
+</section>
+
+<section class="rv-insights">
+  <div class="panel rv-dist">
+    <header class="panel-head"><h2>{{icon "star"}}{{t "rv.distH"}}</h2><p>{{t "rv.distX"}}</p></header>
+    <ul class="rv-bars">
+      {{range .Stars}}<li><a href="{{.URL}}" class="rv-bar-row{{if .On}} on{{end}}" aria-pressed="{{if .On}}true{{else}}false{{end}}" aria-label="{{t "rv.starsOf" .Stars}}: {{num .Count}}">
+        <span class="rv-bar-label">{{num .Stars}}{{icon "star"}}</span>
+        <span class="rv-track"><span class="rv-fill f{{.Width}} s{{.Stars}}"></span></span>
+        <span class="rv-bar-n">{{num .Count}}</span><span class="rv-bar-p">{{pct .Pct}}</span>
+      </a></li>{{end}}
+    </ul>
+  </div>
+  <div class="panel rv-trend">
+    <header class="panel-head"><h2>{{icon "chart"}}{{t "rv.trendH"}}</h2><p>{{t "rv.trendX"}}</p></header>
+    <div class="chart rv-chart">{{range .Weeks}}<div class="col"><span class="bar h{{.Height}}{{if not .Count}} h0{{end}}" data-n="{{day .Start}} · {{t "rv.weekTip" .Count}}{{if .Count}} · {{rating .Average}}★{{end}}"><span class="lo l{{.LowShare}}"></span></span><small>{{day .Start}}</small></div>{{end}}</div>
+    <p class="rv-legend"><span class="key all"></span>{{t "rv.legendAll"}} <span class="key low"></span>{{t "rv.legendLow"}}</p>
+  </div>
+  <div class="panel rv-health">
+    <header class="panel-head"><h2>{{icon "reply"}}{{t "rv.replyH"}}</h2></header>
+    <dl class="rows">
+      <div><dt>{{t "rv.replyShare"}}</dt><dd>{{pct (round .ReplyShare)}}</dd></div>
+      <div><dt>{{t "rv.replyMedian"}}</dt><dd>{{if $s.MedianReply}}{{waited $s.MedianReply}}{{else}}<span class="muted">-</span>{{end}}</dd></div>
+    </dl>
+    {{if .Versions}}
+    <h3 class="rv-sub">{{t "rv.versionsH"}}</h3>
+    <ul class="rv-versions">
+      {{range .Versions}}<li><a href="{{.URL}}" class="rv-ver">
+        <span class="rv-ver-name">{{t "rv.build" .Code}}</span>
+        <span class="rv-track"><span class="rv-fill f{{.Width}} t-{{.Tone}}"></span></span>
+        <span class="rv-ver-avg">{{rating .Average}}★</span><small>{{t "rv.reviewsN" .Count}}</small>
+      </a></li>{{end}}
+    </ul>
+    {{end}}
+  </div>
+</section>
+
+<section class="panel rv-list" id="list">
+  <nav class="seg" aria-label="{{t "rv.statusLabel"}}">
+    {{range .Tabs}}<a href="{{.URL}}#list" class="seg-item{{if .On}} on{{end}}"{{if .On}} aria-current="page"{{end}}>
+      <span>{{t (printf "rv.tab.%s" .Key)}}</span><b class="seg-n{{if and (eq .Key "needs") .Count}} hot{{end}}">{{num .Count}}</b></a>{{end}}
+  </nav>
+
+  <form method="get" action="/reviews#list" class="rv-filters" data-autosubmit>
+    {{if .Q.StatusSet}}<input type="hidden" name="status" value="{{.Q.Status}}">{{end}}
+    {{with .Q.User}}<input type="hidden" name="u" value="{{.}}">{{end}}
+    <label class="search rv-search">{{icon "search"}}<input type="search" name="q" value="{{.Q.Search}}" placeholder="{{t "rv.searchPh"}}" aria-label="{{t "rv.searchPh"}}" maxlength="100" dir="auto"></label>
+    <fieldset class="rv-stars-pick">
+      <legend class="sr-only">{{t "rv.starsLabel"}}</legend>
+      {{range .Stars}}<label class="pick" title="{{t "rv.starsOf" .Stars}}"><input type="checkbox" name="r" value="{{.Stars}}"{{if .On}} checked{{end}}><span>{{num .Stars}}{{icon "star"}}</span></label>{{end}}
+    </fieldset>
+    <select name="v" aria-label="{{t "rv.versionLabel"}}">
+      <option value="">{{t "rv.anyVersion"}}</option>
+      {{range .Facets.Versions}}<option value="{{.}}"{{if eq . $.V.Q.Version}} selected{{end}}>{{t "rv.build" .}}</option>{{end}}
+    </select>
+    <select name="sdk" aria-label="{{t "rv.androidLabel"}}">
+      <option value="">{{t "rv.anyAndroid"}}</option>
+      {{range .Facets.SDKs}}<option value="{{.}}"{{if eq . $.V.Q.SDK}} selected{{end}}>{{t "rv.android" (android .)}}</option>{{end}}
+    </select>
+    <select name="days" aria-label="{{t "rv.periodLabel"}}">
+      {{range .Periods}}<option value="{{if .Days}}{{.Days}}{{end}}"{{if .On}} selected{{end}}>{{if .Days}}{{t "rv.lastDays" .Days}}{{else}}{{t "rv.allTime"}}{{end}}</option>{{end}}
+    </select>
+    <select name="sort" aria-label="{{t "rv.sortLabel"}}">
+      <option value="new"{{if eq .Q.Sort "new"}} selected{{end}}>{{t "rv.sort.new"}}</option>
+      <option value="low"{{if eq .Q.Sort "low"}} selected{{end}}>{{t "rv.sort.low"}}</option>
+      <option value="old"{{if eq .Q.Sort "old"}} selected{{end}}>{{t "rv.sort.old"}}</option>
+    </select>
+    <button class="rv-apply">{{icon "filter"}}<span>{{t "rv.apply"}}</span></button>
+  </form>
+
+  <div class="rv-summary">
+    <p class="rv-count" role="status">{{t "rv.showing" .Listed .Total}}</p>
+    {{if .Q.Filtered}}<a class="rv-clear" href="{{.ClearURL}}#list">{{icon "close"}}<span>{{t "rv.clear"}}</span></a>{{end}}
+    {{with .Q.User}}<span class="chip accent">{{icon "user"}}{{t "rv.byUser" (short .)}}</span>{{end}}
+  </div>
+
+  {{if not .Items}}
+    {{if eq .Q.Status "needs"}}{{template "empty" (blank "sparkle" (t "rv.allDoneT") (t "rv.allDoneX"))}}
+    {{else}}{{template "empty" (blank "search" (t "rv.noMatchT") (t "rv.noMatchX"))}}{{end}}
+  {{else}}
+  <ol class="rv-cards">
+    {{range .Items}}{{if and $.V.Prev (eq .Index 0)}}<li class="rv-more-mark" id="more-{{$.V.Prev}}" aria-hidden="true"></li>{{end}}
+    <li class="rv{{if le .Rate 2}} low{{end}}{{if .Fresh}} fresh-in i{{if lt .Index 12}}{{.Index}}{{else}}x{{end}}{{end}}{{if .JustSent}} just-sent{{end}}" id="review-{{.ID}}" data-review="{{.ID}}" tabindex="-1">
+      <article aria-label="{{t "rv.starsOf" .Rate}}">
+      <header class="rv-head">
+        <span class="rv-rate r{{.Rate}}" role="img" aria-label="{{t "rv.starsOf" .Rate}}"><b>{{num .Rate}}</b>{{icon "star"}}</span>
+        <div class="rv-meta">
+          <span class="stars r{{.Rate}}" aria-hidden="true">{{stars .Rate}}</span>
+          <span class="rv-when"><time datetime="{{.PublishedAt.UTC.Format "2006-01-02T15:04:05Z"}}" title="{{when .PublishedAt}}{{if not .DateKnown}} · {{t "rv.firstSeen"}}{{end}}">{{ago .PublishedAt}}</time>{{if and .IsEdited (deref .IsEdited)}} · <span class="rv-edited">{{icon "edit"}}{{t "rv.edited"}}</span>{{end}}</span>
+        </div>
+        <div class="rv-tags">
+          {{if .Pinned}}<span class="chip warn rv-moved">{{icon "hourglass"}}{{t "rv.moved"}}</span>{{end}}
+          {{with .AppVersionCode}}<span class="chip">{{icon "tag"}}{{t "rv.build" (deref .)}}</span>{{end}}
+          {{with .Android}}<span class="chip">{{icon "phone"}}{{t "rv.android" .}}</span>{{end}}
+          {{if .UserURL}}<a class="chip rv-user" href="{{.UserURL}}#list" title="{{.UserAccountID}}">{{icon "user"}}<span dir="ltr">{{.UserShort}}</span><b>{{t "rv.moreBy" .UserReviews}}</b></a>
+          {{else}}<span class="chip rv-user" title="{{.UserAccountID}}">{{icon "user"}}<span dir="ltr">{{.UserShort}}</span></span>{{end}}
+        </div>
+      </header>
+      <div class="rv-text" dir="auto">{{if .Body}}{{.Body}}{{else}}<span class="muted">{{t "rv.noText"}}</span>{{end}}</div>
+      {{if or .Likes .Dislikes}}<p class="rv-votes">
+        {{with .Likes}}<span title="{{t "rv.likes"}}">{{icon "like"}}{{num (deref .)}}</span>{{end}}
+        {{with .Dislikes}}<span title="{{t "rv.dislikes"}}">{{icon "dislike"}}{{num (deref .)}}</span>{{end}}
+      </p>{{end}}
+
+      {{with .Waiting}}
+      <div class="bubble waiting">
+        <p class="bubble-head"><span class="chip warn live">{{t "rv.waiting"}}</span><span class="muted">{{if .By}}{{t "rv.sentBy" .By (ago .SentAt)}}{{else}}{{t "rv.sentAgo" (ago .SentAt)}}{{end}}</span></p>
+        <div class="bubble-text" dir="auto">{{.Body}}</div>
+        {{with .Email}}<p class="bubble-foot muted">{{icon "mail"}}<span dir="ltr">{{deref .}}</span></p>{{end}}
+      </div>
+      {{end}}
+      {{if .ReplyBody}}
+      <div class="bubble{{if .Waiting}} older{{end}}">
+        <p class="bubble-head"><span class="chip good">{{icon "check"}}{{t "rv.published"}}</span>{{with .ReplyAt}}<span class="muted" title="{{when .}}">{{ago .}}</span>{{end}}</p>
+        <div class="bubble-text" dir="auto">{{deref .ReplyBody}}</div>
+        <p class="bubble-foot muted">{{with .ReplyEmail}}{{if deref .}}{{icon "mail"}}<span dir="ltr">{{deref .}}</span>{{end}}{{end}}
+          {{with .ReplyLikes}}<span title="{{t "rv.likes"}}">{{icon "like"}}{{num (deref .)}}</span>{{end}}
+          {{with .ReplyDislikes}}<span title="{{t "rv.dislikes"}}">{{icon "dislike"}}{{num (deref .)}}</span>{{end}}</p>
+      </div>
+      {{end}}
+
+      {{if .CanReply}}
+      <details class="composer"{{if .ComposeOpen}} open{{end}}>
+        <summary class="composer-open{{if or .ReplyBody .Resend}} quiet{{end}}">{{icon "reply"}}<span>{{if .Resend}}{{t "rv.resend"}}{{else if .ReplyBody}}{{t "rv.replyAgain"}}{{else}}{{t "rv.reply"}}{{end}}</span></summary>
+        <form method="post" action="/reviews/{{.ID}}/reply" class="composer-form" data-sending
+          data-confirm="{{t "rv.confirmQ"}}" data-confirm-x="{{t "rv.confirmX"}}" data-confirm-ok="{{t "rv.send"}}" data-confirm-tone="calm">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="back" value="{{$.V.Here}}">
+          {{with .DraftError}}<p class="composer-error" role="alert">{{icon "alert"}}<span>{{.}}</span></p>{{end}}
+          {{if .Resend}}<p class="composer-note">{{icon "info"}}<span>{{t "rv.resendX"}}</span></p>{{else if .ReplyBody}}<p class="composer-note">{{icon "info"}}<span>{{t "rv.againX"}}</span></p>{{end}}
+          <label class="sr-only" for="reply-{{.ID}}">{{t "rv.replyLabel"}}</label>
+          <textarea id="reply-{{.ID}}" name="text" rows="3" maxlength="2000" required dir="auto" data-draft="{{.ID}}" placeholder="{{t "rv.replyPh"}}"{{if .DraftError}} aria-invalid="true"{{end}}>{{.Draft}}</textarea>
+          <div class="composer-foot">
+            <label class="composer-email">{{icon "mail"}}<span class="sr-only">{{t "rv.emailLabel"}}</span><input type="email" name="email" value="{{.DraftEmail}}" placeholder="{{t "rv.emailPh"}}" dir="ltr" maxlength="254" autocomplete="email"></label>
+            <span class="composer-count" data-count aria-live="polite"></span>
+            <button class="composer-send">{{icon "send"}}<span>{{t "rv.send"}}</span></button>
+          </div>
+          <p class="composer-hint">{{icon "lock"}}<span>{{t "rv.approvalHint"}}</span></p>
+        </form>
+      </details>
+      {{end}}
+      </article>
+    </li>{{end}}
+  </ol>
+  {{with .More}}<a class="btn ghost rv-more" href="{{.}}">{{icon "plus"}}<span>{{t "rv.more" $.V.MoreN}}</span></a>{{end}}
+  {{end}}
+</section>
+{{end}}
+{{end}}{{end}}
+{{end}}

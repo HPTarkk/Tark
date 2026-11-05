@@ -241,6 +241,9 @@ func run(cmd string, log *slog.Logger) error {
 			go a.Backup.Run(ctx)
 		}
 		go a.Admin.RunReports(ctx)
+		if a.Reviews != nil {
+			go a.Reviews.Run(ctx)
+		}
 		go sweeper(ctx, pool, log)
 	}
 	if cmd == "worker" {

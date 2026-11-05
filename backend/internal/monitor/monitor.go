@@ -60,10 +60,14 @@ const (
 
 	// Database connections: requests gave up waiting for one, or waiting
 	// took this long on average.
-	DBWindow       = 5 * time.Minute
-	DBCanceled     = 5
-	DBMinAcquires  = 50
-	DBSlowAcquire  = 250 * time.Millisecond
+	DBWindow      = 5 * time.Minute
+	DBCanceled    = 5
+	DBMinAcquires = 50
+	DBSlowAcquire = 250 * time.Millisecond
+	// Bazaar reviews: this many failed syncs in a row (an hour at the
+	// default 15-minute pace), or an API key Bazaar refuses.
+	ReviewsFailures = 4
+
 	CertMinDays    = 14
 	CertCheckEvery = time.Hour
 
@@ -100,6 +104,8 @@ type Settings struct {
 	// compose stack); with TLSNames it enables the certificate check.
 	TLSAddr  string
 	TLSNames []string
+	// Reviews enables the Bazaar reviews sync check.
+	Reviews bool
 	// TLSRoots replaces the system roots (tests only).
 	TLSRoots *x509.CertPool
 }
@@ -157,6 +163,9 @@ func New(pool *pgxpool.Pool, mailer Mailer, errs *Counter, set Settings, log *sl
 		m.checks = append(m.checks,
 			check{"slow", "The API is answering slowly", m.slowCheck},
 			check{"database", "Requests are waiting for database connections", m.dbCheck})
+	}
+	if set.Reviews {
+		m.checks = append(m.checks, check{"reviews", "Bazaar reviews are not syncing", m.reviewsCheck})
 	}
 	if set.TLSAddr != "" && len(set.TLSNames) > 0 {
 		m.checks = append(m.checks, check{"certificate", "An HTTPS certificate is expiring or invalid", m.certCheck})
@@ -385,6 +394,7 @@ var advice = map[string]string{
 	"backup":        "read the API log for the backup error; until it is fixed there is no fresh backup.",
 	"slow":          "open System in the admin panel to see which routes are slow, and check the server's CPU and memory (bash remote.sh status).",
 	"database":      "the database is overloaded or a query is stuck; check System in the admin panel and the database container (bash remote.sh status).",
+	"reviews":       "check TARK_BAZAAR_REVIEWS_API_KEY and its header name against the API section of Bazaar's developer panel, and whether sandoghche.cafebazaar.ir is reachable; the Reviews page shows older data meanwhile.",
 	"certificate":   "Caddy renews certificates by itself; read its log (docker compose logs caddy) and check the domain's DNS still points at this server.",
 }
 
@@ -470,6 +480,37 @@ func size(b uint64) string {
 		return fmt.Sprintf("%.1f GB", float64(b)/g)
 	}
 	return fmt.Sprintf("%d MB", b>>20)
+}
+
+// reviewsCheck fires when the reviews sync keeps failing, at once when
+// Bazaar refuses the API key: the Reviews page then shows old data and
+// replies cannot go out.
+func (m *Monitor) reviewsCheck(ctx context.Context) (bool, string, error) {
+	var failures int
+	var lastErr *string
+	var lastOK *time.Time
+	err := m.pool.QueryRow(ctx, `SELECT failures, last_error, last_success_at FROM bazaar_review_sync WHERE id = 1`).Scan(&failures, &lastErr, &lastOK)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, "No sync has run yet.", nil
+	}
+	if err != nil {
+		return false, "", err
+	}
+	code := ""
+	if lastErr != nil {
+		code = *lastErr
+	}
+	switch {
+	case failures > 0 && code == "unauthorized":
+		return true, "Bazaar refused the reviews API key.", nil
+	case failures >= ReviewsFailures:
+		last := "never"
+		if lastOK != nil {
+			last = m.now().Sub(*lastOK).Round(time.Minute).String() + " ago"
+		}
+		return true, fmt.Sprintf("%d syncs in a row failed (%s); the last good one was %s.", failures, code, last), nil
+	}
+	return false, fmt.Sprintf("%d failed syncs in a row.", failures), nil
 }
 
 func (m *Monitor) backupCheck(ctx context.Context) (bool, string, error) {

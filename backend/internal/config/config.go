@@ -60,10 +60,11 @@ type Config struct {
 	// listener. Empty: not served; the admin panel still shows them.
 	MetricsAddr string
 
-	Google GoogleConfig
-	Bazaar BazaarConfig
-	Mail   MailConfig
-	Policy EntitlementPolicy
+	Google  GoogleConfig
+	Bazaar  BazaarConfig
+	Reviews ReviewsConfig
+	Mail    MailConfig
+	Policy  EntitlementPolicy
 
 	AccessTokenTTL     time.Duration
 	RefreshTokenTTL    time.Duration // idle lifetime; each refresh extends it
@@ -101,6 +102,27 @@ type BazaarConfig struct {
 	RefreshToken string
 	SKUs         []string
 }
+
+// ReviewsConfig is Cafe Bazaar's reviews API, behind the admin panel's
+// Reviews page. Optional: with no key (and no fake) the page says it is not
+// set up and nothing else changes.
+type ReviewsConfig struct {
+	// Fake serves made-up reviews (development only).
+	Fake    bool
+	BaseURL string
+	// KeyHeader and Key are the API key's header name and value, both from
+	// the API section of Bazaar's developer panel.
+	KeyHeader string
+	Key       string
+	// ReplyEmail is the address replies show by default; empty lets Bazaar
+	// use the developer account's own.
+	ReplyEmail string
+	// Every is the time between background syncs.
+	Every time.Duration
+}
+
+// Enabled says whether the Reviews page has anything to talk to.
+func (r ReviewsConfig) Enabled() bool { return r.Fake || r.Key != "" }
 
 type MailConfig struct {
 	Driver   string // "smtp" or "log" (development only)
@@ -297,6 +319,15 @@ func Load() (*Config, error) {
 		SKUs:         splitList(get("TARK_BAZAAR_SKUS", "tark_premium_1m,tark_premium_3m,tark_premium_6m,tark_premium_12m")),
 	}
 
+	c.Reviews = ReviewsConfig{
+		Fake:       boolean("TARK_BAZAAR_REVIEWS_FAKE", false),
+		BaseURL:    strings.TrimRight(get("TARK_BAZAAR_REVIEWS_BASE_URL", "https://sandoghche.cafebazaar.ir"), "/"),
+		KeyHeader:  strings.TrimSpace(get("TARK_BAZAAR_REVIEWS_KEY_HEADER", "")),
+		Key:        strings.TrimSpace(secret("TARK_BAZAAR_REVIEWS_API_KEY", false)),
+		ReplyEmail: strings.TrimSpace(get("TARK_BAZAAR_REPLY_EMAIL", "")),
+		Every:      duration("TARK_BAZAAR_REVIEWS_SYNC_EVERY", 15*time.Minute),
+	}
+
 	smtpServer := func(name, prefix, fromVar string) SMTPServer {
 		return SMTPServer{
 			Name:     name,
@@ -377,6 +408,7 @@ func (c *Config) validate() []error {
 	} else if c.Bazaar.ClientID == "" || c.Bazaar.ClientSecret == "" || c.Bazaar.RefreshToken == "" {
 		errs = append(errs, errors.New("TARK_BAZAAR_CLIENT_ID, TARK_BAZAAR_CLIENT_SECRET and TARK_BAZAAR_REFRESH_TOKEN are required"))
 	}
+	errs = append(errs, c.Reviews.validate(c.Development())...)
 	p := c.Policy
 	// Same bounds as the app's verifier; a token outside them is refused.
 	if p.GraceHours < 0 || p.GraceHours > 336 || p.RefreshDays < 0 || p.RefreshDays > 30 ||
@@ -501,4 +533,47 @@ func splitList(s string) []string {
 		}
 	}
 	return out
+}
+
+func (r ReviewsConfig) validate(dev bool) []error {
+	var errs []error
+	if r.Fake && !dev {
+		errs = append(errs, errors.New("TARK_BAZAAR_REVIEWS_FAKE is only allowed with TARK_ENV=development"))
+	}
+	if r.Key != "" {
+		if !validHeaderName(r.KeyHeader) {
+			errs = append(errs, errors.New("TARK_BAZAAR_REVIEWS_KEY_HEADER must be the API key's header name from Bazaar's developer panel"))
+		}
+		if strings.ContainsAny(r.Key, "\r\n") {
+			errs = append(errs, errors.New("TARK_BAZAAR_REVIEWS_API_KEY must be one line"))
+		}
+		if !strings.HasPrefix(r.BaseURL, "https://") && !dev {
+			errs = append(errs, errors.New("TARK_BAZAAR_REVIEWS_BASE_URL must be https"))
+		}
+	}
+	if r.ReplyEmail != "" && (strings.Count(r.ReplyEmail, "@") != 1 || strings.ContainsAny(r.ReplyEmail, " <>\r\n")) {
+		errs = append(errs, fmt.Errorf("TARK_BAZAAR_REPLY_EMAIL: %q is not an email address", r.ReplyEmail))
+	}
+	if r.Every < 5*time.Minute || r.Every > 24*time.Hour {
+		errs = append(errs, errors.New("TARK_BAZAAR_REVIEWS_SYNC_EVERY must be between 5m and 24h"))
+	}
+	return errs
+}
+
+// validHeaderName accepts an HTTP header name (RFC 9110 token) that is not
+// one the HTTP layer itself sets.
+func validHeaderName(h string) bool {
+	if h == "" || len(h) > 64 {
+		return false
+	}
+	for _, c := range h {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || strings.ContainsRune("!#$%&'*+-.^_`|~", c)) {
+			return false
+		}
+	}
+	switch strings.ToLower(h) {
+	case "host", "content-length", "content-type", "transfer-encoding", "connection", "accept", "cookie":
+		return false
+	}
+	return true
 }

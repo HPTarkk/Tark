@@ -25,14 +25,18 @@ import (
 	"github.com/HPTarkk/Tark/backend/internal/password"
 	"github.com/HPTarkk/Tark/backend/internal/profile"
 	"github.com/HPTarkk/Tark/backend/internal/ratelimit"
+	"github.com/HPTarkk/Tark/backend/internal/reviews"
 	"github.com/HPTarkk/Tark/backend/internal/secure"
 )
 
 // Options replace parts that talk to the outside world. Zero values use
 // the configured real implementations.
 type Options struct {
-	Sender         mail.Sender
-	Bazaar         billing.Bazaar
+	Sender mail.Sender
+	Bazaar billing.Bazaar
+	// ReviewsAPI replaces Bazaar's reviews API; it also turns the Reviews
+	// page on without a key.
+	ReviewsAPI     reviews.API
 	PasswordParams *password.Params
 	// AuxPool carries audit and rate-limit writes (see config.DBAuxConns). Nil
 	// means they share the main pool, which is only safe with a pool larger
@@ -55,6 +59,8 @@ type App struct {
 	AdminDeps admin.Deps
 	// Metrics are the in-process numbers (see TARK_METRICS_ADDR).
 	Metrics *metrics.Registry
+	// Reviews syncs Bazaar reviews for the admin panel; nil when not set up.
+	Reviews *reviews.Service
 }
 
 func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Options) (*App, error) {
@@ -134,6 +140,11 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 		GraceH: cfg.Policy.GraceHours, RefreshD: cfg.Policy.RefreshDays, SusOfflineH: cfg.Policy.SuspiciousOfflineHrs,
 	}, plans, log)
 
+	var rv *reviews.Service
+	if api := reviewsAPI(cfg, opts); api != nil {
+		rv = reviews.NewService(pool, api, reviews.Settings{Every: cfg.Reviews.Every, ReplyEmail: cfg.Reviews.ReplyEmail}, log)
+	}
+
 	serverErrors := &monitor.Counter{}
 	var bk *backup.Service
 	if cfg.Backup.Dir != "" {
@@ -145,6 +156,7 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 		Recipients: cfg.Monitor.AlertEmails, Server: cfg.Monitor.ServerName,
 		DiskPath: cfg.Backup.Dir, Backups: bk != nil,
 		Metrics: reg, TLSAddr: cfg.Monitor.TLSAddr, TLSNames: cfg.Monitor.TLSNames,
+		Reviews: rv != nil,
 	}, log)
 
 	handler := httpapi.NewHandler(httpapi.Deps{
@@ -156,7 +168,7 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 	})
 	adminDeps := admin.Deps{
 		Pool: pool, Passwords: pw, Lookup: lookup, Sealer: sealer, Limits: limits, Mailer: outbox,
-		Accounts: authSvc, Billing: billingSvc, Plans: plans, Metrics: reg, LogDir: cfg.Log.Dir,
+		Accounts: authSvc, Billing: billingSvc, Plans: plans, Metrics: reg, LogDir: cfg.Log.Dir, Reviews: rv,
 		AlertEmails: cfg.Monitor.AlertEmails, ServerName: cfg.Monitor.ServerName,
 		ClientIP: httpapi.ClientIPResolver(cfg.ClientIPHeader, cfg.TrustedProxies),
 		Log:      log, Secure: !cfg.Development(),
@@ -166,5 +178,19 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 		return nil, err
 	}
 	return &App{Handler: handler, Outbox: outbox, Billing: billingSvc, Signer: signer, Monitor: mon, Backup: bk,
-		Admin: adm, AdminDeps: adminDeps, Metrics: reg}, nil
+		Admin: adm, AdminDeps: adminDeps, Metrics: reg, Reviews: rv}, nil
+}
+
+// reviewsAPI is what the Reviews page talks to: a test's stand-in, the
+// development fake, or Bazaar when a key is set; nil turns the page off.
+func reviewsAPI(cfg *config.Config, opts Options) reviews.API {
+	switch {
+	case opts.ReviewsAPI != nil:
+		return opts.ReviewsAPI
+	case cfg.Reviews.Fake:
+		return reviews.NewFake(240)
+	case cfg.Reviews.Key != "":
+		return &reviews.HTTPClient{BaseURL: cfg.Reviews.BaseURL, KeyHeader: cfg.Reviews.KeyHeader, Key: cfg.Reviews.Key}
+	}
+	return nil
 }
