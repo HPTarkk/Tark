@@ -10,8 +10,8 @@
   {{if eq .Admin.Role "owner"}}
   <ol class="steps rv-steps">
     <li>{{t "rv.off1"}}</li>
-    <li>{{t "rv.off2"}} <code>TARK_BAZAAR_REVIEWS_API_KEY</code>, <code>TARK_BAZAAR_REVIEWS_KEY_HEADER</code></li>
-    <li>{{t "rv.off3"}} <code>TARK_BAZAAR_REPLY_EMAIL</code></li>
+    <li>{{t "rv.off2"}}<span class="rv-envs" dir="ltr"><code>TARK_BAZAAR_REVIEWS_API_KEY</code><code>TARK_BAZAAR_REVIEWS_KEY_HEADER</code></span></li>
+    <li>{{t "rv.off3"}}<span class="rv-envs" dir="ltr"><code>TARK_BAZAAR_REPLY_EMAIL</code></span></li>
   </ol>
   <p class="panel-note">{{icon "lock"}}{{t "rv.offSafe"}}</p>
   {{else}}<p class="panel-note rv-ask">{{icon "info"}}{{t "rv.offAsk"}}</p>{{end}}
@@ -128,7 +128,7 @@
     </select>
     <select name="sdk" aria-label="{{t "rv.androidLabel"}}">
       <option value="">{{t "rv.anyAndroid"}}</option>
-      {{range .Facets.SDKs}}<option value="{{.}}"{{if eq . $.V.Q.SDK}} selected{{end}}>{{t "rv.android" (android .)}}</option>{{end}}
+      {{range .Facets.SDKs}}<option value="{{.}}"{{if eq . $.V.Q.SDK}} selected{{end}}>{{t "rv.android" (digits (android .))}}</option>{{end}}
     </select>
     <select name="days" aria-label="{{t "rv.periodLabel"}}">
       {{range .Periods}}<option value="{{if .Days}}{{.Days}}{{end}}"{{if .On}} selected{{end}}>{{if .Days}}{{t "rv.lastDays" .Days}}{{else}}{{t "rv.allTime"}}{{end}}</option>{{end}}
@@ -164,7 +164,7 @@
         <div class="rv-tags">
           {{if .Pinned}}<span class="chip warn rv-moved">{{icon "hourglass"}}{{t "rv.moved"}}</span>{{end}}
           {{with .AppVersionCode}}<span class="chip">{{icon "tag"}}{{t "rv.build" (deref .)}}</span>{{end}}
-          {{with .Android}}<span class="chip">{{icon "phone"}}{{t "rv.android" .}}</span>{{end}}
+          {{with .Android}}<span class="chip">{{icon "phone"}}{{t "rv.android" (digits .)}}</span>{{end}}
           {{if .UserURL}}<a class="chip rv-user" href="{{.UserURL}}#list" title="{{.UserAccountID}}">{{icon "user"}}<span dir="ltr">{{.UserShort}}</span><b>{{t "rv.moreBy" .UserReviews}}</b></a>
           {{else}}<span class="chip rv-user" title="{{.UserAccountID}}">{{icon "user"}}<span dir="ltr">{{.UserShort}}</span></span>{{end}}
         </div>

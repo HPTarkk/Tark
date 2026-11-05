@@ -66,6 +66,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // ---- on a narrow screen the tabs scroll: keep the current one in view --
+  const seg = document.querySelector(".seg");
+  const on = seg?.querySelector(".seg-item.on");
+  if (seg && on && seg.scrollWidth > seg.clientWidth) {
+    const box = seg.getBoundingClientRect();
+    const item = on.getBoundingClientRect();
+    if (item.left < box.left || item.right > box.right) seg.scrollLeft += item.left - box.left - (box.width - item.width) / 2;
+  }
+
   // ---- composers: drafts, count, keyboard -------------------------------
   const sent = params.get("sent");
   if (sent) store.drop(draftKey(sent));
@@ -107,8 +116,26 @@ document.addEventListener("DOMContentLoaded", () => {
         details.querySelector("summary")?.focus();
       }
     });
+    // The panel leaves its hidden state a frame or two after toggle fires,
+    // and until then the textarea can't take focus: keep offering it.
     details?.addEventListener("toggle", () => {
-      if (details.open) area.focus({ preventScroll: true });
+      if (!details.open) return;
+      let tries = 12;
+      const enter = () => {
+        if (!details.open || typing(document.activeElement)) return;
+        area.focus({ preventScroll: true });
+        if (document.activeElement !== area && --tries > 0) requestAnimationFrame(enter);
+      };
+      enter();
+    });
+    // Words typed in the moment before the cursor gets there still count.
+    details?.querySelector("summary")?.addEventListener("keydown", (event) => {
+      if (!details.open || event.key.length !== 1 || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key === " " && !area.value) return; // space on the summary toggles it
+      event.preventDefault();
+      area.value += event.key;
+      area.dispatchEvent(new Event("input", { bubbles: true }));
+      area.focus({ preventScroll: true });
     });
   }
   // A refused reply comes back open; put the cursor at the end of its words.
@@ -139,6 +166,8 @@ document.addEventListener("DOMContentLoaded", () => {
   };
   document.addEventListener("keydown", (event) => {
     if (event.ctrlKey || event.metaKey || event.altKey || typing(document.activeElement)) return;
+    // Keys pressed while a composer is opening belong to it, not to j / k.
+    if (document.activeElement?.matches?.("details.composer[open] > summary")) return;
     const list = cards();
     const at = list.indexOf(document.activeElement?.closest(".rv"));
     if (event.key === "j" || event.key === "k") {

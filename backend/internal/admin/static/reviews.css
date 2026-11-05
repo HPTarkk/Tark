@@ -52,6 +52,7 @@ a.kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .rv-insights { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; margin-bottom: 24px; }
 .rv-insights > .panel { margin: 0; }
+.rv-insights { align-items: start; }
 @media (max-width: 1240px) { .rv-insights { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .rv-trend { grid-column: 1 / -1; order: -1; } }
 @media (max-width: 760px) { .rv-insights { grid-template-columns: minmax(0, 1fr); } }
 
@@ -88,6 +89,12 @@ a.kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .rv-chart .lo { display: block; width: 100%; border-radius: 0 0 2px 2px; background: color-mix(in srgb, var(--bad) 85%, var(--accent)); }
 .lo.l0 { height: 0%; } .lo.l1 { height: 10%; } .lo.l2 { height: 20%; } .lo.l3 { height: 30%; } .lo.l4 { height: 40%; } .lo.l5 { height: 50%; } .lo.l6 { height: 60%; } .lo.l7 { height: 70%; } .lo.l8 { height: 80%; } .lo.l9 { height: 90%; } .lo.l10 { height: 100%; }
 .rv-chart .col:hover .lo { filter: brightness(1.1); }
+/* The week tips are long: the outer weeks open inwards, and the panel never
+   lets a hidden tip widen the page. */
+.rv-trend { overflow-x: clip; overflow-clip-margin: 8px; }
+.rv-chart .col:nth-child(-n+2) .bar::after { left: auto; right: auto; inset-inline-start: 0; transform: translate(0, 4px); }
+.rv-chart .col:nth-last-child(-n+2) .bar::after { left: auto; right: auto; inset-inline-end: 0; transform: translate(0, 4px); }
+.rv-chart .col:nth-child(-n+2):hover .bar::after, .rv-chart .col:nth-last-child(-n+2):hover .bar::after { transform: none; }
 .rv-legend { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; color: var(--muted); font-size: .8rem; }
 .rv-legend .key { width: 10px; height: 10px; border-radius: 3px; background: linear-gradient(var(--accent-2), var(--accent)); }
 .rv-legend .key.low { margin-inline-start: 10px; background: color-mix(in srgb, var(--bad) 85%, var(--accent)); }
@@ -114,7 +121,7 @@ a.kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .seg-n.hot { background: var(--accent); color: #fff; }
 
 .rv-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.rv-filters .search { flex: 1 1 260px; margin: 0; padding: 0 4px; border-radius: 12px; box-shadow: none; background: var(--bg); border-color: var(--line-2); }
+.rv-filters .search { flex: 1 1 220px; flex-direction: row; align-items: center; gap: 6px; margin: 0; padding: 0 4px; border-radius: 12px; box-shadow: none; background: var(--bg); border-color: var(--line-2); }
 .rv-filters .search input { padding: 10px 4px; min-width: 0; }
 .rv-filters select { flex: 0 1 auto; width: auto; }
 .rv-filters.auto .rv-apply { display: none; }
@@ -237,6 +244,10 @@ a.chip.rv-user:hover { color: var(--accent); border-color: color-mix(in srgb, va
 .rv-more:hover .i { transform: rotate(90deg); }
 .rv-setup .rv-steps { max-width: 620px; margin: 4px auto 18px; }
 .rv-setup .panel-note { justify-content: center; }
+.rv-envs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+[dir="rtl"] .rv-envs { justify-content: flex-end; }
+.rv-envs code { white-space: nowrap; padding: 3px 8px; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--line); font-size: .8rem; }
+[lang="fa"] .rv-steps { list-style-type: persian; }
 
 @media (max-width: 760px) {
   .rv { padding: 14px 14px 12px; }
@@ -247,7 +258,7 @@ a.chip.rv-user:hover { color: var(--accent); border-color: color-mix(in srgb, va
   .bubble, [dir="rtl"] .bubble { border-radius: 14px; }
   .rv-filters .search { flex-basis: 100%; }
   .rv-stars-pick { flex: 1 1 100%; justify-content: space-between; }
-  .pick { flex: 1; } .pick span { justify-content: center; }
+  .rv-stars-pick { flex-wrap: nowrap; } .pick { flex: 1 1 0; min-width: 0; } .pick span { justify-content: center; padding-inline: 4px; }
   .rv-filters select { flex: 1 1 calc(50% - 5px); }
   .rv-sync { width: 100%; justify-content: space-between; }
   .seg-item { flex: 1 0 auto; padding: 8px 10px; }
