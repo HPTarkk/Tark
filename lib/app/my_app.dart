@@ -19,6 +19,7 @@ import '../core/router/routes.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/theme_service.dart';
 import '../core/widget/theme_reveal_transition.dart';
+import '../feature/announcement/api/announcement_api.dart';
 import '../feature/transfer/api/transfer_api.dart';
 import '../feature/update/api/update_api.dart';
 import 'router/app_router.dart';
@@ -36,6 +37,12 @@ class _MyAppState extends State<MyApp> {
   StreamSubscription<WidgetControlAction>? _controlSub;
   StreamSubscription<EmailLink>? _linkSub;
   StreamSubscription<EmailLink>? _unclaimedSub;
+
+  /// The update check's answer, for the announcements waiting behind it.
+  final _updateOffered = ValueNotifier<bool?>(null);
+
+  static String _location() =>
+      AppRouter.router.routerDelegate.currentConfiguration.uri.path;
 
   @override
   void initState() {
@@ -127,6 +134,7 @@ class _MyAppState extends State<MyApp> {
     _controlSub?.cancel();
     _linkSub?.cancel();
     _unclaimedSub?.cancel();
+    _updateOffered.dispose();
     GetIt.instance<AudioIo>().dispose();
     super.dispose();
   }
@@ -169,12 +177,20 @@ class _MyAppState extends State<MyApp> {
       builder: (context, child) => RepaintBoundary(
         key: AppRevealController.repaintBoundaryKey,
         child: UpdateGate(
-          location: () =>
-              AppRouter.router.routerDelegate.currentConfiguration.uri.path,
+          location: _location,
           locationChanges: AppRouter.router.routerDelegate,
-          child: KeyedSubtree(
-            key: ValueKey(ThemeService.currentMode),
-            child: TapLog(child: child!),
+          onAnswered: (offered) => _updateOffered.value = offered,
+          // Inside the update gate: an update always goes first, and a
+          // required one takes announcements down with the rest of the app.
+          child: AnnouncementGate(
+            location: _location,
+            locationChanges: AppRouter.router.routerDelegate,
+            updateOffered: _updateOffered,
+            navigate: (name) => AppRouter.router.pushNamed(name),
+            child: KeyedSubtree(
+              key: ValueKey(ThemeService.currentMode),
+              child: TapLog(child: child!),
+            ),
           ),
         ),
       ),

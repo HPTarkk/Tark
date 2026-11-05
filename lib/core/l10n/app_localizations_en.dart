@@ -3929,4 +3929,51 @@ class AppLocalizationsEn extends AppLocalizations {
   String report_scene_label(String name) {
     return '$name upset you with what they said';
   }
+
+  @override
+  String get announcement_tag_gift => 'GIFT';
+
+  @override
+  String get announcement_tag_feature => 'NEW IN TARKK';
+
+  @override
+  String get announcement_tag_news => 'NEWS';
+
+  @override
+  String get announcement_tag_tip => 'TIP';
+
+  @override
+  String get announcement_tag_event => 'EVENT';
+
+  @override
+  String get announcement_tag_alert => 'IMPORTANT';
+
+  @override
+  String get announcement_sign_in => 'Sign up';
+
+  @override
+  String get announcement_open_link => 'Learn more';
+
+  @override
+  String get announcement_open_screen => 'Show me';
+
+  @override
+  String get announcement_got_it => 'Got it';
+
+  @override
+  String get announcement_next => 'Next';
+
+  @override
+  String get announcement_later => 'Not now';
+
+  @override
+  String get announcement_close => 'Close';
+
+  @override
+  String get announcement_open_failed => 'That didn\'t open. Try once more.';
+
+  @override
+  String announcement_position(String index, String count) {
+    return '$index of $count';
+  }
 }

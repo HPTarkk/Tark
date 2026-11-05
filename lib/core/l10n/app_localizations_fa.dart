@@ -3897,4 +3897,51 @@ class AppLocalizationsFa extends AppLocalizations {
   String report_scene_label(String name) {
     return '$name با حرف‌هاش ناراحتت کرد';
   }
+
+  @override
+  String get announcement_tag_gift => 'هدیه';
+
+  @override
+  String get announcement_tag_feature => 'تازه در تَرک';
+
+  @override
+  String get announcement_tag_news => 'خبر';
+
+  @override
+  String get announcement_tag_tip => 'نکته';
+
+  @override
+  String get announcement_tag_event => 'رویداد';
+
+  @override
+  String get announcement_tag_alert => 'مهم';
+
+  @override
+  String get announcement_sign_in => 'ثبت‌نام';
+
+  @override
+  String get announcement_open_link => 'بیشتر بدون';
+
+  @override
+  String get announcement_open_screen => 'نشونم بده';
+
+  @override
+  String get announcement_got_it => 'فهمیدم';
+
+  @override
+  String get announcement_next => 'بعدی';
+
+  @override
+  String get announcement_later => 'الان نه';
+
+  @override
+  String get announcement_close => 'بستن';
+
+  @override
+  String get announcement_open_failed => 'باز نشد. یه بار دیگه امتحان کن.';
+
+  @override
+  String announcement_position(String index, String count) {
+    return '$index از $count';
+  }
 }

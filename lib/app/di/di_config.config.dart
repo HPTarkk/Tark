@@ -9,6 +9,7 @@
 // coverage:ignore-file
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
+
 import 'package:audio_io/audio_io.dart' as _i891;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
@@ -39,6 +40,8 @@ import 'package:tark/core/security/app_secure_storage.dart' as _i700;
 import 'package:tark/core/settings/settings_repository.dart' as _i349;
 import 'package:tark/core/settings/settings_repository_impl.dart' as _i632;
 import 'package:tark/core/sfx/sfx_player.dart' as _i690;
+import 'package:tark/feature/announcement/data/announcement_checker.dart'
+    as _i30;
 import 'package:tark/feature/audio/api/audio_api.dart' as _i138;
 import 'package:tark/feature/audio/data/audio_engine_impl.dart' as _i876;
 import 'package:tark/feature/audio/data/session_keep_alive.dart' as _i278;
@@ -280,6 +283,14 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i876.AudioEngineImpl(
         gh<_i891.AudioIo>(),
         gh<_i349.SettingsRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i30.AnnouncementChecker>(
+      () => _i30.AnnouncementChecker(
+        gh<_i775.ApiClient>(),
+        gh<_i460.SharedPreferences>(),
+        gh<_i1002.AccountSession>(),
+        gh<_i52.LicenseGate>(),
       ),
     );
     gh.lazySingleton<_i517.TransferModeStore>(

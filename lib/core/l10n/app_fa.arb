@@ -1200,5 +1200,21 @@
     "@report_mail_body": {"placeholders": {"name": {"type": "String"}, "reason": {"type": "String"}, "room": {"type": "String"}, "member": {"type": "String"}, "time": {"type": "String"}, "version": {"type": "String"}}},
     "report_mail_quick_channel": "کانال سریع (بدون اتاق)",
     "report_scene_label": "{name} با حرف‌هاش ناراحتت کرد",
-    "@report_scene_label": {"placeholders": {"name": {"type": "String"}}}
+    "@report_scene_label": {"placeholders": {"name": {"type": "String"}}},
+    "announcement_tag_gift": "هدیه",
+    "announcement_tag_feature": "تازه در تَرک",
+    "announcement_tag_news": "خبر",
+    "announcement_tag_tip": "نکته",
+    "announcement_tag_event": "رویداد",
+    "announcement_tag_alert": "مهم",
+    "announcement_sign_in": "ثبت‌نام",
+    "announcement_open_link": "بیشتر بدون",
+    "announcement_open_screen": "نشونم بده",
+    "announcement_got_it": "فهمیدم",
+    "announcement_next": "بعدی",
+    "announcement_later": "الان نه",
+    "announcement_close": "بستن",
+    "announcement_open_failed": "باز نشد. یه بار دیگه امتحان کن.",
+    "announcement_position": "{index} از {count}",
+    "@announcement_position": {"placeholders": {"index": {"type": "String"}, "count": {"type": "String"}}}
 }
