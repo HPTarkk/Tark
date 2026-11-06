@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
+import 'package:tark/core/settings/settings_repository.dart';
 import 'package:tark/core/utils/extensions.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/service/room_name_suggester.dart';
@@ -122,6 +123,15 @@ Future<void> _submit(WidgetTester tester, String name) async {
   await tester.pump();
 }
 
+class _Named implements SettingsRepository {
+  _Named(this.name);
+  final String name;
+  @override
+  Future<String> getMyName() async => name;
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   tearDown(() => GetIt.instance.reset());
 
@@ -238,7 +248,32 @@ void main() {
     expect(returned, same(room));
     await tester.pumpWidget(const SizedBox());
   });
-  testWidgets('creation starts with a suggested name that shuffles', (
+  testWidgets('the suggested name is built on the creator\'s own name', (
+    tester,
+  ) async {
+    for (final (language, owner) in [('en', 'Pedram'), ('fa', 'پدرام')]) {
+      GetIt.instance.registerSingleton<SettingsRepository>(_Named(owner));
+      final rooms = _Rooms();
+      addTearDown(rooms.close);
+      await _open(tester, rooms, language: language);
+      String field() => tester
+          .widget<TextField>(find.byKey(const Key('room-name-field')))
+          .controller!
+          .text;
+      final names = RoomNameSuggester.namesFor(language, ownerName: owner);
+      expect(names, contains(field()));
+      expect(field(), contains(owner));
+
+      await tester.tap(find.byKey(const Key('room-name-shuffle')));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(names, contains(field()));
+      expect(field(), contains(owner));
+      await tester.pumpWidget(const SizedBox());
+      await GetIt.instance.unregister<SettingsRepository>();
+    }
+  });
+
+  testWidgets('without a name yet, creation falls back to curated names', (
     tester,
   ) async {
     for (final language in ['en', 'fa']) {

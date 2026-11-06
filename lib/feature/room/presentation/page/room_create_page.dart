@@ -107,21 +107,42 @@ class _RoomCreatePageState extends State<RoomCreatePage>
         !GetIt.instance<LicenseGate>().allows(PremiumFeature.extraRooms);
   }
 
+  /// The creator's own name, which suggestions are built on ("Pedram's
+  /// Crew"). Null until read, or when none is set yet.
+  String? _ownerName;
+
   /// Creation never starts at an empty field: unless the caller suggested a
-  /// name (onboarding does), one is picked here. It is seeded here rather than
-  /// in `initState` because the list of names follows the app's language.
+  /// name (onboarding does), one is built from the creator's own name. It is
+  /// seeded here rather than in `initState` because the names follow the
+  /// app's language.
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_seeded) return;
     _seeded = true;
     if (_name.text.trim().isNotEmpty) return;
+    unawaited(_seedSuggestion());
+  }
+
+  Future<void> _seedSuggestion() async {
+    try {
+      if (GetIt.instance.isRegistered<SettingsRepository>()) {
+        _ownerName = await GetIt.instance<SettingsRepository>().getMyName();
+      }
+    } catch (_) {
+      // No name to build on: the curated names stand in.
+    }
+    // The person may have started typing while the name was being read.
+    if (!mounted || _name.text.trim().isNotEmpty) return;
     final suggestion = _suggester.suggest(
       Localizations.localeOf(context).languageCode,
+      ownerName: _ownerName,
       taken: _takenNames(),
     );
-    _name.text = suggestion;
-    _suggestion = suggestion;
+    setState(() {
+      _name.text = suggestion;
+      _suggestion = suggestion;
+    });
   }
 
   Iterable<String> _takenNames() {
@@ -137,6 +158,7 @@ class _RoomCreatePageState extends State<RoomCreatePage>
     HapticFeedback.selectionClick();
     final next = _suggester.suggest(
       Localizations.localeOf(context).languageCode,
+      ownerName: _ownerName,
       taken: _takenNames(),
       previous: _name.text,
     );
