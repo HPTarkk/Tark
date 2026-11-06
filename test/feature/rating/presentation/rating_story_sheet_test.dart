@@ -8,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
+import 'package:tark/core/motion/app_motion.dart';
+import 'package:tark/core/widget/sheet_shell.dart';
 import 'package:tark/core/profile/local_profile.dart';
 import 'package:tark/feature/rating/api/rating_api.dart';
 import 'package:tark/feature/rating/data/bazaar_review_launcher.dart';
@@ -54,9 +56,13 @@ Widget _app({
 var _frameNo = 0;
 String? _frameSet;
 
+/// Called on every frame [_run] pumps, to check something frame by frame.
+void Function()? _watch;
+
 Future<void> _run(WidgetTester tester, int ms) async {
   for (var t = 0; t < ms; t += 16) {
     await tester.pump(const Duration(milliseconds: 16));
+    _watch?.call();
     if (_frames && _frameSet != null && t % 48 == 0) {
       await _shot(
         tester,
@@ -157,6 +163,7 @@ void main() {
     RatingPrompt.platformOverride = true;
     _frameSet = null;
     _frameNo = 0;
+    _watch = null;
   });
   tearDown(() => RatingPrompt.platformOverride = null);
 
@@ -185,6 +192,25 @@ void main() {
       await _shot(tester, '$lang-2-ask');
       expect(find.byKey(const Key('rating-rate')), findsOneWidget);
       expect(find.byKey(const Key('rating-not-now')), findsOneWidget);
+
+      // From here to the thanks, the sheet keeps its height and there is
+      // exactly one button, standing still, on every single frame.
+      final sheet = find.byType(SheetShell);
+      final buttons = find.descendant(
+        of: sheet,
+        matching: find.byType(PressableScale),
+      );
+      final height = tester.getSize(sheet).height;
+      // The button, and the link chip that waits (invisible) under it.
+      expect(buttons, findsNWidgets(2));
+      final buttonAt = tester.getRect(buttons.first);
+      var frames = 0;
+      _watch = () {
+        frames++;
+        expect(tester.getSize(sheet).height, moreOrLessEquals(height));
+        expect(buttons, findsNWidgets(2));
+        expect(tester.getRect(buttons.first), buttonAt);
+      };
 
       // A tap on your rider makes you hop; nothing else happens.
       await tester.tapAt(
@@ -217,6 +243,8 @@ void main() {
       await _shot(tester, '$lang-8-thanks');
       expect(find.byKey(const Key('rating-done')), findsOneWidget);
       expect(opened, 1);
+      _watch = null;
+      expect(frames, greaterThan(200));
 
       await tester.tap(find.byKey(const Key('rating-done')));
       await _run(tester, 600);
