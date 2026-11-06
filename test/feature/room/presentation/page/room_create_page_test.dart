@@ -4,8 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
+import 'package:tark/core/settings/settings_repository.dart';
 import 'package:tark/core/utils/extensions.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
+import 'package:tark/feature/room/domain/service/room_name_suggester.dart';
 import 'package:tark/feature/room/presentation/manager/room_list_cubit.dart';
 import 'package:tark/feature/room/presentation/page/room_create_page.dart';
 
@@ -119,6 +121,15 @@ Future<void> _submit(WidgetTester tester, String name) async {
   await tester.pump();
   await tester.tap(find.byKey(const Key('room-name-submit')));
   await tester.pump();
+}
+
+class _Named implements SettingsRepository {
+  _Named(this.name);
+  final String name;
+  @override
+  Future<String> getMyName() async => name;
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -237,6 +248,66 @@ void main() {
     expect(returned, same(room));
     await tester.pumpWidget(const SizedBox());
   });
+  testWidgets('the suggested name is built on the creator\'s own name', (
+    tester,
+  ) async {
+    for (final (language, owner) in [('en', 'Pedram'), ('fa', 'پدرام')]) {
+      GetIt.instance.registerSingleton<SettingsRepository>(_Named(owner));
+      final rooms = _Rooms();
+      addTearDown(rooms.close);
+      await _open(tester, rooms, language: language);
+      String field() => tester
+          .widget<TextField>(find.byKey(const Key('room-name-field')))
+          .controller!
+          .text;
+      final names = RoomNameSuggester.namesFor(language, ownerName: owner);
+      expect(names, contains(field()));
+      expect(field(), contains(owner));
+
+      await tester.tap(find.byKey(const Key('room-name-shuffle')));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(names, contains(field()));
+      expect(field(), contains(owner));
+      await tester.pumpWidget(const SizedBox());
+      await GetIt.instance.unregister<SettingsRepository>();
+    }
+  });
+
+  testWidgets('without a name yet, creation falls back to curated names', (
+    tester,
+  ) async {
+    for (final language in ['en', 'fa']) {
+      final rooms = _Rooms();
+      addTearDown(rooms.close);
+      await _open(tester, rooms, language: language);
+      String field() => tester
+          .widget<TextField>(find.byKey(const Key('room-name-field')))
+          .controller!
+          .text;
+
+      final first = field();
+      expect(RoomNameSuggester.namesFor(language), contains(first));
+
+      await tester.tap(find.byKey(const Key('room-name-shuffle')));
+      await tester.pump(const Duration(milliseconds: 400));
+      final second = field();
+      expect(second, isNot(first));
+      expect(RoomNameSuggester.namesFor(language), contains(second));
+
+      // The first tap into the field selects the suggestion, so typing
+      // replaces it rather than appending to it.
+      await tester.tap(find.byKey(const Key('room-name-field')));
+      await tester.pump();
+      final selection = tester
+          .widget<TextField>(find.byKey(const Key('room-name-field')))
+          .controller!
+          .selection;
+      expect((selection.start, selection.end), (0, second.length));
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    }
+  });
+
   testWidgets(
     'empty name is disabled, failure preserves the name and allows retry',
     (tester) async {
@@ -247,6 +318,11 @@ void main() {
         of: find.byKey(const Key('room-name-submit')),
         matching: find.byType(FilledButton),
       );
+      // Creation starts with a suggested name, so it is ready at once; only
+      // clearing the field disables it.
+      expect(tester.widget<FilledButton>(submit).onPressed, isNotNull);
+      await tester.enterText(find.byKey(const Key('room-name-field')), '   ');
+      await tester.pump();
       expect(tester.widget<FilledButton>(submit).onPressed, isNull);
       await tester.enterText(
         find.byKey(const Key('room-name-field')),

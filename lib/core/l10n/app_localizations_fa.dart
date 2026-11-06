@@ -2339,6 +2339,17 @@ class AppLocalizationsFa extends AppLocalizations {
   String get entry_new_room_hint => 'خودت یکی بساز';
 
   @override
+  String get entry_join_or_create => 'پیوستن یا ساختن';
+
+  @override
+  String landing_profile_semantics(String name, String status) {
+    return '$name، $status. باز کردن نمایه';
+  }
+
+  @override
+  String get room_create_shuffle_name => 'یک نام دیگر پیشنهاد بده';
+
+  @override
   String get entry_my_rooms => 'اتاق‌های من';
 
   @override

@@ -15,8 +15,8 @@ import '../../../../core/widget/settings_icon_button.dart';
 import '../../../../core/widget/version_badge.dart';
 import '../../../rating/api/rating_api.dart';
 import '../manager/landing_cubit.dart';
-import '../widget/landing_identity_card.dart';
 import '../widget/landing_logo.dart';
+import '../widget/landing_profile_chip.dart';
 import '../widget/room_entry_options.dart';
 import '../widget/room_rejoin_prompt.dart';
 
@@ -34,7 +34,7 @@ class LandingPage extends StatefulWidget {
 
 class _LandingPageState extends State<LandingPage>
     with TickerProviderStateMixin, RouteArrival<LandingPage> {
-  // Staggered entrance for all sections: [logo, card, actions, footer]
+  // Staggered entrance for all sections: [logo, profile, actions, footer]
   late AnimationController _entranceController;
   late List<CurvedAnimation> _sections;
   final _stageKey = GlobalKey();
@@ -182,22 +182,11 @@ class _LandingPageState extends State<LandingPage>
                                   ),
                                 ),
                                 const Spacer(flex: 2),
-                                // The transport chip that used to sit under
-                                // the card is gone: the link is chosen for
-                                // each room as it is entered, so pointing at
-                                // its settings here only invited a detour.
-                                // The override still lives in Advanced
-                                // settings.
-                                _entrance(
-                                  1,
-                                  LandingIdentityCard(
-                                    state: state,
-                                    onEdit: () => context.pushNamed(
-                                      AppRoutes.profileName,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
+                                // Only the way into a room lives in the middle
+                                // now. Who you are moved to the top corner
+                                // (see [LandingProfileChip]): as a full card
+                                // right above the room it read as a second
+                                // main action.
                                 _entrance(2, const RoomEntryOptions()),
                                 const Spacer(flex: 1),
                                 _entrance(
@@ -214,6 +203,17 @@ class _LandingPageState extends State<LandingPage>
                           ),
                         ),
                       ],
+                    ),
+                    PositionedDirectional(
+                      top: 8,
+                      start: 12,
+                      child: _entrance(
+                        1,
+                        LandingProfileChip(
+                          state: state,
+                          onTap: () => context.pushNamed(AppRoutes.profileName),
+                        ),
+                      ),
                     ),
                     PositionedDirectional(
                       top: 8,

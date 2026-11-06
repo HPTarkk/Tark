@@ -2350,6 +2350,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get entry_new_room_hint => 'Start your own';
 
   @override
+  String get entry_join_or_create => 'JOIN OR CREATE';
+
+  @override
+  String landing_profile_semantics(String name, String status) {
+    return '$name, $status. Open profile';
+  }
+
+  @override
+  String get room_create_shuffle_name => 'Suggest another name';
+
+  @override
   String get entry_my_rooms => 'MY ROOMS';
 
   @override

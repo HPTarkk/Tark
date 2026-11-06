@@ -4238,6 +4238,24 @@ abstract class AppLocalizations {
   /// **'خودت یکی بساز'**
   String get entry_new_room_hint;
 
+  /// No description provided for @entry_join_or_create.
+  ///
+  /// In fa, this message translates to:
+  /// **'پیوستن یا ساختن'**
+  String get entry_join_or_create;
+
+  /// No description provided for @landing_profile_semantics.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name}، {status}. باز کردن نمایه'**
+  String landing_profile_semantics(String name, String status);
+
+  /// No description provided for @room_create_shuffle_name.
+  ///
+  /// In fa, this message translates to:
+  /// **'یک نام دیگر پیشنهاد بده'**
+  String get room_create_shuffle_name;
+
   /// No description provided for @entry_my_rooms.
   ///
   /// In fa, this message translates to:
