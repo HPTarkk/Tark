@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/profile/avatar_catalog.dart';
@@ -154,6 +155,9 @@ class _RatingStorySheetState extends State<RatingStorySheet>
   _Phase _phase = _Phase.intro;
   bool _started = false;
   bool _burstQueued = false;
+
+  /// The quiet button's last words, kept while it fades out.
+  String? _lastSecondary;
   ui.Image? _youImage;
 
   bool get _reduced => AppMotion.reduced(context);
@@ -337,22 +341,27 @@ class _RatingStorySheetState extends State<RatingStorySheet>
   }
 
   // ── Layout ───────────────────────────────────────────────────────────────
+  //
+  // The sheet never changes shape as the story moves on. Every phase's words
+  // are laid out at once (only one showing), so the sheet is as tall as the
+  // longest of them from the first frame. Below them sits one set of
+  // controls for the whole story: one button that recolours and hands its
+  // words over in place, one slot under it for the hint or the link, and one
+  // quiet button that keeps its room while it fades. Nothing is swapped for
+  // a second copy of itself, so nothing doubles up and nothing jumps.
+
+  /// The phase whose words are showing: the intro already shows the ask.
+  _Phase get _shown => switch (_phase) {
+    _Phase.intro || _Phase.ask || _Phase.launching => _Phase.ask,
+    final phase => phase,
+  };
 
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    final (title, body) = switch (_phase) {
-      _Phase.intro ||
-      _Phase.ask ||
-      _Phase.launching => (s.rating_ask_title, s.rating_ask_body),
-      _Phase.away => (s.rating_away_title, s.rating_away_body),
-      _Phase.thanks => (s.rating_thanks_title, s.rating_thanks_body),
-      _Phase.failed => (s.rating_failed_title, s.rating_failed_body),
-    };
-    final headlineKey = switch (_phase) {
-      _Phase.intro || _Phase.ask || _Phase.launching => _Phase.ask,
-      final phase => phase,
-    };
+    final shown = _shown;
+    const phases = [_Phase.ask, _Phase.away, _Phase.thanks, _Phase.failed];
+    final controlsUp = _phase != _Phase.intro;
 
     return SheetShell(
       topFraction: 0.06,
@@ -389,179 +398,352 @@ class _RatingStorySheetState extends State<RatingStorySheet>
               ),
             ),
             const SizedBox(height: 8),
-            AnimatedSwitcher(
-              duration: AppMotion.sheet,
-              switchInCurve: AppMotion.easeOut,
-              switchOutCurve: AppMotion.leaving,
-              transitionBuilder: HandOver.transition(),
-              layoutBuilder: (current, previous) => Stack(
-                alignment: Alignment.topCenter,
-                children: [...previous, ?current],
-              ),
-              child: Column(
-                key: ValueKey(headlineKey),
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                    ),
+            Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                for (final phase in phases)
+                  _Headline(
+                    key: ValueKey('headline-${phase.name}'),
+                    title: _title(s, phase),
+                    body: _body(s, phase),
+                    visible: phase == shown,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    body,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13.5,
-                      height: 1.55,
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
             const SizedBox(height: 16),
-            AnimatedSize(
-              duration: AppMotion.sheet,
-              curve: AppMotion.drawer,
-              alignment: Alignment.topCenter,
-              child: AnimatedSwitcher(
-                duration: AppMotion.sheet,
-                switchInCurve: AppMotion.easeOut,
-                switchOutCurve: AppMotion.leaving,
-                transitionBuilder: HandOver.transition(),
-                child: _controls(context),
-              ),
-            ),
+            _Arrival(visible: controlsUp, child: _controls(context)),
           ],
         ),
       ),
     );
   }
 
+  String _title(AppLocalizations s, _Phase phase) => switch (phase) {
+    _Phase.away => s.rating_away_title,
+    _Phase.thanks => s.rating_thanks_title,
+    _Phase.failed => s.rating_failed_title,
+    _ => s.rating_ask_title,
+  };
+
+  String _body(AppLocalizations s, _Phase phase) => switch (phase) {
+    _Phase.away => s.rating_away_body,
+    _Phase.thanks => s.rating_thanks_body,
+    _Phase.failed => s.rating_failed_body,
+    _ => s.rating_ask_body,
+  };
+
   Widget _controls(BuildContext context) {
     final s = context.getString;
-    final close = TextButton(
-      key: const Key('rating-not-now'),
-      onPressed: _phase == _Phase.launching
-          ? null
-          : () => Navigator.of(context).maybePop(),
-      style: TextButton.styleFrom(
-        foregroundColor: AppColors.textSecondary,
-        padding: const EdgeInsets.symmetric(vertical: 12),
+    final phase = _shown;
+    final launching = _phase == _Phase.launching;
+
+    final (
+      String label,
+      _Glyph glyph,
+      Color fill,
+      Color ink,
+      VoidCallback? onTap,
+    ) = switch (phase) {
+      _Phase.away => (
+        s.rating_back,
+        _Glyph.dots,
+        Color.alphaBlend(
+          AppColors.amber.withValues(alpha: 0.16),
+          AppColors.card,
+        ),
+        AppColors.amber,
+        _comeHome,
       ),
-      child: Text(
-        _phase == _Phase.failed ? s.rating_close : s.rating_not_now,
-        style: const TextStyle(fontWeight: FontWeight.w700),
+      _Phase.thanks => (
+        s.rating_done,
+        _Glyph.heart,
+        AppColors.green,
+        Colors.white,
+        () => Navigator.of(context).maybePop(),
       ),
-    );
-    switch (_phase) {
-      case _Phase.intro:
-        return const SizedBox(key: ValueKey('intro'), height: 112);
-      case _Phase.ask:
-      case _Phase.launching:
-        return Column(
-          key: const ValueKey('ask'),
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            StaggeredEntrance(
-              builder: (context, children) => Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: children,
-              ),
-              children: [
-                _RateButton(
-                  key: const Key('rating-rate'),
-                  label: s.rating_rate,
-                  onTap: _phase == _Phase.launching ? null : _rate,
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    s.rating_rate_hint,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                    ),
+      _Phase.failed => (
+        s.rating_try_again,
+        _Glyph.retry,
+        AppColors.amber,
+        AppColors.background,
+        _rate,
+      ),
+      _ => (
+        s.rating_rate,
+        _Glyph.stars,
+        AppColors.amber,
+        AppColors.background,
+        launching || _phase == _Phase.intro ? null : _rate,
+      ),
+    };
+    final buttonKey = switch (phase) {
+      _ when _phase == _Phase.intro => null,
+      _Phase.away => const Key('rating-back'),
+      _Phase.thanks => const Key('rating-done'),
+      _Phase.failed => const Key('rating-retry'),
+      _ => const Key('rating-rate'),
+    };
+
+    final secondary = switch (phase) {
+      _Phase.ask => s.rating_not_now,
+      _Phase.failed => s.rating_close,
+      _ => null,
+    };
+    if (secondary != null) _lastSecondary = secondary;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _MorphButton(
+          labelKey: buttonKey,
+          label: label,
+          glyph: glyph,
+          fill: fill,
+          ink: ink,
+          onTap: onTap,
+        ),
+        // One slot under the button: the hint while asking, the link when
+        // nothing opened, and empty room otherwise. Both are always laid out,
+        // so the slot is as tall as the taller of them in every phase.
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              _Fading(
+                visible: phase == _Phase.ask,
+                child: Text(
+                  s.rating_rate_hint,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
                   ),
                 ),
-                Padding(padding: const EdgeInsets.only(top: 4), child: close),
-              ],
-            ),
-          ],
-        );
-      case _Phase.away:
-        return Column(
-          key: const ValueKey('away'),
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const _WaitingDots(),
-            const SizedBox(height: 10),
-            TextButton(
-              key: const Key('rating-back'),
-              onPressed: _comeHome,
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.textSecondary,
-                padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-              child: Text(
-                s.rating_back,
-                style: const TextStyle(fontWeight: FontWeight.w700),
+              _Fading(
+                visible: phase == _Phase.failed,
+                child: Center(
+                  child: CopyChip(
+                    key: const Key('rating-copy'),
+                    text: BazaarReviewLauncher.webListing.toString(),
+                    label: s.rating_copy_link,
+                    copiedLabel: s.rating_copied,
+                  ),
+                ),
               ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 2),
+        _Fading(
+          visible: secondary != null,
+          child: TextButton(
+            key: secondary == null ? null : const Key('rating-not-now'),
+            onPressed: secondary == null || launching
+                ? null
+                : () => Navigator.of(context).maybePop(),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-          ],
-        );
-      case _Phase.thanks:
-        return Column(
-          key: const ValueKey('thanks'),
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _PrimaryButton(
-              key: const Key('rating-done'),
-              label: s.rating_done,
-              icon: Icons.favorite_rounded,
-              color: AppColors.green,
-              onTap: () => Navigator.of(context).maybePop(),
+            child: _HandOverText(
+              // Holds its last words while it fades, so the row keeps its
+              // height and never collapses under the button.
+              text: secondary ?? _lastSecondary ?? s.rating_not_now,
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
-          ],
-        );
-      case _Phase.failed:
-        return Column(
-          key: const ValueKey('failed'),
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-              child: CopyChip(
-                key: const Key('rating-copy'),
-                text: BazaarReviewLauncher.webListing.toString(),
-                label: s.rating_copy_link,
-                copiedLabel: s.rating_copied,
-              ),
-            ),
-            const SizedBox(height: 14),
-            _PrimaryButton(
-              key: const Key('rating-retry'),
-              label: s.rating_try_again,
-              icon: Icons.refresh_rounded,
-              color: AppColors.amber,
-              onTap: _rate,
-            ),
-            const SizedBox(height: 4),
-            close,
-          ],
-        );
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One phase's headline. Arriving, it rises a little and fades in after the
+/// one before it has started to leave; leaving, it lifts and fades fast. It
+/// is always laid out, so the stack it sits in never changes height.
+class _Headline extends StatefulWidget {
+  const _Headline({
+    required this.title,
+    required this.body,
+    required this.visible,
+    super.key,
+  });
+
+  final String title;
+  final String body;
+  final bool visible;
+
+  @override
+  State<_Headline> createState() => _HeadlineState();
+}
+
+class _HeadlineState extends State<_Headline>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shown = AnimationController(
+    vsync: this,
+    duration: AppMotion.sheet + AppMotion.press,
+    reverseDuration: AppMotion.card,
+    value: widget.visible ? 1 : 0,
+  );
+
+  @override
+  void didUpdateWidget(_Headline old) {
+    super.didUpdateWidget(old);
+    if (widget.visible == old.visible) return;
+    if (AppMotion.reduced(context)) {
+      _shown.value = widget.visible ? 1 : 0;
+    } else if (widget.visible) {
+      _shown.forward();
+    } else {
+      _shown.reverse();
     }
   }
+
+  @override
+  void dispose() {
+    _shown.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          widget.title,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          widget.body,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 13.5,
+            height: 1.55,
+          ),
+        ),
+      ],
+    );
+    return IgnorePointer(
+      ignoring: !widget.visible,
+      child: ExcludeSemantics(
+        excluding: !widget.visible,
+        child: AnimatedBuilder(
+          animation: _shown,
+          child: content,
+          builder: (context, child) {
+            final v = _shown.value;
+            if (v <= 0) return Opacity(opacity: 0, child: child);
+            final arriving = _shown.status == AnimationStatus.forward;
+            // Arrival waits for the leaver to be mostly gone: one dissolve,
+            // never two lines of text on top of each other.
+            final opacity = arriving
+                ? const Interval(0.4, 1, curve: AppMotion.easeOut).transform(v)
+                : v;
+            final reduced = AppMotion.reduced(context);
+            final dy = reduced
+                ? 0.0
+                : arriving
+                ? 10 * (1 - AppMotion.easeOut.transform(v))
+                : -8 * (1 - v);
+            return Opacity(
+              opacity: opacity,
+              child: Transform.translate(offset: Offset(0, dy), child: child),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// The controls landing once the stars have formed: they rise into room
+/// that was theirs from the start, so the sheet does not grow.
+class _Arrival extends StatelessWidget {
+  const _Arrival({required this.visible, required this.child});
+
+  final bool visible;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = AppMotion.reduced(context);
+    return IgnorePointer(
+      ignoring: !visible,
+      child: AnimatedOpacity(
+        duration: AppMotion.entrance,
+        curve: AppMotion.easeOut,
+        opacity: visible ? 1 : 0,
+        child: AnimatedSlide(
+          duration: reduced ? Duration.zero : AppMotion.entrance,
+          curve: AppMotion.easeOut,
+          offset: visible || reduced ? Offset.zero : const Offset(0, 0.12),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/// Fades in place, keeping its room either way.
+class _Fading extends StatelessWidget {
+  const _Fading({required this.visible, required this.child});
+
+  final bool visible;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    ignoring: !visible,
+    child: ExcludeSemantics(
+      excluding: !visible,
+      child: AnimatedOpacity(
+        duration: AppMotion.card,
+        curve: AppMotion.easeOut,
+        opacity: visible ? 1 : 0,
+        child: child,
+      ),
+    ),
+  );
+}
+
+/// Text that hands its words over in place: the old words lift away first,
+/// then the new ones rise in, so the two never overlap.
+class _HandOverText extends StatelessWidget {
+  const _HandOverText({required this.text, required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) => AnimatedSwitcher(
+    duration: const Duration(milliseconds: 340),
+    switchInCurve: const Interval(0.45, 1, curve: AppMotion.easeOut),
+    switchOutCurve: const Interval(0.45, 1, curve: AppMotion.easeOut),
+    transitionBuilder: HandOver.transition(rise: 0.5, lift: 0.4),
+    layoutBuilder: (current, previous) =>
+        Stack(alignment: Alignment.center, children: [...previous, ?current]),
+    child: KeyedSubtree(
+      key: ValueKey(text),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      ),
+    ),
+  );
 }
 
 /// How close to a rider's face a tap must land to make them hop, in stage
@@ -570,19 +752,38 @@ abstract final class RatingCartoonHit {
   static const double reach = 48;
 }
 
-/// The primary action: amber, with five tiny stars that ripple across it on
-/// a loop, a quiet "this is the one" without shouting.
-class _RateButton extends StatefulWidget {
-  const _RateButton({required this.label, required this.onTap, super.key});
+enum _Glyph { stars, dots, heart, retry }
+
+/// The story's one button, from the first ask to the last thanks.
+///
+/// It never swaps itself out: its fill and ink cross-fade to each phase's
+/// colours, and its glyph and words hand over in place. While asking, five
+/// tiny stars ripple across it on a loop, a quiet "this is the one"; while
+/// Bazaar has the stage, three dots hop in turn.
+class _MorphButton extends StatefulWidget {
+  const _MorphButton({
+    required this.label,
+    required this.glyph,
+    required this.fill,
+    required this.ink,
+    required this.onTap,
+    this.labelKey,
+  });
 
   final String label;
+  final _Glyph glyph;
+  final Color fill;
+  final Color ink;
   final VoidCallback? onTap;
 
+  /// Names the button by what it does right now, for tests.
+  final Key? labelKey;
+
   @override
-  State<_RateButton> createState() => _RateButtonState();
+  State<_MorphButton> createState() => _MorphButtonState();
 }
 
-class _RateButtonState extends State<_RateButton>
+class _MorphButtonState extends State<_MorphButton>
     with SingleTickerProviderStateMixin {
   late final AnimationController _loop = AnimationController(
     vsync: this,
@@ -601,9 +802,27 @@ class _RateButtonState extends State<_RateButton>
     super.dispose();
   }
 
+  Widget _glyph(Color ink) => switch (widget.glyph) {
+    _Glyph.stars => AnimatedBuilder(
+      animation: _loop,
+      builder: (context, _) => CustomPaint(
+        size: const Size(46, 18),
+        painter: _StarRipplePainter(_loop.value, ink),
+      ),
+    ),
+    _Glyph.dots => AnimatedBuilder(
+      animation: _loop,
+      builder: (context, _) => CustomPaint(
+        size: const Size(34, 18),
+        painter: _DotsPainter(_loop.value, ink),
+      ),
+    ),
+    _Glyph.heart => Icon(Icons.favorite_rounded, size: 19, color: ink),
+    _Glyph.retry => Icon(Icons.refresh_rounded, size: 19, color: ink),
+  };
+
   @override
   Widget build(BuildContext context) {
-    final color = AppColors.amber;
     final onTap = widget.onTap;
     return Semantics(
       button: true,
@@ -613,50 +832,67 @@ class _RateButtonState extends State<_RateButton>
       child: PressableScale(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: AnimatedOpacity(
-          duration: AppMotion.chip,
-          opacity: onTap == null ? 0.55 : 1,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.3),
-                  blurRadius: 18,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  AnimatedBuilder(
-                    animation: _loop,
-                    builder: (context, _) => CustomPaint(
-                      size: const Size(46, 14),
-                      painter: _StarRipplePainter(
-                        _loop.value,
-                        AppColors.background,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Text(
-                      widget.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppColors.background,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+        child: TweenAnimationBuilder<Color?>(
+          tween: ColorTween(end: widget.fill),
+          duration: AppMotion.sheet,
+          curve: AppMotion.easeOut,
+          builder: (context, fill, _) => TweenAnimationBuilder<Color?>(
+            tween: ColorTween(end: widget.ink),
+            duration: AppMotion.sheet,
+            curve: AppMotion.easeOut,
+            builder: (context, ink, _) => DecoratedBox(
+              decoration: BoxDecoration(
+                color: fill,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: fill!.withValues(alpha: 0.28),
+                    blurRadius: 18,
+                    offset: const Offset(0, 4),
                   ),
                 ],
+              ),
+              child: SizedBox(
+                height: 52,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 360),
+                  switchInCurve: const Interval(
+                    0.45,
+                    1,
+                    curve: AppMotion.easeOut,
+                  ),
+                  switchOutCurve: const Interval(
+                    0.45,
+                    1,
+                    curve: AppMotion.easeOut,
+                  ),
+                  transitionBuilder: HandOver.transition(rise: 0.5, lift: 0.4),
+                  layoutBuilder: (current, previous) => Stack(
+                    alignment: Alignment.center,
+                    children: [...previous, ?current],
+                  ),
+                  child: Row(
+                    key: ValueKey(widget.label),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _glyph(ink!),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          widget.label,
+                          key: widget.labelKey,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: ink,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -664,6 +900,30 @@ class _RateButtonState extends State<_RateButton>
       ),
     );
   }
+}
+
+/// Three dots hopping in turn, in the button's ink.
+class _DotsPainter extends CustomPainter {
+  _DotsPainter(this.t, this.color);
+
+  final double t;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final step = size.width / 3;
+    for (var i = 0; i < 3; i++) {
+      final hop = math.max(0.0, math.sin((t * 2 - i * 0.15) * math.pi * 2));
+      canvas.drawCircle(
+        Offset(step * (i + 0.5), size.height / 2 + 2 - 5 * hop),
+        3.6,
+        Paint()..color = color.withValues(alpha: 0.7 + 0.3 * hop),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DotsPainter old) => old.t != t || old.color != color;
 }
 
 class _StarRipplePainter extends CustomPainter {
@@ -699,126 +959,4 @@ class _StarRipplePainter extends CustomPainter {
   @override
   bool shouldRepaint(_StarRipplePainter old) =>
       old.t != t || old.color != color;
-}
-
-/// Three dots that hop in turn while Bazaar has the stage.
-class _WaitingDots extends StatefulWidget {
-  const _WaitingDots();
-
-  @override
-  State<_WaitingDots> createState() => _WaitingDotsState();
-}
-
-class _WaitingDotsState extends State<_WaitingDots>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _loop = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1200),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _loop.loopUnlessReduced(context, rest: 0.25);
-  }
-
-  @override
-  void dispose() {
-    _loop.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: AnimatedBuilder(
-      animation: _loop,
-      builder: (context, _) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < 3; i++)
-            Transform.translate(
-              offset: Offset(
-                0,
-                -5 *
-                    math.max(
-                      0,
-                      math.sin((_loop.value - i * 0.15) * math.pi * 2),
-                    ),
-              ),
-              child: Container(
-                width: 8,
-                height: 8,
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.amber.withValues(alpha: 0.85),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-    super.key,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    enabled: onTap != null,
-    label: label,
-    excludeSemantics: true,
-    child: PressableScale(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.24),
-              blurRadius: 16,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 15),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 19, color: Colors.white),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
 }
