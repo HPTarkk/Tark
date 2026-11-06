@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 
 import '../utils/logger.dart';
 import 'diagnostic_log.dart';
+import 'freeze_watch.dart';
 
 /// Records when the app leaves and returns to the foreground, and how long it
 /// was away.
@@ -33,12 +34,14 @@ class LifecycleLog with WidgetsBindingObserver {
     if (_installed) return;
     _installed = true;
     WidgetsBinding.instance.addObserver(_instance);
+    if (_instance._foreground) FreezeWatch.resume();
   }
 
   static void uninstall() {
     if (!_installed) return;
     _installed = false;
     WidgetsBinding.instance.removeObserver(_instance);
+    FreezeWatch.pause();
   }
 
   /// When the app last stopped being visible, so a resume can report the gap
@@ -66,6 +69,7 @@ class LifecycleLog with WidgetsBindingObserver {
         final away = _leftAt;
         _foreground = true;
         _leftAt = null;
+        FreezeWatch.resume();
         Logger.diagnostic(
           away == null
               ? 'lifecycle: resumed'
@@ -84,6 +88,7 @@ class LifecycleLog with WidgetsBindingObserver {
           AppLifecycleState.detached:
         _foreground = false;
         _leftAt ??= DateTime.now();
+        FreezeWatch.pause();
         Logger.diagnostic('lifecycle: ${state.name}');
         // The window in which the OS is most likely to kill us starts now.
         unawaited(DiagnosticLog.flush());

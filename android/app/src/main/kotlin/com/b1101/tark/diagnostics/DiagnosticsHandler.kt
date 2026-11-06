@@ -21,6 +21,8 @@ import java.io.File
  *   logsDirectory() -> String   app-private directory the log lives in
  *   shareFile(path, mimeType, subject) -> Bool   true if a share sheet opened
  *   lastExit() -> Map?   how the previous run ended, once, or null
+ *     (exit reason, Kotlin crash stack, or a freeze it died in; see
+ *     [FreezeWatchdog])
  *
  * ## Why FileProvider
  *
@@ -68,6 +70,9 @@ class DiagnosticsHandler(
             out["crash"] = runCatching { crash.readText().take(4000) }.getOrNull()
             crash.delete()
         }
+        // Android 9 and 10 keep no ANR record, and no Android notices a stuck
+        // Dart isolate: the watchdog's note is the only witness there is.
+        FreezeWatchdog.takeLeftover()?.let { out["frozen"] = it }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val manager = context.getSystemService(ActivityManager::class.java)
             val info = runCatching {

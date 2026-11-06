@@ -3908,4 +3908,74 @@ class AppLocalizationsFa extends AppLocalizations {
   String report_scene_label(String name) {
     return '$name با حرف‌هاش ناراحتت کرد';
   }
+
+  @override
+  String get rating_settings_row => 'امتیاز به تَرک در کافه‌بازار';
+
+  @override
+  String get rating_settings_row_desc =>
+      'ستاره‌هات کمک می‌کنه بقیه‌ی موتورسوارها پیدامون کنن';
+
+  @override
+  String get rating_settings_row_done =>
+      'ممنون که سر زدی! هر وقت خواستی نظرت رو عوض کن';
+
+  @override
+  String get rating_ask_title => 'سفر با تَرک خوش می‌گذره؟';
+
+  @override
+  String get rating_ask_body =>
+      'با یه امتیاز توی کافه‌بازار، موتورسوارهای بیشتری تَرک رو پیدا می‌کنن. چند ثانیه بیشتر طول نمی‌کشه.';
+
+  @override
+  String get rating_rate => 'امتیاز در کافه‌بازار';
+
+  @override
+  String get rating_rate_hint =>
+      'صفحه‌ی امتیاز و نظرِ خودِ کافه‌بازار باز می‌شه';
+
+  @override
+  String get rating_not_now => 'فعلاً نه';
+
+  @override
+  String get rating_away_title => 'رفتیم کافه‌بازار…';
+
+  @override
+  String get rating_away_body => 'ستاره‌هات رو اونجا بده. ما همین‌جا منتظرتیم.';
+
+  @override
+  String get rating_back => 'برگشتم';
+
+  @override
+  String get rating_thanks_title => 'مرسی که هستی!';
+
+  @override
+  String get rating_thanks_body =>
+      'هر امتیاز، تَرک رو به موتورسوارهای بیشتری می‌رسونه. ما همه‌ی نظرها رو می‌خونیم.';
+
+  @override
+  String get rating_done => 'تمام';
+
+  @override
+  String get rating_failed_title => 'کافه‌بازار باز نشد';
+
+  @override
+  String get rating_failed_body =>
+      'اگه کافه‌بازار رو داری، تَرک رو اونجا پیدا کن؛ یا این لینک رو توی مرورگر باز کن.';
+
+  @override
+  String get rating_copy_link => 'کپی لینک';
+
+  @override
+  String get rating_copied => 'کپی شد';
+
+  @override
+  String get rating_try_again => 'دوباره امتحان کن';
+
+  @override
+  String get rating_close => 'بستن';
+
+  @override
+  String get rating_scene_label =>
+      'دو موتورسوار با هم حرف می‌زنن و پنج ستاره بالای سرشون می‌درخشه';
 }

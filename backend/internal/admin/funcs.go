@@ -128,6 +128,20 @@ func funcsFor(lang string) template.FuncMap {
 	m["latency"] = func(sec float64) string { return latencyIn(lang, sec) }
 	m["p"] = func(h metrics.Hist, q float64) string { return latencyIn(lang, h.Quantile(q)) }
 	m["dur"] = func(d time.Duration) string { return duration(lang, d) }
+	// rating is an average of stars to one decimal: "4.3".
+	m["rating"] = func(f float64) string {
+		return localNum(lang, strconv.FormatFloat(math.Round(f*10)/10, 'f', 1, 64))
+	}
+	// waited is a length of time in the largest whole unit: "5 hours".
+	m["waited"] = func(d time.Duration) string {
+		switch {
+		case d < time.Hour:
+			return tr(lang, "span.m", max(int(d.Minutes()), 1))
+		case d < 48*time.Hour:
+			return tr(lang, "span.h", int(d.Hours()))
+		}
+		return tr(lang, "span.d", int(d.Hours()/24))
+	}
 	m["bytes"] = func(n uint64) string { return megabytes(lang, float64(n)) }
 	// mb is a size that may be missing (nil shows a dash).
 	m["mb"] = func(v any) string {

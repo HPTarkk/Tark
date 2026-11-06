@@ -6848,6 +6848,132 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'{name} با حرف‌هاش ناراحتت کرد'**
   String report_scene_label(String name);
+
+  /// No description provided for @rating_settings_row.
+  ///
+  /// In fa, this message translates to:
+  /// **'امتیاز به تَرک در کافه‌بازار'**
+  String get rating_settings_row;
+
+  /// No description provided for @rating_settings_row_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'ستاره‌هات کمک می‌کنه بقیه‌ی موتورسوارها پیدامون کنن'**
+  String get rating_settings_row_desc;
+
+  /// No description provided for @rating_settings_row_done.
+  ///
+  /// In fa, this message translates to:
+  /// **'ممنون که سر زدی! هر وقت خواستی نظرت رو عوض کن'**
+  String get rating_settings_row_done;
+
+  /// No description provided for @rating_ask_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'سفر با تَرک خوش می‌گذره؟'**
+  String get rating_ask_title;
+
+  /// No description provided for @rating_ask_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'با یه امتیاز توی کافه‌بازار، موتورسوارهای بیشتری تَرک رو پیدا می‌کنن. چند ثانیه بیشتر طول نمی‌کشه.'**
+  String get rating_ask_body;
+
+  /// No description provided for @rating_rate.
+  ///
+  /// In fa, this message translates to:
+  /// **'امتیاز در کافه‌بازار'**
+  String get rating_rate;
+
+  /// No description provided for @rating_rate_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'صفحه‌ی امتیاز و نظرِ خودِ کافه‌بازار باز می‌شه'**
+  String get rating_rate_hint;
+
+  /// No description provided for @rating_not_now.
+  ///
+  /// In fa, this message translates to:
+  /// **'فعلاً نه'**
+  String get rating_not_now;
+
+  /// No description provided for @rating_away_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'رفتیم کافه‌بازار…'**
+  String get rating_away_title;
+
+  /// No description provided for @rating_away_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'ستاره‌هات رو اونجا بده. ما همین‌جا منتظرتیم.'**
+  String get rating_away_body;
+
+  /// No description provided for @rating_back.
+  ///
+  /// In fa, this message translates to:
+  /// **'برگشتم'**
+  String get rating_back;
+
+  /// No description provided for @rating_thanks_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'مرسی که هستی!'**
+  String get rating_thanks_title;
+
+  /// No description provided for @rating_thanks_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'هر امتیاز، تَرک رو به موتورسوارهای بیشتری می‌رسونه. ما همه‌ی نظرها رو می‌خونیم.'**
+  String get rating_thanks_body;
+
+  /// No description provided for @rating_done.
+  ///
+  /// In fa, this message translates to:
+  /// **'تمام'**
+  String get rating_done;
+
+  /// No description provided for @rating_failed_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'کافه‌بازار باز نشد'**
+  String get rating_failed_title;
+
+  /// No description provided for @rating_failed_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'اگه کافه‌بازار رو داری، تَرک رو اونجا پیدا کن؛ یا این لینک رو توی مرورگر باز کن.'**
+  String get rating_failed_body;
+
+  /// No description provided for @rating_copy_link.
+  ///
+  /// In fa, this message translates to:
+  /// **'کپی لینک'**
+  String get rating_copy_link;
+
+  /// No description provided for @rating_copied.
+  ///
+  /// In fa, this message translates to:
+  /// **'کپی شد'**
+  String get rating_copied;
+
+  /// No description provided for @rating_try_again.
+  ///
+  /// In fa, this message translates to:
+  /// **'دوباره امتحان کن'**
+  String get rating_try_again;
+
+  /// No description provided for @rating_close.
+  ///
+  /// In fa, this message translates to:
+  /// **'بستن'**
+  String get rating_close;
+
+  /// No description provided for @rating_scene_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'دو موتورسوار با هم حرف می‌زنن و پنج ستاره بالای سرشون می‌درخشه'**
+  String get rating_scene_label;
 }
 
 class _AppLocalizationsDelegate

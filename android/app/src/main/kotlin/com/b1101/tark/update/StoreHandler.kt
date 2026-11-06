@@ -8,7 +8,8 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
 /**
- * Opens Tarkk's store listing for the update prompt.
+ * Opens Tarkk's store listing for the update prompt, and Bazaar's own
+ * rating page for the rating story.
  *
  * Tries the Cafe Bazaar app first — it goes straight to the Update button —
  * and falls back to the listing URL Dart passes in, which any browser opens.
@@ -27,6 +28,9 @@ class StoreHandler(
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "openListing" -> result.success(openListing(call.argument<String>("url")))
+            "openReview" -> result.success(
+                openReview(call.argument<String>("id"), call.argument<String>("url")),
+            )
             else -> result.notImplemented()
         }
     }
@@ -40,6 +44,34 @@ class StoreHandler(
         if (tryStart(activity, bazaar)) return true
         val url = fallbackUrl ?: return false
         return tryStart(activity, Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    }
+
+    /**
+     * Bazaar's "rate and review" page, as Bazaar's developer guide documents
+     * it: ACTION_EDIT on `bazaar://details?id=<package>`, aimed at Bazaar's
+     * package. The user rates there, signed in to Bazaar; nothing about the
+     * rating ever passes through Tarkk.
+     *
+     * Answers which way it went: "bazaar" (the rating page is up), "web" (no
+     * Bazaar app, so the listing opened in a browser) or "none".
+     *
+     * [listingId] is passed in rather than read from the package name so a
+     * `.dev` device-test build still lands on the real listing.
+     */
+    private fun openReview(listingId: String?, fallbackUrl: String?): String {
+        val activity = activityProvider() ?: return "none"
+        val id = listingId?.takeIf { it.isNotBlank() } ?: activity.packageName
+        val review = Intent(
+            Intent.ACTION_EDIT,
+            Uri.parse("bazaar://details?id=$id"),
+        ).setPackage(BAZAAR_PACKAGE)
+        if (tryStart(activity, review)) return "bazaar"
+        val url = fallbackUrl ?: return "none"
+        return if (tryStart(activity, Intent(Intent.ACTION_VIEW, Uri.parse(url)))) {
+            "web"
+        } else {
+            "none"
+        }
     }
 
     private fun tryStart(activity: Activity, intent: Intent): Boolean = try {

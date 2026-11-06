@@ -3940,4 +3940,72 @@ class AppLocalizationsEn extends AppLocalizations {
   String report_scene_label(String name) {
     return '$name upset you with what they said';
   }
+
+  @override
+  String get rating_settings_row => 'Rate Tarkk on Cafe Bazaar';
+
+  @override
+  String get rating_settings_row_desc => 'Your stars help other riders find us';
+
+  @override
+  String get rating_settings_row_done =>
+      'Thanks for stopping by! Update your rating any time';
+
+  @override
+  String get rating_ask_title => 'Enjoying the ride with Tarkk?';
+
+  @override
+  String get rating_ask_body =>
+      'A rating on Cafe Bazaar helps more riders find Tarkk. It only takes a few seconds.';
+
+  @override
+  String get rating_rate => 'Rate on Cafe Bazaar';
+
+  @override
+  String get rating_rate_hint => 'Opens Cafe Bazaar\'s own rating page';
+
+  @override
+  String get rating_not_now => 'Not now';
+
+  @override
+  String get rating_away_title => 'Over to Cafe Bazaar…';
+
+  @override
+  String get rating_away_body => 'Give your stars there. We\'ll be right here.';
+
+  @override
+  String get rating_back => 'I\'m back';
+
+  @override
+  String get rating_thanks_title => 'Thank you!';
+
+  @override
+  String get rating_thanks_body =>
+      'Every rating brings Tarkk to more riders, and we read every review.';
+
+  @override
+  String get rating_done => 'Done';
+
+  @override
+  String get rating_failed_title => 'Cafe Bazaar didn\'t open';
+
+  @override
+  String get rating_failed_body =>
+      'If you have Cafe Bazaar, find Tarkk there, or open this link in a browser.';
+
+  @override
+  String get rating_copy_link => 'Copy link';
+
+  @override
+  String get rating_copied => 'Copied';
+
+  @override
+  String get rating_try_again => 'Try again';
+
+  @override
+  String get rating_close => 'Close';
+
+  @override
+  String get rating_scene_label =>
+      'Two riders talking, with five stars shining above them';
 }

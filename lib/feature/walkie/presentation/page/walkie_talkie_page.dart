@@ -20,6 +20,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/confirm_sheet.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../../../../core/widget/version_badge.dart';
+import '../../../rating/api/rating_api.dart';
 import '../../../room/presentation/widget/carrier_handover_note.dart';
 import '../../../room/presentation/widget/carrier_move_scene.dart';
 import '../../../room/presentation/widget/room_visuals.dart';
@@ -56,7 +57,12 @@ class WalkieTalkiePage extends StatefulWidget {
 
 class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
   StreamSubscription<String>? _systemAudioMsgSub;
+  StreamSubscription<WalkieTalkieState>? _companySub;
   Timer? _usageTipsTimer;
+
+  /// How long this channel had other riders in it: a good ride earns Home's
+  /// occasional rating ask (see RatingPrompt).
+  final _company = RideCompanyClock();
 
   @override
   void initState() {
@@ -80,8 +86,16 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
           showStatusNote(context, text);
         });
 
+    final cubit = context.read<WalkieTalkieCubit>();
+    _trackCompany(cubit.state);
+    _companySub = cubit.stream.listen(_trackCompany);
+
     _scheduleUsageTips();
   }
+
+  void _trackCompany(WalkieTalkieState state) => _company.update(
+    others: state.activeUsers.where((u) => u.id != state.localId).length,
+  );
 
   // Shown once ever, at a randomized moment a few seconds into a session
   // (not necessarily first launch) rather than the instant the page opens.
@@ -101,6 +115,8 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
   @override
   void dispose() {
     _systemAudioMsgSub?.cancel();
+    _companySub?.cancel();
+    _company.stop();
     _usageTipsTimer?.cancel();
     super.dispose();
   }
@@ -431,6 +447,9 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
   void _leave(BuildContext context) {
     if (!context.mounted) return;
     Sfx.play(SfxEvent.channelLeave);
+    // Before navigating: Home reads it the moment it has arrived.
+    _company.stop();
+    unawaited(RatingPrompt.registered?.recordRide(_company.together));
     // goNamed (not pop) so leaving always lands cleanly on Landing regardless
     // of how this screen was reached — the Bluetooth flow replaces the stack
     // on connect (goNamed in BluetoothConnectPage), which left plain pop()

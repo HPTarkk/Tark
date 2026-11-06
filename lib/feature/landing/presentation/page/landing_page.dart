@@ -13,6 +13,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/mesh_background.dart';
 import '../../../../core/widget/settings_icon_button.dart';
 import '../../../../core/widget/version_badge.dart';
+import '../../../rating/api/rating_api.dart';
 import '../manager/landing_cubit.dart';
 import '../widget/landing_logo.dart';
 import '../widget/landing_profile_chip.dart';
@@ -88,6 +89,9 @@ class _LandingPageState extends State<LandingPage>
       if (mounted && (ModalRoute.of(context)?.isCurrent ?? true)) {
         await RoomRejoinPrompt.maybeAsk(context);
       }
+      // Back home from a good ride: now and then, a rating ask. It checks
+      // for itself that nothing else (an update, the rejoin question) is up.
+      if (mounted) await maybeAskForRating(context);
     } on TickerCanceled {
       // Leaving Home retires the remaining entrance and its optional prompt.
     }
