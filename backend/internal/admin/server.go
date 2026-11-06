@@ -34,6 +34,7 @@ import (
 	"github.com/HPTarkk/Tark/backend/internal/metrics"
 	"github.com/HPTarkk/Tark/backend/internal/password"
 	"github.com/HPTarkk/Tark/backend/internal/ratelimit"
+	"github.com/HPTarkk/Tark/backend/internal/reviews"
 	"github.com/HPTarkk/Tark/backend/internal/secure"
 	"github.com/HPTarkk/Tark/backend/internal/store"
 )
@@ -58,6 +59,9 @@ type Deps struct {
 	Billing   Billing
 	// Plans on sale, for the price helper.
 	Plans []billing.Plan
+	// Reviews is the Bazaar reviews copy behind the Reviews page; nil shows
+	// the page as not set up.
+	Reviews *reviews.Service
 	// Metrics feed the System page; nil hides those numbers.
 	Metrics *metrics.Registry
 	// LogDir is TARK_LOG_DIR, searched by the Logs page; empty turns it off.
@@ -78,6 +82,9 @@ type Server struct {
 	pages  map[string]map[string]*template.Template
 	router *chi.Mux
 	now    func() time.Time
+	// syncWait is how long "Sync now" waits before leaving a sync to finish
+	// on its own.
+	syncWait time.Duration
 }
 
 var (
@@ -88,7 +95,7 @@ var (
 )
 
 func New(d Deps) (*Server, error) {
-	s := &Server{Deps: d, now: time.Now, pages: map[string]map[string]*template.Template{}}
+	s := &Server{Deps: d, now: time.Now, pages: map[string]map[string]*template.Template{}, syncWait: 20 * time.Second}
 	names, err := fs.Glob(assets, "templates/*.html")
 	if err != nil {
 		return nil, err
@@ -166,6 +173,9 @@ func (s *Server) Handler() http.Handler {
 				r.Get("/security", s.security)
 				r.Get("/mail", s.mailPage)
 				r.Post("/mail/retry", s.retryMail)
+				r.Get("/reviews", s.reviewsPage)
+				r.Post("/reviews/sync", s.syncReviews)
+				r.Post("/reviews/{id}/reply", s.replyToReview)
 				r.Post("/users/{id}/disable", s.act("user.disabled", true, s.disableUser))
 				r.Post("/users/{id}/enable", s.act("user.enabled", true, s.enableUser))
 				r.Post("/users/{id}/signout", s.act("user.signed_out", false, s.signOutUser))
@@ -318,6 +328,10 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	if sess := sessionFrom(r.Context()); sess != nil {
 		data["CSRF"] = sess.csrf
 	}
+	if _, set := data["ReviewsBadge"]; !set {
+		data["ReviewsBadge"] = s.reviewsBadge(r.Context())
+	}
+	data["ReviewsOn"] = s.Reviews != nil
 	var b strings.Builder
 	if err := t.Execute(&b, data); err != nil {
 		s.fail(w, r, err)

@@ -28,6 +28,7 @@ import 'core/settings/settings_repository.dart';
 import 'core/sfx/sfx_service.dart';
 import 'core/theme/theme_service.dart';
 import 'core/utils/logger.dart';
+import 'feature/rating/api/rating_api.dart';
 import 'feature/transfer/api/transfer_api.dart';
 import 'feature/transfer/data/android_network_rebind_coordinator.dart';
 import 'feature/transfer/data/hotspot/wifi_client_address.dart';
@@ -113,6 +114,8 @@ void main() async {
   // Both are no-ops on builds without sign-in.
   await GetIt.instance<AccountSession>().load();
   unawaited(GetIt.instance<ProfileSync>().start());
+  // Starts the "has Tarkk settled in yet?" clock the rating ask waits on.
+  unawaited(RatingPrompt.registered?.noteLaunch());
   // Strictly before the mode store below: that one asks LicenseGate whether
   // the persisted transport is still paid for. Loads and verifies the stored
   // entitlement from secure storage; any server refresh it wants runs in the

@@ -16,6 +16,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/language_toggle.dart';
 import '../../../../core/widget/theme_toggle.dart';
+import '../../../rating/api/rating_api.dart';
 import '../../../walkie/api/walkie_api.dart';
 import '../manager/settings_cubit.dart';
 import '../widget/account_section.dart';
@@ -82,6 +83,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 _AppearanceCard(),
                 _StartupCard(),
                 _AdvancedNavCard(),
+                // Last, where people look for it: rating Tarkk on Cafe
+                // Bazaar. Hidden (zero height) where there is no Bazaar.
+                if (RatingPrompt.platformSupported) const RateAppCard(),
               ],
               builder: (context, cards) => Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

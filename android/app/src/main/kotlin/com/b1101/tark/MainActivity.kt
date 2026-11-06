@@ -7,6 +7,7 @@ import com.b1101.tark.audio.SystemAudioHandler
 import com.b1101.tark.billing.BazaarBillingHandler
 import com.b1101.tark.bluetooth.BluetoothServerHandler
 import com.b1101.tark.diagnostics.DiagnosticsHandler
+import com.b1101.tark.diagnostics.FreezeWatchdog
 import com.b1101.tark.hotspot.HotspotHandler
 import com.b1101.tark.hotspot.WifiJoinHandler
 import com.b1101.tark.keepalive.KeepAliveHandler
@@ -35,6 +36,14 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         DiagnosticsHandler.installCrashRecorder(applicationContext)
+        // Off the main thread on purpose: a heartbeat queued behind a stuck
+        // main thread would make a busy platform look like a frozen isolate.
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            FreezeWatchdog.METHOD_CHANNEL,
+            StandardMethodCodec.INSTANCE,
+            flutterEngine.dartExecutor.binaryMessenger.makeBackgroundTaskQueue(),
+        ).setMethodCallHandler(FreezeWatchdog.install(applicationContext))
 
         val handler = BluetoothServerHandler(
             applicationContext,

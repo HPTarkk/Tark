@@ -112,6 +112,8 @@ var eventTexts = map[string][2]string{
 	"ev.premium.revoked":                 {"Took premium back", "پس‌گرفتن پریمیوم"},
 	"ev.mail.retry":                      {"Resent stuck emails", "فرستادن دوباره‌ی ایمیل‌ها"},
 	"ev.pricing.updated":                 {"Changed prices", "تغییر قیمت‌ها"},
+	"ev.review.replied":                  {"Replied to a review", "جواب به یه نظر"},
+	"ev.reviews.synced":                  {"Synced reviews", "همگام‌سازی نظرها"},
 	"ev.admin.created":                   {"Added an admin", "اضافه‌کردن مدیر"},
 	"ev.admin.enabled":                   {"Enabled an admin", "فعال‌کردن مدیر"},
 	"ev.admin.disabled":                  {"Disabled an admin", "غیرفعال‌کردن مدیر"},
@@ -190,6 +192,11 @@ var eventTexts = map[string][2]string{
 	"dk.multipliers": {"Multipliers", "ضریب‌ها"},
 	"dk.roundTo":     {"Round to", "گرد کردن به"},
 	"dk.ending":      {"Take off", "کم‌کردن"},
+	"dk.review":      {"Review", "نظر"},
+	"dk.chars":       {"Length", "طول"},
+	"dk.new":         {"New", "تازه"},
+	"dk.seen":        {"Listed", "فهرست‌شده"},
+	"dk.error":       {"Problem", "مشکل"},
 
 	// Detail values.
 	"dv.yes":                     {"yes", "بله"},

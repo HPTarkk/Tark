@@ -54,7 +54,9 @@ go run ./cmd/tarkd serve             # migrates, then listens on :8080
 In development `TARK_MAIL_DRIVER=log` writes emails (with their codes) to the
 log instead of sending them. `TARK_BAZAAR_FAKE=true` answers every purchase
 token as a 30-day subscription (tokens starting with `invalid` are unknown,
-and tokens starting with `down` simulate an outage). Neither setting is
+and tokens starting with `down` simulate an outage). `TARK_BAZAAR_REVIEWS_FAKE=true`
+fills the admin panel's Reviews page with a few hundred made-up reviews and
+approves replies two minutes after they are sent. None of these settings is
 accepted in production.
 
 Tests, including end-to-end tests against a real database (they wipe its
@@ -101,6 +103,9 @@ or malformed secret.
 | `TARK_METRICS_ADDR` | Serve `/metrics` (Prometheus text format) on this address, e.g. `:9091`. Empty: off; the admin panel's System page shows the same numbers. Must differ from the API and admin addresses and never be published. |
 | `TARK_BACKUP_DIR`, `TARK_BACKUP_KEY` | Directory for the nightly encrypted backups, and the 32-byte key (from `keygen`) that encrypts them. Empty directory: no backups. Keep the key off the server too. |
 | `TARK_BACKUP_HOUR_UTC`, `TARK_BACKUP_KEEP_DAYS` | When the nightly backup runs (default 23 UTC) and how many days of files are kept (default 14). |
+| `TARK_BAZAAR_REVIEWS_API_KEY`, `TARK_BAZAAR_REVIEWS_KEY_HEADER` | Cafe Bazaar's reviews API key and the header name it goes in, both from Bazaar's developer panel (Pishkhan). Turns on the admin panel's Reviews page, which keeps a copy of every review and sends replies. The key stays on the server: only the server talks to Bazaar, and the key is never logged or shown. Empty: the page explains how to set it up. |
+| `TARK_BAZAAR_REPLY_EMAIL` | The contact address shown under replies sent from the panel (admins can change it per reply). Empty: Bazaar uses the developer account's own. |
+| `TARK_BAZAAR_REVIEWS_SYNC_EVERY` | How often reviews are copied from Bazaar, default `15m` (between `5m` and `24h`). `TARK_BAZAAR_REVIEWS_BASE_URL` overrides `https://sandoghche.cafebazaar.ir` for testing. |
 
 ## API documentation
 

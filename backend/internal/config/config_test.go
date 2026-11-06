@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPlaintextDatabaseHost(t *testing.T) {
@@ -173,5 +174,66 @@ func TestLogMetricsAndCertificateSettings(t *testing.T) {
 		if _, err := loadWith(t, env); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+}
+
+func TestReviewsSettings(t *testing.T) {
+	c, err := loadWith(t, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Reviews.Enabled() || c.Reviews.BaseURL != "https://sandoghche.cafebazaar.ir" || c.Reviews.Every != 15*time.Minute {
+		t.Fatalf("defaults: %+v", c.Reviews)
+	}
+	c, err = loadWith(t, map[string]string{
+		"TARK_BAZAAR_REVIEWS_API_KEY":    "  key-from-pishkhan  ",
+		"TARK_BAZAAR_REVIEWS_KEY_HEADER": "CAFEBAZAAR-PISHKHAN-API-SECRET",
+		"TARK_BAZAAR_REPLY_EMAIL":        "support@tarkk.ir",
+		"TARK_BAZAAR_REVIEWS_SYNC_EVERY": "30m",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.Reviews.Enabled() || c.Reviews.Key != "key-from-pishkhan" || c.Reviews.ReplyEmail != "support@tarkk.ir" || c.Reviews.Every != 30*time.Minute {
+		t.Fatalf("got %+v", c.Reviews)
+	}
+	if c, err := loadWith(t, map[string]string{"TARK_BAZAAR_REVIEWS_FAKE": "true"}); err != nil || !c.Reviews.Enabled() {
+		t.Fatalf("fake in development: %v", err)
+	}
+
+	const key = "do-not-print-this-key"
+	for name, env := range map[string]map[string]string{
+		"key without a header":  {"TARK_BAZAAR_REVIEWS_API_KEY": key},
+		"header is reserved":    {"TARK_BAZAAR_REVIEWS_API_KEY": key, "TARK_BAZAAR_REVIEWS_KEY_HEADER": "Host"},
+		"header is not a token": {"TARK_BAZAAR_REVIEWS_API_KEY": key, "TARK_BAZAAR_REVIEWS_KEY_HEADER": "X Key"},
+		"reply email":           {"TARK_BAZAAR_REPLY_EMAIL": "support"},
+		"reply email injection": {"TARK_BAZAAR_REPLY_EMAIL": "a@b.c\r\nBcc: x@evil.test"},
+		"sync too often":        {"TARK_BAZAAR_REVIEWS_SYNC_EVERY": "1m"},
+		"sync too rarely":       {"TARK_BAZAAR_REVIEWS_SYNC_EVERY": "48h"},
+	} {
+		_, err := loadWith(t, env)
+		if err == nil {
+			t.Errorf("%s: accepted", name)
+		} else if strings.Contains(err.Error(), key) {
+			t.Errorf("%s: the error shows the key: %v", name, err)
+		}
+	}
+
+	// Outside development: no fake, and the key only over https.
+	prod := ReviewsConfig{Fake: true, Every: 15 * time.Minute}
+	if errs := prod.validate(false); len(errs) != 1 {
+		t.Fatalf("fake in production: %v", errs)
+	}
+	prod = ReviewsConfig{Key: key, KeyHeader: "X-Key", BaseURL: "http://sandoghche.cafebazaar.ir", Every: 15 * time.Minute}
+	if errs := prod.validate(false); len(errs) != 1 {
+		t.Fatalf("plain http in production: %v", errs)
+	}
+	prod.BaseURL = "https://sandoghche.cafebazaar.ir"
+	if errs := prod.validate(false); len(errs) != 0 {
+		t.Fatalf("valid production settings refused: %v", errs)
+	}
+	prod.Key = "two\nlines"
+	if errs := prod.validate(false); len(errs) != 1 {
+		t.Fatalf("multi-line key: %v", errs)
 	}
 }
