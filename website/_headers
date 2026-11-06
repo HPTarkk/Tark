@@ -7,6 +7,12 @@
   Cache-Control: no-cache, no-store, must-revalidate
   Access-Control-Allow-Origin: *
 
+# The app reads /announcements.json at launch, with the same cache-busting
+# query; same reasoning.
+/announcements.json
+  Cache-Control: no-cache, no-store, must-revalidate
+  Access-Control-Allow-Origin: *
+
 # The marketing site's release marker is independent of /update.json.
 /site-version.json
   Cache-Control: no-cache, no-store, must-revalidate

@@ -404,6 +404,22 @@ Bump `latestBuild` only after Bazaar has published the build, or people will be
 sent to a store page that still has the old one. Point a fork elsewhere, or
 compile the check out, with `--dart-define=TARK_UPDATE_FEED=<url or empty>`.
 
+## Announcements
+
+The app also fetches `https://tarkk.ir/announcements.json` at launch and shows
+new announcements on a sheet over the home screen: news, tips, new features,
+events, important notices, or an offer such as free months for signing up.
+Each one is shown once per phone. Each of the six categories (`gift`,
+`feature`, `news`, `tip`, `event`, `alert`) has its own emblem, colour and
+entrance animation.
+
+The sheet never shows over a channel. It waits until the update check has
+answered, and it stays away on any launch that offered an update. A broken
+entry is skipped while the rest still show. A missing or broken file shows
+nothing. See [docs/announcements.md](docs/announcements.md) for the format and
+how to publish one. Override or compile the check out with
+`--dart-define=TARK_ANNOUNCEMENTS_FEED=<url or empty>`.
+
 ---
 
 ## Diagnostics

@@ -142,6 +142,7 @@ void main() {
     bool storeOpens = true,
     String lang = 'en',
     bool reduced = false,
+    ValueChanged<bool>? onAnswered,
   }) async {
     final checker = _FakeChecker(offer, prefs);
     launcher = _FakeLauncher(storeOpens);
@@ -162,6 +163,7 @@ void main() {
             child: UpdateGate(
               location: () => location.value,
               locationChanges: location,
+              onAnswered: onAnswered,
               child: child!,
             ),
           ),
@@ -178,6 +180,26 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
   }
+
+  testWidgets('answers "nothing to offer" once the check is over', (
+    tester,
+  ) async {
+    final answers = <bool>[];
+    await pumpGate(tester, null, onAnswered: answers.add);
+    await settle(tester);
+    expect(answers, [false]);
+  });
+
+  testWidgets('answers "an update" when it found one', (tester) async {
+    final answers = <bool>[];
+    await pumpGate(
+      tester,
+      _offer(UpdateUrgency.optional),
+      onAnswered: answers.add,
+    );
+    await settle(tester);
+    expect(answers, [true]);
+  });
 
   testWidgets('no offer: the app is left alone', (tester) async {
     await pumpGate(tester, null);

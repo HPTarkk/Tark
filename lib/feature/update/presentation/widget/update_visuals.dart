@@ -146,12 +146,20 @@ class SheenButton extends StatefulWidget {
     required this.onTap,
     this.busy = false,
     this.startAfter,
+    this.color,
+    this.onColor,
     super.key,
   });
 
   final String label;
   final IconData icon;
   final VoidCallback onTap;
+
+  /// The fill; the app's amber when not given.
+  final Color? color;
+
+  /// Label and icon on [color]; the app's background when not given.
+  final Color? onColor;
 
   /// Dims the button and ignores taps while the store is being opened.
   final bool busy;
@@ -201,7 +209,7 @@ class _SheenButtonState extends State<SheenButton>
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(16);
-    final onAmber = AppColors.background;
+    final onAmber = widget.onColor ?? AppColors.background;
     return Semantics(
       button: true,
       label: widget.label,
@@ -216,30 +224,48 @@ class _SheenButtonState extends State<SheenButton>
             child: CustomPaint(
               painter: _SheenPainter(
                 progress: _sheen,
-                color: AppColors.amber,
+                color: widget.color ?? AppColors.amber,
                 radius: 16,
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(widget.icon, size: 20, color: onAmber),
-                    const SizedBox(width: 10),
-                    Flexible(
-                      child: Text(
-                        widget.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: onAmber,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.4,
+                // A new label hands over in place rather than snapping: the
+                // old one lifts away first, then the new one rises into the
+                // space — one after the other, so the two never overprint.
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  switchInCurve: const Interval(
+                    0.45,
+                    1,
+                    curve: AppMotion.easeOut,
+                  ),
+                  switchOutCurve: const Interval(
+                    0.45,
+                    1,
+                    curve: AppMotion.easeOut,
+                  ),
+                  transitionBuilder: HandOver.transition(),
+                  child: Row(
+                    key: ValueKey('${widget.label}|${widget.icon.codePoint}'),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(widget.icon, size: 20, color: onAmber),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          widget.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: onAmber,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.4,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

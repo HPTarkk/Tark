@@ -39,10 +39,16 @@ class UpdateGate extends StatefulWidget {
     required this.child,
     required this.location,
     required this.locationChanges,
+    this.onAnswered,
     super.key,
   });
 
   final Widget child;
+
+  /// Called once the check is over: true if there is an update to offer,
+  /// false if there is nothing (or the check failed). Whatever else wants to
+  /// put something over the app waits for this, so an update goes first.
+  final ValueChanged<bool>? onAnswered;
 
   /// The router's current path.
   final String Function() location;
@@ -94,7 +100,14 @@ class _UpdateGateState extends State<UpdateGate> {
   }
 
   Future<void> _check() async {
-    final offer = await GetIt.instance<UpdateChecker>().check();
+    UpdateOffer? offer;
+    try {
+      offer = await GetIt.instance<UpdateChecker>().check();
+    } finally {
+      // Answered even if the check threw, so nothing waiting on it waits
+      // forever.
+      if (mounted) widget.onAnswered?.call(offer != null);
+    }
     if (!mounted || offer == null) return;
     setState(() => _offer = offer);
   }

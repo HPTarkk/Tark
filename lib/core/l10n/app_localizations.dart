@@ -6849,6 +6849,96 @@ abstract class AppLocalizations {
   /// **'{name} با حرف‌هاش ناراحتت کرد'**
   String report_scene_label(String name);
 
+  /// No description provided for @announcement_tag_gift.
+  ///
+  /// In fa, this message translates to:
+  /// **'هدیه'**
+  String get announcement_tag_gift;
+
+  /// No description provided for @announcement_tag_feature.
+  ///
+  /// In fa, this message translates to:
+  /// **'تازه در تَرک'**
+  String get announcement_tag_feature;
+
+  /// No description provided for @announcement_tag_news.
+  ///
+  /// In fa, this message translates to:
+  /// **'خبر'**
+  String get announcement_tag_news;
+
+  /// No description provided for @announcement_tag_tip.
+  ///
+  /// In fa, this message translates to:
+  /// **'نکته'**
+  String get announcement_tag_tip;
+
+  /// No description provided for @announcement_tag_event.
+  ///
+  /// In fa, this message translates to:
+  /// **'رویداد'**
+  String get announcement_tag_event;
+
+  /// No description provided for @announcement_tag_alert.
+  ///
+  /// In fa, this message translates to:
+  /// **'مهم'**
+  String get announcement_tag_alert;
+
+  /// No description provided for @announcement_sign_in.
+  ///
+  /// In fa, this message translates to:
+  /// **'ثبت‌نام'**
+  String get announcement_sign_in;
+
+  /// No description provided for @announcement_open_link.
+  ///
+  /// In fa, this message translates to:
+  /// **'بیشتر بدون'**
+  String get announcement_open_link;
+
+  /// No description provided for @announcement_open_screen.
+  ///
+  /// In fa, this message translates to:
+  /// **'نشونم بده'**
+  String get announcement_open_screen;
+
+  /// No description provided for @announcement_got_it.
+  ///
+  /// In fa, this message translates to:
+  /// **'فهمیدم'**
+  String get announcement_got_it;
+
+  /// No description provided for @announcement_next.
+  ///
+  /// In fa, this message translates to:
+  /// **'بعدی'**
+  String get announcement_next;
+
+  /// No description provided for @announcement_later.
+  ///
+  /// In fa, this message translates to:
+  /// **'الان نه'**
+  String get announcement_later;
+
+  /// No description provided for @announcement_close.
+  ///
+  /// In fa, this message translates to:
+  /// **'بستن'**
+  String get announcement_close;
+
+  /// No description provided for @announcement_open_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'باز نشد. یه بار دیگه امتحان کن.'**
+  String get announcement_open_failed;
+
+  /// No description provided for @announcement_position.
+  ///
+  /// In fa, this message translates to:
+  /// **'{index} از {count}'**
+  String announcement_position(String index, String count);
+
   /// No description provided for @rating_settings_row.
   ///
   /// In fa, this message translates to:

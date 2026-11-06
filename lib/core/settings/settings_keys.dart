@@ -102,4 +102,8 @@ abstract final class SettingsKeys {
   // user last put off, and when — see decideUpdate.
   static const updateSnoozedBuild = 'update_snoozed_build';
   static const updateSnoozedAt = 'update_snoozed_at';
+
+  // Owned by AnnouncementChecker (see feature/announcement/). Ids of the
+  // announcements already shown on this phone; each is shown once.
+  static const announcementsSeen = 'announcements_seen';
 }
