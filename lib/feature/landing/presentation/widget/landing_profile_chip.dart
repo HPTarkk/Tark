@@ -5,6 +5,7 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/app_avatar.dart';
+import '../../../../core/widget/profile_hero.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 
@@ -74,10 +75,14 @@ class LandingProfileChip extends StatelessWidget {
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      AppAvatar(
+                      ProfileHero.avatar(
                         name: state.myName,
                         avatarId: state.myAvatarId,
-                        size: 32,
+                        child: AppAvatar(
+                          name: state.myName,
+                          avatarId: state.myAvatarId,
+                          size: 32,
+                        ),
                       ),
                       PositionedDirectional(
                         end: -1,
@@ -106,14 +111,17 @@ class LandingProfileChip extends StatelessWidget {
                   // Long names stop well before the middle, so the chip never
                   // reaches the settings chip on a 320dp screen.
                   constraints: const BoxConstraints(maxWidth: 132),
-                  child: Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
+                  child: ProfileHero.name(
+                    name: name,
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),

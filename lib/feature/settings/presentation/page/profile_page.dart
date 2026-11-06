@@ -10,6 +10,7 @@ import '../../../../core/motion/app_motion.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/app_avatar.dart';
+import '../../../../core/widget/profile_hero.dart';
 import '../../../../core/widget/avatar_picker_grid.dart';
 import '../../../../core/widget/localized_counter.dart';
 import '../../../walkie/api/walkie_api.dart';
@@ -62,16 +63,20 @@ class ProfilePage extends StatelessWidget {
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            child: StaggeredEntrance(
+            // The identity card is not part of the staggered entrance: its
+            // face and name fly in from Home (see [ProfileHero]), and a hero
+            // has to land on a card that is already where it will stay.
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 16,
               children: [
                 const _IdentityCard(),
-                if (AccountSection.visible) const AccountSection(),
+                if (AccountSection.visible)
+                  const StaggeredEntrance(
+                    builder: _single,
+                    children: [AccountSection()],
+                  ),
               ],
-              builder: (context, cards) => Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                spacing: 16,
-                children: cards,
-              ),
             ),
           ),
         ),
@@ -79,6 +84,8 @@ class ProfilePage extends StatelessWidget {
     );
   }
 }
+
+Widget _single(BuildContext context, List<Widget> cards) => cards.single;
 
 /// Who this person is to everyone else: the face in a glowing ring beside
 /// the editable name (and a PREMIUM badge while a subscription runs), then
@@ -180,32 +187,36 @@ class _Face extends StatelessWidget {
     final amber = AppColors.amber;
     return BlocBuilder<SettingsCubit, SettingsState>(
       buildWhen: (p, c) => p.myAvatarId != c.myAvatarId || p.myName != c.myName,
-      builder: (context, state) => Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: amber.withValues(alpha: 0.6), width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: amber.withValues(alpha: 0.22),
-              blurRadius: 20,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
-        child: AnimatedSwitcher(
-          duration: reduced ? Duration.zero : AppMotion.sheet,
-          switchInCurve: AppMotion.easeOut,
-          switchOutCurve: AppMotion.leaving,
-          transitionBuilder: (child, animation) => ScaleTransition(
-            scale: Tween<double>(begin: 0.85, end: 1).animate(animation),
-            child: FadeTransition(opacity: animation, child: child),
+      builder: (context, state) => ProfileHero.avatar(
+        name: state.myName,
+        avatarId: state.myAvatarId,
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: amber.withValues(alpha: 0.6), width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: amber.withValues(alpha: 0.22),
+                blurRadius: 20,
+                spreadRadius: 1,
+              ),
+            ],
           ),
-          child: AppAvatar(
-            key: ValueKey(state.myAvatarId),
-            name: state.myName,
-            avatarId: state.myAvatarId,
-            size: _faceSize,
+          child: AnimatedSwitcher(
+            duration: reduced ? Duration.zero : AppMotion.sheet,
+            switchInCurve: AppMotion.easeOut,
+            switchOutCurve: AppMotion.leaving,
+            transitionBuilder: (child, animation) => ScaleTransition(
+              scale: Tween<double>(begin: 0.85, end: 1).animate(animation),
+              child: FadeTransition(opacity: animation, child: child),
+            ),
+            child: AppAvatar(
+              key: ValueKey(state.myAvatarId),
+              name: state.myName,
+              avatarId: state.myAvatarId,
+              size: _faceSize,
+            ),
           ),
         ),
       ),
@@ -327,52 +338,57 @@ class _NameFieldState extends State<_NameField> {
       listener: (_, state) {
         if (!_focus.hasFocus) _controller.text = state.myName;
       },
-      child: TextField(
-        key: const ValueKey('profile-name-field'),
-        controller: _controller,
-        focusNode: _focus,
-        maxLength: 20,
-        inputFormatters: [LocaleDigitsFormatter.of(context)],
-        textInputAction: TextInputAction.done,
-        // The count only matters while typing; hidden otherwise so the
-        // card stays short.
-        buildCounter: _counterWhileTyping(
-          localizedCounter(
-            style: TextStyle(color: AppColors.textSecondary.withAlpha(120)),
+      child: ProfileHero.name(
+        name: _controller.text.isEmpty
+            ? context.read<SettingsCubit>().state.myName
+            : _controller.text,
+        child: TextField(
+          key: const ValueKey('profile-name-field'),
+          controller: _controller,
+          focusNode: _focus,
+          maxLength: 20,
+          inputFormatters: [LocaleDigitsFormatter.of(context)],
+          textInputAction: TextInputAction.done,
+          // The count only matters while typing; hidden otherwise so the
+          // card stays short.
+          buildCounter: _counterWhileTyping(
+            localizedCounter(
+              style: TextStyle(color: AppColors.textSecondary.withAlpha(120)),
+            ),
           ),
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+          decoration: InputDecoration(
+            hintText: s.name_hint,
+            hintStyle: TextStyle(color: AppColors.textSecondary.withAlpha(160)),
+            isDense: true,
+            contentPadding: const EdgeInsetsDirectional.fromSTEB(14, 12, 8, 12),
+            filled: true,
+            fillColor: AppColors.surface,
+            suffixIcon: const Icon(Icons.edit_rounded, size: 18),
+            suffixIconColor: WidgetStateColor.resolveWith(
+              (states) => states.contains(WidgetState.focused)
+                  ? AppColors.amber
+                  : AppColors.textSecondary,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: AppColors.amber, width: 1.6),
+            ),
+          ),
+          onSubmitted: (_) => _focus.unfocus(),
         ),
-        style: TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 17,
-          fontWeight: FontWeight.w800,
-        ),
-        decoration: InputDecoration(
-          hintText: s.name_hint,
-          hintStyle: TextStyle(color: AppColors.textSecondary.withAlpha(160)),
-          isDense: true,
-          contentPadding: const EdgeInsetsDirectional.fromSTEB(14, 12, 8, 12),
-          filled: true,
-          fillColor: AppColors.surface,
-          suffixIcon: const Icon(Icons.edit_rounded, size: 18),
-          suffixIconColor: WidgetStateColor.resolveWith(
-            (states) => states.contains(WidgetState.focused)
-                ? AppColors.amber
-                : AppColors.textSecondary,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: AppColors.border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: AppColors.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: AppColors.amber, width: 1.6),
-          ),
-        ),
-        onSubmitted: (_) => _focus.unfocus(),
       ),
     );
   }

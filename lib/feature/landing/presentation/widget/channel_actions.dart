@@ -243,14 +243,15 @@ class _RoomActionButton extends StatelessWidget {
 /// hotspot ends are the same transport and opposite instructions — "this phone
 /// makes the network" and "scan the other phone's code" — and a single
 /// "over a hotspot" would be wrong for whichever end read it.
-String routeLabel(AppLocalizations s, ChannelPlan plan) => switch (plan.reason) {
-  ChannelPlanReason.sharedNetwork => s.channel_via_shared_network,
-  ChannelPlanReason.ownHotspot => s.channel_via_own_hotspot,
-  ChannelPlanReason.scanHostCode => s.channel_via_scan_code,
-  ChannelPlanReason.bluetoothLink => s.channel_via_bluetooth,
-  ChannelPlanReason.guestLink => s.channel_via_guest,
-  ChannelPlanReason.noNetwork => s.channel_via_no_network,
-};
+String routeLabel(AppLocalizations s, ChannelPlan plan) =>
+    switch (plan.reason) {
+      ChannelPlanReason.sharedNetwork => s.channel_via_shared_network,
+      ChannelPlanReason.ownHotspot => s.channel_via_own_hotspot,
+      ChannelPlanReason.scanHostCode => s.channel_via_scan_code,
+      ChannelPlanReason.bluetoothLink => s.channel_via_bluetooth,
+      ChannelPlanReason.guestLink => s.channel_via_guest,
+      ChannelPlanReason.noNetwork => s.channel_via_no_network,
+    };
 
 class _WayOutLink extends StatelessWidget {
   final IconData icon;
