@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/utils/extensions.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
+import 'package:tark/feature/room/domain/service/room_name_suggester.dart';
 import 'package:tark/feature/room/presentation/manager/room_list_cubit.dart';
 import 'package:tark/feature/room/presentation/page/room_create_page.dart';
 
@@ -237,6 +238,41 @@ void main() {
     expect(returned, same(room));
     await tester.pumpWidget(const SizedBox());
   });
+  testWidgets('creation starts with a suggested name that shuffles', (
+    tester,
+  ) async {
+    for (final language in ['en', 'fa']) {
+      final rooms = _Rooms();
+      addTearDown(rooms.close);
+      await _open(tester, rooms, language: language);
+      String field() => tester
+          .widget<TextField>(find.byKey(const Key('room-name-field')))
+          .controller!
+          .text;
+
+      final first = field();
+      expect(RoomNameSuggester.namesFor(language), contains(first));
+
+      await tester.tap(find.byKey(const Key('room-name-shuffle')));
+      await tester.pump(const Duration(milliseconds: 400));
+      final second = field();
+      expect(second, isNot(first));
+      expect(RoomNameSuggester.namesFor(language), contains(second));
+
+      // The first tap into the field selects the suggestion, so typing
+      // replaces it rather than appending to it.
+      await tester.tap(find.byKey(const Key('room-name-field')));
+      await tester.pump();
+      final selection = tester
+          .widget<TextField>(find.byKey(const Key('room-name-field')))
+          .controller!
+          .selection;
+      expect((selection.start, selection.end), (0, second.length));
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    }
+  });
+
   testWidgets(
     'empty name is disabled, failure preserves the name and allows retry',
     (tester) async {
@@ -247,6 +283,11 @@ void main() {
         of: find.byKey(const Key('room-name-submit')),
         matching: find.byType(FilledButton),
       );
+      // Creation starts with a suggested name, so it is ready at once; only
+      // clearing the field disables it.
+      expect(tester.widget<FilledButton>(submit).onPressed, isNotNull);
+      await tester.enterText(find.byKey(const Key('room-name-field')), '   ');
+      await tester.pump();
       expect(tester.widget<FilledButton>(submit).onPressed, isNull);
       await tester.enterText(
         find.byKey(const Key('room-name-field')),

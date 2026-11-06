@@ -304,4 +304,65 @@ void main() {
     expect(find.text('North'), findsNothing);
     expect(find.text('South'), findsOneWidget);
   });
+
+  testWidgets('with a room, join and create fold behind one quiet row', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    for (final locale in [const Locale('en'), const Locale('fa')]) {
+      final fa = locale.languageCode == 'fa';
+      final base = returning(fa: fa);
+      final hero = base.hero;
+      await tester.pumpWidget(
+        host(
+          RoomEntryActions(
+            hero: RoomEntryAction(
+              key: hero.key,
+              icon: hero.icon,
+              monogram: hero.monogram,
+              label: hero.label,
+              hint: hero.hint,
+              showHint: false,
+              variant: RoomEntryVariant.hero,
+              onTap: hero.onTap,
+            ),
+            alternatives: base.alternatives,
+            alternativesLabel: fa ? 'پیوستن یا ساختن' : 'JOIN OR CREATE',
+            browse: base.browse,
+          ),
+          locale: locale,
+        ),
+      );
+      await beat(tester);
+
+      // Folded: the room is the only action in the middle of Home, and its
+      // hint is left to screen readers.
+      expect(find.byKey(const Key('landing-join-room')), findsNothing);
+      expect(find.byKey(const Key('landing-create-room')), findsNothing);
+      expect(find.text(hero.hint), findsNothing);
+      expect(
+        tester.getSemantics(find.byKey(const Key('landing-resume-room'))).label,
+        '${hero.label}. ${hero.hint}',
+      );
+
+      await tester.tap(find.byKey(const Key('landing-more-rooms')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byKey(const Key('landing-join-room')));
+      await tester.tap(find.byKey(const Key('landing-create-room')));
+      expect((joins, creates), (1, 1));
+
+      // And it folds away again.
+      await tester.tap(find.byKey(const Key('landing-more-rooms')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.byKey(const Key('landing-join-room')), findsNothing);
+      joins = creates = 0;
+    }
+  });
 }

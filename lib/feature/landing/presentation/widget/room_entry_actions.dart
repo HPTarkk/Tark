@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/motion/app_motion.dart';
@@ -32,10 +34,17 @@ enum RoomEntryVariant {
 ///
 /// So the tiers are the type now. A caller cannot accidentally produce a flat
 /// list, because there is nowhere to put one.
-class RoomEntryActions extends StatelessWidget {
+///
+/// With a Room on the phone, Home has exactly one main action: the room. The
+/// ways to begin something else fold behind [alternativesLabel], a quiet row
+/// drawn like MY ROOMS, and open in place when it is tapped. Folded, they do
+/// not compete with the room at all; open, they are one tap away, the same as
+/// before.
+class RoomEntryActions extends StatefulWidget {
   const RoomEntryActions({
     required this.hero,
     this.alternatives = const [],
+    this.alternativesLabel,
     this.browse,
     super.key,
   });
@@ -48,39 +57,147 @@ class RoomEntryActions extends StatelessWidget {
   /// pair of one is just a card that has been made narrow for no reason.
   final List<RoomEntryAction> alternatives;
 
+  /// When set, [alternatives] start folded behind a quiet row with this label
+  /// and open in place when it is tapped.
+  final String? alternativesLabel;
+
   /// Navigation, not an action. Deliberately not a card: browsing a list is a
   /// different kind of thing from starting or joining a ride, and giving it the
   /// same shape as those is what made three options read as three peers.
   final Widget? browse;
 
   @override
+  State<RoomEntryActions> createState() => _RoomEntryActionsState();
+}
+
+class _RoomEntryActionsState extends State<RoomEntryActions>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _unfold = AnimationController(
+    vsync: this,
+    duration: AppMotion.sheet,
+    reverseDuration: AppMotion.card,
+  );
+
+  @override
+  void dispose() {
+    _unfold.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    final open = _open;
+    if (AppMotion.reduced(context)) {
+      _unfold.value = open ? 0 : 1;
+    } else if (open) {
+      _unfold.reverse();
+    } else {
+      _unfold.forward();
+    }
+    setState(() {});
+  }
+
+  bool get _open =>
+      _unfold.status == AnimationStatus.forward ||
+      _unfold.status == AnimationStatus.completed;
+
+  Widget _alternatives() {
+    final alternatives = widget.alternatives;
+    if (alternatives.length == 1) return alternatives.single;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < alternatives.length; i++) ...[
+            if (i > 0) const SizedBox(width: 12),
+            Expanded(child: alternatives[i]),
+          ],
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final pair = alternatives.length > 1;
+    final label = widget.alternativesLabel;
+    final folds = label != null && widget.alternatives.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        hero,
-        if (alternatives.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          if (pair)
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (var i = 0; i < alternatives.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 12),
-                    Expanded(child: alternatives[i]),
-                  ],
-                ],
+        widget.hero,
+        if (folds) ...[
+          const SizedBox(height: 10),
+          RoomEntryLink(
+            key: const Key('landing-more-rooms'),
+            icon: Icons.add_circle_outline_rounded,
+            label: label,
+            expanded: _open,
+            onTap: _toggle,
+            trailing: AnimatedBuilder(
+              animation: _unfold,
+              builder: (_, child) => Transform.rotate(
+                angle: _unfold.value * math.pi,
+                child: child,
               ),
-            )
-          else
-            alternatives.single,
+              child: Icon(
+                Icons.expand_more_rounded,
+                size: 18,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          _Unfold(animation: _unfold, child: _alternatives()),
+        ] else if (widget.alternatives.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _alternatives(),
         ],
-        if (browse != null) ...[const SizedBox(height: 6), browse!],
+        if (widget.browse != null) ...[
+          SizedBox(height: folds ? 0 : 6),
+          widget.browse!,
+        ],
       ],
     );
   }
+}
+
+/// Opens the folded alternatives in place: the space grows first, then the
+/// pair rises into it a beat behind, so they read as coming *out of* the row
+/// above rather than appearing under it. Folded, they are out of the tree for
+/// taps and screen readers.
+class _Unfold extends StatelessWidget {
+  const _Unfold({required this.animation, required this.child});
+
+  final Animation<double> animation;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: animation,
+    child: child,
+    builder: (context, child) {
+      final t = animation.value;
+      if (t == 0) return const SizedBox.shrink();
+      final size = AppMotion.easeOut.transform(t);
+      final rise = AppMotion.easeOut.transform(
+        ((t - 0.2) / 0.8).clamp(0.0, 1.0),
+      );
+      return ClipRect(
+        child: Align(
+          alignment: AlignmentDirectional.topStart,
+          heightFactor: size,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 6),
+            child: Opacity(
+              opacity: rise,
+              child: Transform.translate(
+                offset: Offset(0, -10 * (1 - rise)),
+                child: Transform.scale(scale: 0.96 + 0.04 * rise, child: child),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
 }
 
 /// One entry action.
@@ -97,6 +214,7 @@ class RoomEntryAction extends StatefulWidget {
     required this.variant,
     required this.onTap,
     this.monogram,
+    this.showHint = true,
     super.key,
   });
 
@@ -110,6 +228,11 @@ class RoomEntryAction extends StatefulWidget {
   /// room looks like the card it was chosen on.
   final String? monogram;
 
+  /// Whether [hint] is drawn. It is always read out by screen readers. Home's
+  /// resume hero hides it: once the room is the only thing in the middle of
+  /// the screen, "pick up where you left off" says nothing the button doesn't.
+  final bool showHint;
+
   /// Re-weights an action without restating it, so a caller that builds the
   /// same button in two arrangements does not have to keep two copies of its
   /// labels in step.
@@ -121,6 +244,7 @@ class RoomEntryAction extends StatefulWidget {
     variant: variant ?? this.variant,
     onTap: onTap,
     monogram: monogram,
+    showHint: showHint,
   );
 
   @override
@@ -295,18 +419,20 @@ class _RoomEntryActionState extends State<RoomEntryAction>
                       letterSpacing: 0.4,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.hint,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: ink.withValues(alpha: 0.86),
-                      fontSize: 12.5,
-                      height: 1.3,
-                      fontWeight: FontWeight.w600,
+                  if (widget.showHint) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.hint,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: ink.withValues(alpha: 0.86),
+                        fontSize: 12.5,
+                        height: 1.3,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
               reduced: reduced,
@@ -474,6 +600,66 @@ class _GoDisc extends StatelessWidget {
   }
 }
 
+/// A quiet navigation row: an icon, a label, and something trailing. Drawn
+/// without a card on purpose, so it never reads as a peer of the room.
+class RoomEntryLink extends StatelessWidget {
+  const RoomEntryLink({
+    required this.icon,
+    required this.label,
+    required this.trailing,
+    required this.onTap,
+    this.semanticsLabel,
+    this.expanded,
+    super.key,
+  });
+
+  final IconData icon;
+  final String label;
+  final Widget trailing;
+  final VoidCallback onTap;
+  final String? semanticsLabel;
+
+  /// Set when the row opens and closes something, so screen readers announce
+  /// its state.
+  final bool? expanded;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    expanded: expanded,
+    label: semanticsLabel ?? label,
+    excludeSemantics: true,
+    child: PressableScale(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        // Borderless, but still a 44dp target: the padding is the control.
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 13),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: AppColors.textSecondary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+            trailing,
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 /// The way to the full list, drawn as navigation rather than as a fourth card.
 ///
 /// It carries the count for the same reason the archive pill does (R16): the
@@ -494,54 +680,29 @@ class RoomBrowseLink extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    label: '$label ($count)',
-    excludeSemantics: true,
-    child: PressableScale(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        // Borderless, but still a 44dp target: the padding is the control.
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 13),
-        child: Row(
-          children: [
-            Icon(
-              Icons.groups_2_outlined,
-              size: 18,
-              color: AppColors.textSecondary,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
-            Text(
-              count,
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: AppColors.textSecondary,
-            ),
-          ],
+  Widget build(BuildContext context) => RoomEntryLink(
+    icon: Icons.groups_2_outlined,
+    label: label,
+    semanticsLabel: '$label ($count)',
+    onTap: onTap,
+    trailing: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          count,
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w800,
+          ),
         ),
-      ),
+        const SizedBox(width: 4),
+        Icon(
+          Icons.chevron_right_rounded,
+          size: 18,
+          color: AppColors.textSecondary,
+        ),
+      ],
     ),
   );
 }

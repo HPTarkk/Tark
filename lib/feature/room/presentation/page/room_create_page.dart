@@ -18,6 +18,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/localized_counter.dart';
 import '../../../../core/widget/mesh_background.dart';
 import '../../domain/entity/room.dart';
+import '../../domain/service/room_name_suggester.dart';
 import '../manager/room_list_cubit.dart';
 import '../widget/room_formation.dart';
 import '../widget/room_visuals.dart';
@@ -70,6 +71,16 @@ class RoomCreatePage extends StatefulWidget {
 class _RoomCreatePageState extends State<RoomCreatePage>
     with TickerProviderStateMixin, RouteArrival<RoomCreatePage> {
   late final _name = TextEditingController(text: widget.initialName?.trim());
+  final _suggester = RoomNameSuggester();
+
+  /// The name this page put in the field, while it is still there untouched.
+  /// The first tap into the field selects it, so typing replaces it whole
+  /// instead of appending to it.
+  String? _suggestion;
+  var _seeded = false;
+
+  /// Counts shuffles; the dice turns half a turn on each.
+  var _shuffles = 0;
   late final _arrival = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1050),
@@ -94,6 +105,58 @@ class _RoomCreatePageState extends State<RoomCreatePage>
     return RoomAccessPolicy.additionalRoomRequiresPremium(state.rooms.length) &&
         GetIt.instance.isRegistered<LicenseGate>() &&
         !GetIt.instance<LicenseGate>().allows(PremiumFeature.extraRooms);
+  }
+
+  /// Creation never starts at an empty field: unless the caller suggested a
+  /// name (onboarding does), one is picked here. It is seeded here rather than
+  /// in `initState` because the list of names follows the app's language.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_seeded) return;
+    _seeded = true;
+    if (_name.text.trim().isNotEmpty) return;
+    final suggestion = _suggester.suggest(
+      Localizations.localeOf(context).languageCode,
+      taken: _takenNames(),
+    );
+    _name.text = suggestion;
+    _suggestion = suggestion;
+  }
+
+  Iterable<String> _takenNames() {
+    try {
+      return context.read<RoomListCubit>().state.rooms.map((r) => r.room.name);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  void _shuffle() {
+    if (_busy || _ready) return;
+    HapticFeedback.selectionClick();
+    final next = _suggester.suggest(
+      Localizations.localeOf(context).languageCode,
+      taken: _takenNames(),
+      previous: _name.text,
+    );
+    setState(() {
+      _name.value = TextEditingValue(
+        text: next,
+        selection: TextSelection.collapsed(offset: next.length),
+      );
+      _suggestion = next;
+      _shuffles++;
+      _error = null;
+    });
+  }
+
+  void _selectSuggestion() {
+    if (_suggestion == null || _name.text != _suggestion) return;
+    _name.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _name.text.length,
+    );
   }
 
   @override
@@ -417,6 +480,7 @@ class _RoomCreatePageState extends State<RoomCreatePage>
                               ],
                               textInputAction: TextInputAction.done,
                               onSubmitted: (_) => unawaited(_create()),
+                              onTap: _selectSuggestion,
                               onChanged: (_) => setState(() => _error = null),
                               style: TextStyle(
                                 color: AppColors.textPrimary,
@@ -426,6 +490,27 @@ class _RoomCreatePageState extends State<RoomCreatePage>
                               decoration: InputDecoration(
                                 labelText: s.rooms_name_hint,
                                 hintText: s.room_create_name_example,
+                                suffixIcon: Padding(
+                                  padding: const EdgeInsetsDirectional.only(
+                                    end: 6,
+                                  ),
+                                  child: IconButton(
+                                    key: const Key('room-name-shuffle'),
+                                    tooltip: s.room_create_shuffle_name,
+                                    onPressed: _busy || _ready
+                                        ? null
+                                        : _shuffle,
+                                    color: AppColors.amber,
+                                    icon: AnimatedRotation(
+                                      turns: _shuffles * 0.5,
+                                      duration: AppMotion.reduced(context)
+                                          ? Duration.zero
+                                          : AppMotion.sheet,
+                                      curve: Curves.easeOutBack,
+                                      child: const Icon(Icons.casino_rounded),
+                                    ),
+                                  ),
+                                ),
                                 filled: true,
                                 fillColor: AppColors.card,
                                 contentPadding: const EdgeInsets.symmetric(

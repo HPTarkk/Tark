@@ -160,15 +160,17 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
         monogram: resume.room.name,
         label: resume.room.name,
         hint: t.entry_resume_hint,
+        showHint: false,
         variant: RoomEntryVariant.hero,
         onTap: () {
           ScreenLog.tap('ResumeRoom');
           _resume(resume);
         },
       ),
-      // Side by side because they are alternatives to *each other* — both are
-      // "begin something new". Saying that is what finally gets create out of
-      // MY ROOMS' hint text, and it costs no height to say.
+      // Folded behind one quiet row, drawn like MY ROOMS, so the room is the
+      // only main action on Home. Opened, they sit side by side because they
+      // are alternatives to *each other* — both are "begin something new".
+      alternativesLabel: t.entry_join_or_create,
       alternatives: [
         RoomEntryAction(
           key: const Key('landing-join-room'),

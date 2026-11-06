@@ -7,7 +7,7 @@ import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/widget/tark_mark.dart';
 import 'package:tark/feature/landing/presentation/manager/landing_cubit.dart';
 import 'package:tark/feature/landing/presentation/page/landing_page.dart';
-import 'package:tark/feature/landing/presentation/widget/landing_identity_card.dart';
+import 'package:tark/feature/landing/presentation/widget/landing_profile_chip.dart';
 import 'package:tark/feature/landing/presentation/widget/landing_logo.dart';
 import 'package:tark/feature/transfer/domain/entity/transfer_mode.dart';
 
@@ -90,7 +90,7 @@ void main() {
   ) async {
     final navigator = await start(tester);
     final logo = find.byType(LandingLogo);
-    final identity = find.byType(LandingIdentityCard);
+    final identity = find.byType(LandingProfileChip);
     await tester.pump(const Duration(milliseconds: 700));
     expect(entranceOpacity(tester, logo), 0);
     expect(entranceOpacity(tester, identity), 0);
@@ -128,7 +128,7 @@ void main() {
     await frames(tester, 1020);
     await tester.pump();
     expect(entranceOpacity(tester, find.byType(LandingLogo)), 1);
-    expect(entranceOpacity(tester, find.byType(LandingIdentityCard)), 1);
+    expect(entranceOpacity(tester, find.byType(LandingProfileChip)), 1);
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -152,7 +152,7 @@ void main() {
     addTearDown(tester.view.reset);
     await start(tester, locale: const Locale('fa'), scale: 1.5);
     await frames(tester, 2850);
-    expect(entranceOpacity(tester, find.byType(LandingIdentityCard)), 1);
+    expect(entranceOpacity(tester, find.byType(LandingProfileChip)), 1);
     expect(tester.takeException(), isNull);
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -250));
     await tester.pump(const Duration(seconds: 1));
