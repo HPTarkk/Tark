@@ -95,8 +95,12 @@ jobs:
             "build/native-tests/${test}-sanitized"
           done
           # Keep the allocation fault injector local to each fixture on ELF.
-          "$cxx" -std=c++17 -O2 -shared -fPIC -Wl,-Bsymbolic-functions packages/audio_io/test/native_dsp_test_api.cpp -o build/native-tests/libnative_dsp_test_api.so
-          "$cxx" -std=c++17 -O2 -shared -fPIC -Wl,-Bsymbolic-functions -DAUDIO_IO_TEST_OMIT_SPECTRAL_RESET packages/audio_io/test/native_dsp_test_api.cpp -o build/native-tests/libnative_dsp_incomplete_test_api.so
+          # -ffp-contract=off: the Dart parity tests compare these libraries
+          # with the Dart DSP bit for bit, and Dart never fuses a multiply
+          # and an add. Without it, a compiler targeting FMA hardware turns
+          # `y += a * (x - y)` into one fused step and lands an ulp away.
+          "$cxx" -std=c++17 -O2 -ffp-contract=off -shared -fPIC -Wl,-Bsymbolic-functions packages/audio_io/test/native_dsp_test_api.cpp -o build/native-tests/libnative_dsp_test_api.so
+          "$cxx" -std=c++17 -O2 -ffp-contract=off -shared -fPIC -Wl,-Bsymbolic-functions -DAUDIO_IO_TEST_OMIT_SPECTRAL_RESET packages/audio_io/test/native_dsp_test_api.cpp -o build/native-tests/libnative_dsp_incomplete_test_api.so
           cmake -S packages/rnnoise/test -B build/rnnoise_native -DCMAKE_BUILD_TYPE=Release
           cmake --build build/rnnoise_native --parallel 2
           ctest --test-dir build/rnnoise_native --output-on-failure
