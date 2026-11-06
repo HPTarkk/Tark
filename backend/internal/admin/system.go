@@ -34,6 +34,7 @@ var checkIcons = map[string]string{
 	"disk":          "server",
 	"backup":        "refresh",
 	"certificate":   "lock",
+	"reviews":       "star",
 }
 
 // staleAfter is how long a check may go without reporting before the page

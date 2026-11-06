@@ -86,6 +86,9 @@ if (confirmBox) {
     const form = pending;
     pending = null;
     ok.disabled = true;
+    // A form that shows its own sending state (data-sending) gets it now:
+    // submit() skips the submit event.
+    if (form.hasAttribute("data-sending")) form.classList.add("sending");
     form.submit();
   });
   // Coming back with the browser's Back button shows the page as it was.

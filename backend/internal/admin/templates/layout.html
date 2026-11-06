@@ -15,6 +15,8 @@
 <link rel="preload" href="{{static "VazirmatnDigits-Regular.woff2"}}" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="{{static "VazirmatnDigits-Bold.woff2"}}" as="font" type="font/woff2" crossorigin>
 {{end}}<script src="{{static "admin.js"}}" defer></script>
+{{if eq .Page "reviews"}}<link rel="stylesheet" href="{{static "reviews.css"}}">
+<script src="{{static "reviews.js"}}"></script>{{end}}
 </head>
 {{$top := false}}{{with .Admin}}{{if not .MustChangePassword}}{{$top = true}}{{end}}{{end}}
 <body class="{{if $top}}app{{end}}{{if .Posted}} posted{{end}}">
@@ -41,6 +43,7 @@
     <a href="/users"{{if or (eq $.Page "users") (eq $.Page "user")}} class="on" aria-current="page"{{end}}>{{icon "users"}}<span>{{t "nav.users"}}</span></a>
     <a href="/security"{{if eq $.Page "security"}} class="on" aria-current="page"{{end}}>{{icon "security"}}<span>{{t "nav.security"}}</span></a>
     <a href="/mail"{{if eq $.Page "mail"}} class="on" aria-current="page"{{end}}>{{icon "mail"}}<span>{{t "nav.mail"}}</span></a>
+    {{if or $.ReviewsOn (eq .Role "owner")}}<a href="/reviews"{{if eq $.Page "reviews"}} class="on" aria-current="page"{{end}}>{{icon "star"}}<span>{{t "nav.reviews"}}</span>{{with $.ReviewsBadge}}<b class="nav-badge" title="{{t "rv.badge" .}}">{{num .}}</b>{{end}}</a>{{end}}
     {{end}}
     {{if eq .Role "owner"}}
     <p class="nav-group">{{t "nav.gManage"}}</p>

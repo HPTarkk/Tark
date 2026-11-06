@@ -254,3 +254,36 @@ func TestDiskCheckReads(t *testing.T) {
 		t.Fatalf("detail = %q", detail)
 	}
 }
+
+func TestReviewsSyncCheck(t *testing.T) {
+	m, fm, _, pool, _ := setup(t, Settings{Recipients: []string{"a@example.com"}, Reviews: true})
+	ctx := context.Background()
+	evaluate := func() []mail.Message {
+		t.Helper()
+		if err := m.Evaluate(ctx); err != nil {
+			t.Fatal(err)
+		}
+		return fm.take()
+	}
+	// No sync yet, then a few passing failures: quiet.
+	if got := evaluate(); len(got) != 0 {
+		t.Fatalf("emails = %+v", got)
+	}
+	exec(t, pool, `INSERT INTO bazaar_review_sync (id, failures, last_error) VALUES (1, $1, 'unavailable')`, ReviewsFailures-1)
+	if got := evaluate(); len(got) != 0 {
+		t.Fatalf("emails = %+v", got)
+	}
+	exec(t, pool, `UPDATE bazaar_review_sync SET failures = $1`, ReviewsFailures)
+	if got := evaluate(); len(got) != 1 || !strings.Contains(got[0].Subject, "Bazaar reviews") || !strings.Contains(got[0].Text, "syncs in a row failed (unavailable)") {
+		t.Fatalf("emails = %+v", got)
+	}
+	exec(t, pool, `UPDATE bazaar_review_sync SET failures = 0, last_error = NULL, last_success_at = now()`)
+	if got := evaluate(); len(got) != 1 || !strings.Contains(got[0].Subject, "Resolved") {
+		t.Fatalf("emails = %+v", got)
+	}
+	// A refused key alerts at once.
+	exec(t, pool, `UPDATE bazaar_review_sync SET failures = 1, last_error = 'unauthorized'`)
+	if got := evaluate(); len(got) != 1 || !strings.Contains(got[0].Text, "refused the reviews API key") {
+		t.Fatalf("emails = %+v", got)
+	}
+}
