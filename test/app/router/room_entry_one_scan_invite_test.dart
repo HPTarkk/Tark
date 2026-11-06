@@ -293,6 +293,53 @@ void main() {
   });
 
   testWidgets(
+    'a hotspot still on the air comes down even after the host role was '
+    'cleared',
+    (tester) async {
+      // 2026-11-03: a Wi-Fi invite raised the hotspot, the Room then moved to
+      // Bluetooth (which clears the host role), and the access point stayed
+      // up through every invite after it, because releasing it asked only
+      // for the role. Nothing here holds the host role either.
+      var prepared = 0;
+      final host = await pumpEntry(
+        tester,
+        prepareHost: () async => ++prepared == 1 ? null : creds,
+      );
+      host.hosting = true;
+      await tapInvite(tester);
+      final retry = find.byKey(const Key('one-scan-room-invite-retry'));
+      await tester.ensureVisible(retry);
+      await tester.tap(retry);
+      await settle(tester);
+      expect(prepared, 2);
+      expect(host.stops, greaterThanOrEqualTo(1));
+      expect(tester.takeException(), isNull);
+      await finish(tester);
+    },
+  );
+
+  testWidgets(
+    'with no access point of its own up, nothing is stopped for a phone '
+    'that is not the host',
+    (tester) async {
+      var prepared = 0;
+      final host = await pumpEntry(
+        tester,
+        prepareHost: () async => ++prepared == 1 ? null : creds,
+      );
+      await tapInvite(tester);
+      final retry = find.byKey(const Key('one-scan-room-invite-retry'));
+      await tester.ensureVisible(retry);
+      await tester.tap(retry);
+      await settle(tester);
+      expect(prepared, 2);
+      expect(host.stops, 0);
+      expect(tester.takeException(), isNull);
+      await finish(tester);
+    },
+  );
+
+  testWidgets(
     'a scan\'s journey carries on from the entry\'s very first frame',
     (tester) async {
       // 2026-10-12: the joiner watched the link being made, then a blank
@@ -370,8 +417,11 @@ class _FakeTransfer implements TransferRepository {
 class _FakeHost implements HotspotHost {
   int stops = 0;
 
+  /// An access point this app raised is on the air.
+  bool hosting = false;
+
   @override
-  bool get isHosting => false;
+  bool get isHosting => hosting;
 
   /// Wi-Fi already off: no "turn off Wi-Fi" page in the way.
   @override

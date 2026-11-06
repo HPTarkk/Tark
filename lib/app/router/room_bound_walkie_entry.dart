@@ -810,6 +810,11 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       }
 
       if (bluetooth) {
+        // A hotspot still up from a Wi-Fi invite before the switch carries
+        // nobody now, and it shares the 2.4 GHz radio with the Bluetooth
+        // finding the newcomer is about to do.
+        await _releaseOwnHotspot();
+        if (!mounted || token != _inviteToken) return;
         final host = BluetoothInviteHost();
         bluetoothHost = host;
         link = host.start();
@@ -1427,8 +1432,18 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   /// A code nobody is going to scan should not keep this phone off the
   /// internet.
+  ///
+  /// "Own" is the access point this app raised, not only the host role: a
+  /// switch to Bluetooth clears the role (the mode store forgets the hotspot
+  /// side once the transport leaves it), and gating on the role alone left
+  /// the hotspot of the invite before it on the air for good — every
+  /// Bluetooth invite after it ran beside a 2.4 GHz access point nobody was
+  /// on (2026-11-03 log: `hosting=true` through three Bluetooth invites).
   Future<void> _releaseOwnHotspot() async {
-    if (_roleStore?.role != SessionRole.host) return;
+    final getIt = GetIt.instance;
+    final hosting =
+        getIt.isRegistered<HotspotHost>() && getIt<HotspotHost>().isHosting;
+    if (_roleStore?.role != SessionRole.host && !hosting) return;
     try {
       if (GetIt.instance.isRegistered<HotspotLinkKeeper>()) {
         await GetIt.instance<HotspotLinkKeeper>().release();
