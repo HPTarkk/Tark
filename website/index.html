@@ -16,8 +16,20 @@
         preference = localStorage.getItem('tark_lang');
       } catch {}
       // A fresh crawler/visitor receives the actual URL's complete language.
-      // Only an explicit remembered Persian choice can redirect English URLs.
-      if (root.lang === 'en' && preference === 'fa') {
+      // Only an explicit remembered Persian choice can redirect English URLs,
+      // with one exception: the bare home page "/" is the default entry, and a
+      // visitor with no choice of their own yet who is in Iran starts in
+      // Persian. The edge Worker (website-worker/) tags this page with the
+      // visitor's IP country; if that is missing (local preview, unknown
+      // country) or masked by a VPN — common in Iran — the device's Iran time
+      // zone says the same. A remembered choice or ?lang= always wins.
+      let inIran = false;
+      if (root.lang === 'en' && !preference && location.pathname === '/') {
+        let zone = '';
+        try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch {}
+        inIran = root.dataset.country === 'IR' || (zone === 'Asia/Tehran' || zone === 'Iran');
+      }
+      if (root.lang === 'en' && (preference === 'fa' || inIran)) {
         location.replace("/fa/" + location.search + location.hash);
         return;
       }

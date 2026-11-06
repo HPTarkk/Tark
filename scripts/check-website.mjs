@@ -104,4 +104,30 @@ JSON.parse(await readFile(resolve(site, '.well-known/assetlinks.json'), 'utf8'))
 const sitemap = await readFile(resolve(site, 'sitemap.xml'), 'utf8');
 assert(!/\.html(?:"|<\/loc>)/.test(sitemap), 'Sitemap must use the host’s final canonical URLs');
 assert.equal((sitemap.match(/<url>/g) || []).length, 8);
+// Default language by country: the edge script runs only for the home page
+// and tags it with the visitor's country; everything else stays a plain asset.
+const wrangler = JSON.parse((await readFile(resolve(root, 'wrangler.website.jsonc'), 'utf8')).replace(/^\s*\/\/.*$/gm, ''));
+assert.equal(wrangler.main, './website-worker/index.js', 'Website Worker entry moved');
+assert.equal(wrangler.assets.binding, 'ASSETS');
+assert.deepEqual(wrangler.assets.run_worker_first, ['/'], 'The Worker must run only for the home page');
+const edge = await import(resolve(root, 'website-worker/index.js'));
+for (const [cf, expected] of [[{ country: 'IR' }, 'IR'], [{ country: 'de' }, 'DE'], [{ country: 'XX' }, ''], [{ country: 'T1' }, ''], [{}, ''], [undefined, ''], [{ country: '<b>' }, '']]) {
+  assert.equal(edge.visitorCountry({ cf }), expected, `visitorCountry(${JSON.stringify(cf)})`);
+}
+{
+  const seen = [];
+  globalThis.HTMLRewriter ??= class { on(selector, handler) { this.handler = handler; return this; }
+    transform(response) { const attrs = {}; this.handler.element({ setAttribute: (k, v) => { attrs[k] = v; } }); seen.push(attrs); return response; } };
+  const assets = { fetch: async request => { seen.push(request.headers.get('If-None-Match')); return new Response('<html>', { headers: { 'Content-Type': 'text/html; charset=utf-8', ETag: '"x"' } }); } };
+  const tagged = await edge.handle(Object.assign(new Request('https://tarkk.ir/', { headers: { 'If-None-Match': '"x"' } }), { cf: { country: 'IR' } }), { ASSETS: assets });
+  assert.deepEqual(seen, [null, { 'data-country': 'IR' }], 'Home page must be sent whole and tagged');
+  assert.equal(tagged.headers.get('ETag'), null);
+  assert.equal(tagged.headers.get('Cache-Control'), 'private, no-cache');
+  let calls = 0;
+  const flaky = { fetch: async () => { if (calls++ === 0) throw new Error('edge failure'); return new Response('ok'); } };
+  const broken = await edge.default.fetch(Object.assign(new Request('https://tarkk.ir/'), { cf: { country: 'IR' } }), { ASSETS: flaky });
+  assert.equal(await broken.text(), 'ok', 'A failing Worker must still serve the home page');
+}
+const home = await readFile(resolve(site, 'index.html'), 'utf8');
+assert(home.includes("root.dataset.country === 'IR'") && home.includes("location.pathname === '/'") && home.includes('!preference'), 'Home page must default to Persian in Iran only without a choice');
 console.log(`Website checks passed: 8 localized pages, email fallback, ${references} local references, syntax and legal bundles.`);

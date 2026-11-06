@@ -50,7 +50,7 @@ try {
     if (-not $Message) { $Message = "Website $Version" }
     $commit = & git rev-parse HEAD
     if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the source commit.' }
-    $workingChanges = & git status --porcelain -- website scripts wrangler.website.jsonc
+    $workingChanges = & git status --porcelain -- website website-worker scripts wrangler.website.jsonc
     if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect the source working tree.' }
     Write-Host "Website $currentVersion -> $Version ($tag)"
 

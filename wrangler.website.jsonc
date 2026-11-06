@@ -1,4 +1,7 @@
-// Existing assets-only Worker serving tarkk.ir. The guest app has its own Worker.
+// Existing Worker serving tarkk.ir, almost entirely static assets. The guest
+// app has its own Worker. The script in website-worker/ runs only for the
+// English home page "/" and adds the visitor's country for the startup
+// script's default language (Iran -> /fa/); every other path is a plain asset.
 {
   "name": "delicate-fire-3b34",
   "account_id": "4d404b6ca85f65ed20cd6d738741fe57",
@@ -6,8 +9,11 @@
   "workers_dev": false,
   "preview_urls": true,
   "routes": [{"pattern": "tarkk.ir", "custom_domain": true}],
+  "main": "./website-worker/index.js",
   "assets": {
     "directory": "./website",
+    "binding": "ASSETS",
+    "run_worker_first": ["/"],
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "none"
   }

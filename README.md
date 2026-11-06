@@ -191,7 +191,7 @@ node scripts/check-website.mjs              # localization, SEO, assets and scri
 node scripts/serve-website.mjs              # local preview at http://127.0.0.1:4183/fa/
 ```
 
-The existing assets-only Cloudflare Worker is configured in `wrangler.website.jsonc`. Use PowerShell to version, validate and publish it:
+The existing Cloudflare Worker is configured in `wrangler.website.jsonc`. It serves the static files in `website/`; its only script, `website-worker/index.js`, runs for the home page `/` alone and tags it with the visitor's country so a first-time visitor in Iran (by IP, or by an Iran time zone when the IP is unknown or behind a VPN) opens in Persian. A remembered language choice or `?lang=` always wins, and every other URL keeps its own language. `node scripts/serve-website.mjs` has no country, so locally only the time zone applies. Use PowerShell to version, validate and publish it:
 
 ```powershell
 ./scripts/release-website.ps1 -DryRun               # validate the next patch without uploading or saving a version bump
