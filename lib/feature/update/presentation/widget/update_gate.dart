@@ -50,6 +50,12 @@ class UpdateGate extends StatefulWidget {
   /// Fires when [location] may have changed.
   final Listenable locationChanges;
 
+  /// Whether an update prompt is on screen (or about to be, on the screen
+  /// the user is on), so other asks — the rating story — can stand aside
+  /// rather than stack a second question on top of this one.
+  static bool get promptShowing => _promptShowing;
+  static bool _promptShowing = false;
+
   @override
   State<UpdateGate> createState() => _UpdateGateState();
 }
@@ -83,6 +89,7 @@ class _UpdateGateState extends State<UpdateGate> {
   @override
   void dispose() {
     widget.locationChanges.removeListener(_onLocation);
+    UpdateGate._promptShowing = false;
     super.dispose();
   }
 
@@ -114,6 +121,8 @@ class _UpdateGateState extends State<UpdateGate> {
   @override
   Widget build(BuildContext context) {
     final offer = _offer;
+    UpdateGate._promptShowing =
+        offer != null && (_showOptional || _showRequired);
     return Stack(
       children: [
         if (!_appRetired) Positioned.fill(child: widget.child),
