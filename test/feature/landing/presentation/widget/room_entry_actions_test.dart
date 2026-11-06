@@ -136,12 +136,15 @@ void main() {
     final join = shellOf(const Key('landing-join-room'));
     final create = shellOf(const Key('landing-create-room'));
 
-    // Weight, not colour: the hero is the only thing wearing a fill, a 2px
-    // border and a glow.
-    expect(hero.border!.top.width, 2);
+    // The hero is the only filled thing on the screen, and the only thing
+    // with a glow. The alternatives wear a neutral edge, not the hero's
+    // amber, which is what used to make all three read as one family.
+    expect(hero.gradient, isNotNull);
     expect(hero.boxShadow, isNotNull);
     for (final quiet in [join, create]) {
+      expect(quiet.gradient, isNull);
       expect(quiet.border!.top.width, 1);
+      expect(quiet.border!.top.color, AppColors.border);
       expect(quiet.boxShadow, isNull);
       expect(quiet.color, AppColors.fieldCard);
     }
@@ -237,9 +240,68 @@ void main() {
                 )
                 .decoration
             as BoxDecoration;
-    // Still the hero — the weight is what carries the hierarchy, and only the
+    // Still the hero — the fill is what carries the hierarchy, and only the
     // breathing is dropped.
-    expect(hero.border!.top.width, 2);
+    expect(hero.gradient, isNotNull);
     expect(hero.boxShadow, isNotNull);
+  });
+
+  testWidgets('the hero outweighs each alternative, in both languages', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 780);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    for (final locale in [const Locale('en'), const Locale('fa')]) {
+      await tester.pumpWidget(
+        host(returning(fa: locale.languageCode == 'fa'), locale: locale),
+      );
+      await beat(tester);
+
+      // The reported bug: the two alternatives were each taller than the room
+      // they were meant to sit under. Size has to agree with the fill.
+      final hero = tester.getSize(find.byKey(const Key('landing-resume-room')));
+      for (final key in ['landing-join-room', 'landing-create-room']) {
+        final quiet = tester.getSize(find.byKey(Key(key)));
+        expect(hero.height, greaterThan(quiet.height + 16), reason: key);
+        expect(
+          hero.width * hero.height,
+          greaterThan(quiet.width * quiet.height),
+        );
+      }
+    }
+  });
+
+  testWidgets('a different room slides in rather than renaming in place', (
+    tester,
+  ) async {
+    Widget heroNamed(String name) => host(
+      RoomEntryActions(
+        hero: RoomEntryAction(
+          key: const Key('landing-resume-room'),
+          icon: Icons.meeting_room_rounded,
+          monogram: name,
+          label: name,
+          hint: 'Pick up where you left off',
+          variant: RoomEntryVariant.hero,
+          onTap: () {},
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(heroNamed('North'));
+    await beat(tester);
+    await tester.pumpWidget(heroNamed('South'));
+    await tester.pump(const Duration(milliseconds: 60));
+
+    // Mid-swap both names are on screen: the old one leaving, the new one
+    // arriving.
+    expect(find.text('North'), findsOneWidget);
+    expect(find.text('South'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('North'), findsNothing);
+    expect(find.text('South'), findsOneWidget);
   });
 }

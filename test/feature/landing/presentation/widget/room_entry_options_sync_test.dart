@@ -50,6 +50,8 @@ void main() {
     await repository.delete(first.room.id);
     await tester.pump();
     await tester.pump();
+    // The hero slides the next Room in over the leaving one; let that finish.
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('1'), findsOneWidget);
     expect(find.text('North'), findsNothing);

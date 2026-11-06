@@ -143,9 +143,9 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
             hint: t.entry_join_qr_hint,
             variant: RoomEntryVariant.wide,
             onTap: () {
-            ScreenLog.tap('JoinRoom');
-            context.push(AppRoutes.roomQrJoinPath);
-          },
+              ScreenLog.tap('JoinRoom');
+              context.push(AppRoutes.roomQrJoinPath);
+            },
           ),
         ],
       );

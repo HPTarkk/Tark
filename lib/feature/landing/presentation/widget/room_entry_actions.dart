@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_service.dart';
 import '../../../../core/widget/monogram_mark.dart';
 
 /// How an entry action is drawn. Weight, not decoration: each variant says
@@ -60,7 +61,7 @@ class RoomEntryActions extends StatelessWidget {
       children: [
         hero,
         if (alternatives.isNotEmpty) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           if (pair)
             IntrinsicHeight(
               child: Row(
@@ -174,6 +175,7 @@ class _RoomEntryActionState extends State<RoomEntryAction>
   }
 
   static final _radius = BorderRadius.circular(16);
+  static final _heroRadius = BorderRadius.circular(20);
 
   @override
   Widget build(BuildContext context) {
@@ -184,11 +186,11 @@ class _RoomEntryActionState extends State<RoomEntryAction>
       excludeSemantics: true,
       child: PressableScale(
         onTap: widget.onTap,
-        borderRadius: _radius,
+        borderRadius: _hero ? _heroRadius : _radius,
         child: quiet
             ? _shell(context, pulse: 0)
             // The subtree is handed through `child:` so the pulse repaints a
-            // border and a shadow and nothing else — no text layout, no icon
+            // shadow and a nudge and nothing else — no text layout, no icon
             // raster, sixty times a second on the floor device.
             : RepaintBoundary(
                 child: AnimatedBuilder(
@@ -202,125 +204,273 @@ class _RoomEntryActionState extends State<RoomEntryAction>
     );
   }
 
+  /// The hero is the only filled thing on Home.
+  ///
+  /// It used to be a tinted card with a brighter border, sat on top of two
+  /// cards that were each *taller* than it and wore the same amber edge. Read
+  /// at a glance that was three cards of a family, and the biggest two were
+  /// not the one that mattered — which is exactly the "no hierarchy" that was
+  /// reported. A solid fill is the one signal nothing else on the screen
+  /// shares, so it carries the hierarchy on its own; size and the glow only
+  /// confirm it.
   Widget _shell(BuildContext context, {required double pulse, Widget? child}) {
+    if (!_hero) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.fieldCard,
+          borderRadius: _radius,
+          // Neutral, not amber: amber is the hero's colour, and an amber edge
+          // on the alternatives is what made them read as its siblings.
+          border: Border.all(color: AppColors.border),
+        ),
+        child: child ?? _content(context),
+      );
+    }
+    final fill = HeroFill.of();
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: _hero
-            ? AppColors.amber.withValues(alpha: 0.10)
-            : AppColors.fieldCard,
-        borderRadius: _radius,
-        border: Border.all(
-          color: _hero
-              ? Color.lerp(
-                  AppColors.amber,
-                  AppColors.amber.withValues(alpha: 0.47),
-                  pulse,
-                )!
-              : AppColors.amber.withValues(alpha: 0.35),
-          width: _hero ? 2 : 1,
+        gradient: LinearGradient(
+          begin: AlignmentDirectional.topStart,
+          end: AlignmentDirectional.bottomEnd,
+          colors: [fill.start, fill.start, fill.end],
+          stops: const [0, 0.45, 1],
         ),
-        boxShadow: _hero
-            ? [
-                BoxShadow(
-                  color: AppColors.amber.withValues(alpha: 0.06 + 0.16 * pulse),
-                  blurRadius: 28,
-                  spreadRadius: 2,
-                ),
-              ]
-            : null,
+        borderRadius: _heroRadius,
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.amber.withValues(alpha: 0.18 + 0.16 * pulse),
+            blurRadius: 22 + 10 * pulse,
+            spreadRadius: 1 * pulse,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: child ?? _content(context),
     );
   }
 
   Widget _content(BuildContext context) => switch (widget.variant) {
-    RoomEntryVariant.compact => _stacked(context),
-    _ => _inline(context),
+    RoomEntryVariant.hero => _heroContent(context),
+    RoomEntryVariant.wide => _wide(context),
+    RoomEntryVariant.compact => _compact(context),
   };
 
-  /// Icon beside the words. Enough room for a full sentence of hint.
-  Widget _inline(BuildContext context) {
-    final accent = _hero ? AppColors.amber : AppColors.textPrimary;
+  /// Mark, name, and a "go" disc at the far edge.
+  ///
+  /// The disc is what makes a card read as a button you press rather than a
+  /// summary you look at. Its arrow follows the reading direction, so in
+  /// Persian it points the way the eye is already travelling.
+  Widget _heroContent(BuildContext context) {
+    final ink = HeroFill.of().ink;
+    final reduced = AppMotion.reduced(context);
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: _hero ? 16 : 15),
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 18, 14, 18),
       child: Row(
         children: [
-          _leading(accent),
+          _swap(
+            ValueKey(widget.monogram ?? widget.icon),
+            _heroLeading(ink),
+            reduced: reduced,
+          ),
           const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  widget.label,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: accent,
-                    fontSize: _hero ? 16 : 15,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: _hero ? 1.2 : 2,
+            // Keyed by the label so a different Room arriving from storage —
+            // picked on the list one screen up — slides in as a new object
+            // instead of its name simply changing under the user's thumb.
+            child: _swap(
+              ValueKey(widget.label),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: ink,
+                      fontSize: 19,
+                      height: 1.2,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.4,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  widget.hint,
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                    height: 1.35,
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.hint,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: ink.withValues(alpha: 0.86),
+                      fontSize: 12.5,
+                      height: 1.3,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
+              reduced: reduced,
             ),
           ),
+          const SizedBox(width: 12),
+          _GoDisc(ink: ink, nudge: reduced ? null : _pulse),
         ],
       ),
     );
   }
 
-  /// Icon over the words, centred — half the width, so the row shape that works
-  /// full-bleed would leave the label two characters wide at 320.
-  Widget _stacked(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
+  Widget _swap(Key key, Widget child, {required bool reduced}) =>
+      AnimatedSwitcher(
+        duration: reduced ? Duration.zero : AppMotion.sheet,
+        switchInCurve: AppMotion.easeOut,
+        switchOutCurve: AppMotion.leaving,
+        layoutBuilder: (current, previous) => Stack(
+          alignment: AlignmentDirectional.centerStart,
+          children: [...previous, ?current],
+        ),
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween(
+              begin: const Offset(0, 0.35),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        ),
+        child: KeyedSubtree(key: key, child: child),
+      );
+
+  Widget _heroLeading(Color ink) {
+    final monogram = widget.monogram;
+    if (monogram == null) {
+      return Container(
+        width: 48,
+        height: 48,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: ink.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Icon(widget.icon, color: ink, size: 24),
+      );
+    }
+    return MonogramMark(name: monogram, accent: ink, size: 48, strong: true);
+  }
+
+  /// A quiet full-width row: the only alternative on a first run.
+  Widget _wide(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    child: Row(
       children: [
         Icon(widget.icon, color: AppColors.textPrimary, size: 22),
-        const SizedBox(height: 9),
-        Text(
-          widget.label,
-          maxLines: 2,
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 12.5,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          widget.hint,
-          maxLines: 2,
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 10.5,
-            height: 1.3,
-          ),
-        ),
+        const SizedBox(width: 14),
+        Expanded(child: _quietWords(labelSize: 14.5, hintLines: 2)),
       ],
     ),
   );
 
-  Widget _leading(Color accent) {
-    final monogram = widget.monogram;
-    if (monogram == null) return Icon(widget.icon, color: accent, size: 22);
-    return MonogramMark(name: monogram, accent: accent, size: 42, strong: true);
+  /// Half of a pair: icon beside the words, so the pair stays a short strip
+  /// under the hero instead of two tall tiles that outweigh it.
+  Widget _compact(BuildContext context) => Padding(
+    padding: const EdgeInsetsDirectional.fromSTEB(12, 11, 10, 11),
+    child: Row(
+      children: [
+        Icon(widget.icon, color: AppColors.textPrimary, size: 20),
+        const SizedBox(width: 10),
+        Expanded(child: _quietWords(labelSize: 12.5, hintLines: 1)),
+      ],
+    ),
+  );
+
+  Widget _quietWords({required double labelSize, required int hintLines}) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            widget.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: labelSize,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            widget.hint,
+            maxLines: hintLines,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 10.5,
+              height: 1.3,
+            ),
+          ),
+        ],
+      );
+}
+
+/// The hero's fill and the ink drawn on it, per theme.
+///
+/// Worked out for contrast rather than picked by eye: dark ink on the dark
+/// theme's bright amber, white on a deepened brass in the light theme, where
+/// white on the plain brass would fall under 4.5:1 for the hint line.
+@visibleForTesting
+class HeroFill {
+  const HeroFill._(this.start, this.end, this.ink);
+
+  final Color start;
+  final Color end;
+  final Color ink;
+
+  static HeroFill of() => ThemeService.isLight
+      ? HeroFill._(
+          Color.lerp(AppColors.amber, AppColors.amberDim, 0.5)!,
+          AppColors.amberDim,
+          const Color(0xFFFFFFFF),
+        )
+      : HeroFill._(
+          AppColors.amber,
+          Color.lerp(AppColors.amber, AppColors.amberDim, 0.6)!,
+          AppColors.background,
+        );
+}
+
+/// The hero's "go" affordance. It leans forward on the same breath that lifts
+/// the glow, so the two read as one object inviting a press.
+class _GoDisc extends StatelessWidget {
+  const _GoDisc({required this.ink, required this.nudge});
+
+  final Color ink;
+  final Animation<double>? nudge;
+
+  @override
+  Widget build(BuildContext context) {
+    final disc = Container(
+      width: 40,
+      height: 40,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: ink.withValues(alpha: 0.14),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(Icons.arrow_forward_rounded, color: ink, size: 22),
+    );
+    final nudge = this.nudge;
+    if (nudge == null) return disc;
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    return AnimatedBuilder(
+      animation: nudge,
+      child: disc,
+      builder: (_, child) => Transform.translate(
+        offset: Offset((rtl ? -3 : 3) * nudge.value, 0),
+        child: child,
+      ),
+    );
   }
 }
 
