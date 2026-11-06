@@ -282,13 +282,13 @@ void main() {
 
     await tester.tap(secondary);
     await settle(tester);
-    expect(find.text('Title feature'), findsOneWidget);
+    expect(find.text('Title feature').hitTestable(), findsOneWidget);
     expect(checker.marked, ['gift', 'feature']);
     // No action: the main button is Next, and Close is the way out.
     expect(find.text('Close'), findsOneWidget);
     await tester.tap(action);
     await settle(tester);
-    expect(find.text('Title news'), findsOneWidget);
+    expect(find.text('Title news').hitTestable(), findsOneWidget);
     expect(find.text('Got it'), findsOneWidget);
     expect(secondary, findsNothing);
     await tester.tap(action);
@@ -306,18 +306,48 @@ void main() {
       _a('two', AnnouncementCategory.tip),
     ]);
     await settle(tester);
-    final title = find.text('Title one');
+    final title = find.text('Title one').hitTestable();
     // Back past the first page: it gives a little and springs back.
     await tester.drag(title, const Offset(300, 0));
     await settle(tester);
-    expect(find.text('Title one'), findsOneWidget);
+    expect(find.text('Title one').hitTestable(), findsOneWidget);
     await tester.fling(title, const Offset(-300, 0), 1500);
     await settle(tester);
-    expect(find.text('Title two'), findsOneWidget);
-    expect(find.text('Title one'), findsNothing);
-    await tester.fling(find.text('Title two'), const Offset(300, 0), 1500);
+    expect(find.text('Title two').hitTestable(), findsOneWidget);
+    expect(find.text('Title one').hitTestable(), findsNothing);
+    await tester.fling(
+      find.text('Title two').hitTestable(),
+      const Offset(300, 0),
+      1500,
+    );
     await settle(tester);
-    expect(find.text('Title one'), findsOneWidget);
+    expect(find.text('Title one').hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('turning pages: one button, and nothing below the pages moves', (
+    tester,
+  ) async {
+    _phone(tester);
+    // A tall page (with a ticket), then a short one with no second choice.
+    await pumpGate(tester, [_gift, _a('short', AnnouncementCategory.event)]);
+    await settle(tester);
+    final before = tester.getRect(action);
+    final dotsY = tester.getCenter(find.text('Next').hitTestable()).dy;
+    await tester.tap(secondary);
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 33));
+      expect(action, findsOneWidget, reason: 'frame $i: never two buttons');
+      expect(
+        tester.getRect(action).top,
+        moreOrLessEquals(before.top, epsilon: 0.5),
+        reason: 'frame $i: the button stays put',
+      );
+    }
+    await settle(tester);
+    expect(find.text('Got it'), findsOneWidget);
+    expect(tester.getRect(action), before);
+    expect(secondary, findsNothing);
+    expect(dotsY, greaterThan(before.bottom));
   });
 
   testWidgets('in Persian, next is a swipe to the right', (tester) async {
@@ -327,9 +357,13 @@ void main() {
       _a('two', AnnouncementCategory.tip),
     ], lang: 'fa');
     await settle(tester);
-    await tester.fling(find.text('عنوان one'), const Offset(300, 0), 1500);
+    await tester.fling(
+      find.text('عنوان one').hitTestable(),
+      const Offset(300, 0),
+      1500,
+    );
     await settle(tester);
-    expect(find.text('عنوان two'), findsOneWidget);
+    expect(find.text('عنوان two').hitTestable(), findsOneWidget);
   });
 
   testWidgets('pulling the sheet down dismisses it', (tester) async {

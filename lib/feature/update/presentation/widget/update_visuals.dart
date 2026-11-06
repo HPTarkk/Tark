@@ -229,25 +229,43 @@ class _SheenButtonState extends State<SheenButton>
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(widget.icon, size: 20, color: onAmber),
-                    const SizedBox(width: 10),
-                    Flexible(
-                      child: Text(
-                        widget.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: onAmber,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.4,
+                // A new label hands over in place rather than snapping: the
+                // old one lifts away first, then the new one rises into the
+                // space — one after the other, so the two never overprint.
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  switchInCurve: const Interval(
+                    0.45,
+                    1,
+                    curve: AppMotion.easeOut,
+                  ),
+                  switchOutCurve: const Interval(
+                    0.45,
+                    1,
+                    curve: AppMotion.easeOut,
+                  ),
+                  transitionBuilder: HandOver.transition(),
+                  child: Row(
+                    key: ValueKey('${widget.label}|${widget.icon.codePoint}'),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(widget.icon, size: 20, color: onAmber),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          widget.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: onAmber,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.4,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

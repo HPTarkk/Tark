@@ -101,7 +101,12 @@ class _AnnouncementSheetState extends State<AnnouncementSheet>
   static const _gone = Tolerance(distance: 0.004, velocity: 0.05);
 
   final _sheetKey = GlobalKey();
-  final _emblemKey = GlobalKey();
+  late final List<GlobalKey> _emblemKeys = [
+    for (final _ in widget.announcements) GlobalKey(),
+  ];
+
+  /// The secondary button's last words, kept while it fades out.
+  String? _lastSecondary;
   final _centre = ValueNotifier<Offset?>(null);
 
   int _index = 0;
@@ -178,7 +183,7 @@ class _AnnouncementSheetState extends State<AnnouncementSheet>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final sheet = _sheetKey.currentContext?.findRenderObject() as RenderBox?;
       final emblem =
-          _emblemKey.currentContext?.findRenderObject() as RenderBox?;
+          _emblemKeys[_index].currentContext?.findRenderObject() as RenderBox?;
       if (!mounted || sheet == null || emblem == null || !emblem.attached) {
         return;
       }
@@ -382,45 +387,60 @@ class _AnnouncementSheetState extends State<AnnouncementSheet>
     final insets = MediaQuery.paddingOf(context);
     final style = AnnouncementStyle.of(_current.category);
 
+    // Every page is always laid out, the ones not showing kept invisible,
+    // so the sheet is as tall as its tallest page from the start and never
+    // changes height as the pages turn. Each one is full width, so a page
+    // never re-wraps its text when the next one is narrower.
     final pages = AnimatedBuilder(
       animation: Listenable.merge([_turn, _drag]),
       builder: (context, _) {
         final from = _from;
         final t = _turn.value;
         final sign = _forward;
-        final children = <Widget>[];
-        if (from != null) {
-          // Leaving: on toward where it was going, fading and receding.
-          children.add(
-            _PageSlot(
-              key: ValueKey('page-$from'),
-              announcement: _all[from],
-              arrival: _arrivals[from],
-              offset: -_direction * 0.6 * t * sign,
-              opacity: 1 - Curves.easeOut.transform(t),
-              scale: 1 - 0.06 * t,
-              interactive: false,
-            ),
-          );
-        }
-        final shift = from != null
-            ? _direction * 0.6 * (1 - t) * sign
-            : -_drag.value * sign;
-        children.add(
-          _PageSlot(
-            key: ValueKey('page-$_index'),
-            announcement: _current,
-            arrival: _arrivals[_index],
-            emblemKey: _emblemKey,
-            offset: shift,
-            opacity: from != null
-                ? Curves.easeIn.transform(t)
-                : 1 - 0.45 * _drag.value.abs(),
-            scale: 1,
-            interactive: true,
-          ),
+        return Stack(
+          alignment: Alignment.topCenter,
+          children: [
+            for (var i = 0; i < _all.length; i++)
+              if (i == _index)
+                _PageSlot(
+                  key: ValueKey('page-$i'),
+                  announcement: _all[i],
+                  arrival: _arrivals[i],
+                  emblemKey: _emblemKeys[i],
+                  offset: from != null
+                      ? _direction * 0.6 * (1 - t) * sign
+                      : -_drag.value * sign,
+                  opacity: from != null
+                      ? Curves.easeIn.transform(t)
+                      : 1 - 0.45 * _drag.value.abs(),
+                  scale: 1,
+                  role: _SlotRole.current,
+                )
+              else if (i == from)
+                // Leaving: on toward where it was going, fading and receding.
+                _PageSlot(
+                  key: ValueKey('page-$i'),
+                  announcement: _all[i],
+                  arrival: _arrivals[i],
+                  emblemKey: _emblemKeys[i],
+                  offset: -_direction * 0.6 * t * sign,
+                  opacity: 1 - Curves.easeOut.transform(t),
+                  scale: 1 - 0.06 * t,
+                  role: _SlotRole.leaving,
+                )
+              else
+                _PageSlot(
+                  key: ValueKey('page-$i'),
+                  announcement: _all[i],
+                  arrival: _arrivals[i],
+                  emblemKey: _emblemKeys[i],
+                  offset: 0,
+                  opacity: 0,
+                  scale: 1,
+                  role: _SlotRole.hidden,
+                ),
+          ],
         );
-        return Stack(alignment: Alignment.topCenter, children: children);
       },
     );
 
@@ -458,49 +478,85 @@ class _AnnouncementSheetState extends State<AnnouncementSheet>
       }
     }
 
-    final actions = KeyedSubtree(
-      key: ValueKey('actions-$_index'),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _Landing(
-            progress: _turned ? kAlwaysCompleteAnimation : cue(_Beat.action),
-            fade: _turned ? kAlwaysCompleteAnimation : cue(_Beat.actionFade),
-            reduced: _reduced,
-            child: SheenButton(
-              key: const Key('announcement-action'),
-              label: primaryLabel,
-              icon: primaryIcon,
-              color: style.accent,
-              onColor: style.onAccent,
-              startAfter: _turned ? null : arrival,
-              onTap: primary,
+    // One set of buttons for the whole deck. A page turn recolours the
+    // button and hands its words over in place; it never swaps in a second
+    // button, and the row under it keeps its height whether or not this page
+    // has a second choice, so nothing below the pages moves.
+    final actions = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _Landing(
+          progress: _turned ? kAlwaysCompleteAnimation : cue(_Beat.action),
+          fade: _turned ? kAlwaysCompleteAnimation : cue(_Beat.actionFade),
+          reduced: _reduced,
+          child: TweenAnimationBuilder<Color?>(
+            tween: ColorTween(end: style.accent),
+            duration: AppMotion.sheet,
+            curve: AppMotion.easeOut,
+            builder: (context, fill, _) => TweenAnimationBuilder<Color?>(
+              tween: ColorTween(end: style.onAccent),
+              duration: AppMotion.sheet,
+              curve: AppMotion.easeOut,
+              builder: (context, ink, _) => SheenButton(
+                key: const Key('announcement-action'),
+                label: primaryLabel,
+                icon: primaryIcon,
+                color: fill,
+                onColor: ink,
+                startAfter: _turned ? null : arrival,
+                onTap: primary,
+              ),
             ),
           ),
-          _OpenFailed(visible: _openFailed),
-          if (secondaryLabel != null)
-            FadeTransition(
-              opacity: _turned
-                  ? kAlwaysCompleteAnimation
-                  : cue(_Beat.secondary),
-              child: TextButton(
-                key: const Key('announcement-secondary'),
-                onPressed: secondary,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.textSecondary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: Text(
-                  secondaryLabel,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        _OpenFailed(visible: _openFailed),
+        FadeTransition(
+          opacity: _turned ? kAlwaysCompleteAnimation : cue(_Beat.secondary),
+          child: AnimatedOpacity(
+            duration: AppMotion.card,
+            curve: AppMotion.easeOut,
+            opacity: secondaryLabel == null ? 0 : 1,
+            child: IgnorePointer(
+              ignoring: secondaryLabel == null,
+              child: ExcludeSemantics(
+                excluding: secondaryLabel == null,
+                child: TextButton(
+                  key: secondaryLabel == null
+                      ? null
+                      : const Key('announcement-secondary'),
+                  onPressed: secondary,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.textSecondary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    switchInCurve: const Interval(
+                      0.45,
+                      1,
+                      curve: AppMotion.easeOut,
+                    ),
+                    switchOutCurve: const Interval(
+                      0.45,
+                      1,
+                      curve: AppMotion.easeOut,
+                    ),
+                    child: Text(
+                      // Holds its place with the last words it had, so the
+                      // row keeps its height while it fades.
+                      secondaryLabel ?? _lastSecondary ?? s.announcement_close,
+                      key: ValueKey(secondaryLabel ?? _lastSecondary),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
                 ),
               ),
-            )
-          else
-            const SizedBox(height: 14),
-        ],
-      ),
+            ),
+          ),
+        ),
+      ],
     );
+    if (secondaryLabel != null) _lastSecondary = secondaryLabel;
 
     final body = Column(
       mainAxisSize: MainAxisSize.min,
@@ -513,12 +569,7 @@ class _AnnouncementSheetState extends State<AnnouncementSheet>
               behavior: HitTestBehavior.translucent,
               onHorizontalDragUpdate: _all.length > 1 ? _pageDragUpdate : null,
               onHorizontalDragEnd: _all.length > 1 ? _pageDragEnd : null,
-              child: AnimatedSize(
-                duration: AppMotion.sheet,
-                curve: AppMotion.easeOut,
-                alignment: Alignment.topCenter,
-                child: pages,
-              ),
+              child: pages,
             ),
           ),
         ),
@@ -536,17 +587,7 @@ class _AnnouncementSheetState extends State<AnnouncementSheet>
           ),
         Padding(
           padding: EdgeInsets.fromLTRB(20, 0, 20, 2 + insets.bottom),
-          child: AnimatedSwitcher(
-            duration: AppMotion.sheet,
-            switchInCurve: AppMotion.easeOut,
-            switchOutCurve: AppMotion.easeOut,
-            transitionBuilder: HandOver.transition(),
-            layoutBuilder: (current, previous) => Stack(
-              alignment: Alignment.bottomCenter,
-              children: [...previous, ?current],
-            ),
-            child: actions,
-          ),
+          child: actions,
         ),
       ],
     );
@@ -679,6 +720,8 @@ class _AnnouncementSheetState extends State<AnnouncementSheet>
 ///
 /// [offset] is in widths, in screen space. The emblem travels further than
 /// the words, so a turn has depth: the mark is nearer, and moves faster.
+enum _SlotRole { current, leaving, hidden }
+
 class _PageSlot extends StatelessWidget {
   const _PageSlot({
     required this.announcement,
@@ -686,8 +729,8 @@ class _PageSlot extends StatelessWidget {
     required this.offset,
     required this.opacity,
     required this.scale,
-    required this.interactive,
-    this.emblemKey,
+    required this.role,
+    required this.emblemKey,
     super.key,
   });
 
@@ -696,33 +739,36 @@ class _PageSlot extends StatelessWidget {
   final double offset;
   final double opacity;
   final double scale;
-  final bool interactive;
-  final Key? emblemKey;
+  final _SlotRole role;
+  final Key emblemKey;
 
   @override
   Widget build(BuildContext context) {
-    final page = _AnnouncementPage(
-      announcement: announcement,
-      arrival: arrival,
-      emblemKey: emblemKey,
-      emblemShift: offset * 0.45,
-    );
-    Widget slot = Opacity(
-      opacity: opacity.clamp(0.0, 1.0),
-      child: FractionalTranslation(
-        translation: Offset(offset, 0),
-        child: Transform.scale(scale: scale, child: page),
+    Widget slot = SizedBox(
+      width: double.infinity,
+      child: Opacity(
+        opacity: opacity.clamp(0.0, 1.0),
+        child: FractionalTranslation(
+          translation: Offset(offset, 0),
+          child: Transform.scale(
+            scale: scale,
+            child: _AnnouncementPage(
+              announcement: announcement,
+              arrival: arrival,
+              emblemKey: emblemKey,
+              emblemShift: offset * 0.45,
+            ),
+          ),
+        ),
       ),
     );
-    if (!interactive) {
-      // Out of the way: its own size must not hold the sheet open, and it
-      // must not be read out or tapped while it leaves.
-      slot = Positioned(
-        left: 0,
-        right: 0,
-        top: 0,
-        child: IgnorePointer(child: ExcludeSemantics(child: slot)),
-      );
+    if (role != _SlotRole.current) {
+      // Taking up its room, but not tapped, not read out, and — when it is
+      // not even leaving — not ticking either.
+      slot = IgnorePointer(child: ExcludeSemantics(child: slot));
+    }
+    if (role == _SlotRole.hidden) {
+      slot = TickerMode(enabled: false, child: slot);
     }
     return slot;
   }
@@ -733,7 +779,7 @@ class _AnnouncementPage extends StatelessWidget {
     required this.announcement,
     required this.arrival,
     required this.emblemShift,
-    this.emblemKey,
+    required this.emblemKey,
   });
 
   final Announcement announcement;
@@ -741,7 +787,7 @@ class _AnnouncementPage extends StatelessWidget {
 
   /// Extra sideways travel for the emblem, in widths.
   final double emblemShift;
-  final Key? emblemKey;
+  final Key emblemKey;
 
   String _tag(BuildContext context) {
     final s = context.getString;
