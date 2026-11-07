@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { resolve, dirname, extname, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const site = resolve(root, 'website');
@@ -110,7 +110,7 @@ const wrangler = JSON.parse((await readFile(resolve(root, 'wrangler.website.json
 assert.equal(wrangler.main, './website-worker/index.js', 'Website Worker entry moved');
 assert.equal(wrangler.assets.binding, 'ASSETS');
 assert.deepEqual(wrangler.assets.run_worker_first, ['/'], 'The Worker must run only for the home page');
-const edge = await import(resolve(root, 'website-worker/index.js'));
+const edge = await import(pathToFileURL(resolve(root, 'website-worker/index.js')).href);
 for (const [cf, expected] of [[{ country: 'IR' }, 'IR'], [{ country: 'de' }, 'DE'], [{ country: 'XX' }, ''], [{ country: 'T1' }, ''], [{}, ''], [undefined, ''], [{ country: '<b>' }, '']]) {
   assert.equal(edge.visitorCountry({ cf }), expected, `visitorCountry(${JSON.stringify(cf)})`);
 }
