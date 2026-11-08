@@ -1009,6 +1009,9 @@ class AppLocalizationsFa extends AppLocalizations {
   String get usage_tips_next => 'بعدی';
 
   @override
+  String get usage_tips_skip => 'رد کردن';
+
+  @override
   String get settings_gear_tooltip => 'تنظیمات';
 
   @override

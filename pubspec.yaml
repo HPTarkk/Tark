@@ -139,7 +139,6 @@ flutter:
   assets:
     - assets/icon/
     - assets/sfx/
-    - assets/image/
     - assets/avatars/
     # Generated from website/legal/*.json by scripts/build-legal-pages.mjs —
     # the same bytes the website renders and the app later downloads. Bundled

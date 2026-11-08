@@ -344,7 +344,6 @@ void main() {
           final assets =
               [
                 ...Directory('assets/avatars').listSync().whereType<File>(),
-                ...Directory('assets/image').listSync().whereType<File>(),
               ].where(
                 (file) =>
                     file.path.endsWith('.webp') || file.path.endsWith('.png'),

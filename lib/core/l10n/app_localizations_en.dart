@@ -1009,10 +1009,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Add the Tarkk widget and you can see who\'s on air at a glance, then tap once to jump straight in — no digging through the app. Add it any time from Settings.';
 
   @override
-  String get usage_tips_dismiss => 'GOT IT';
+  String get usage_tips_dismiss => 'Got it';
 
   @override
-  String get usage_tips_next => 'NEXT';
+  String get usage_tips_next => 'Next';
+
+  @override
+  String get usage_tips_skip => 'Skip';
 
   @override
   String get settings_gear_tooltip => 'Settings';
