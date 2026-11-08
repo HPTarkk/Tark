@@ -49,7 +49,11 @@ android {
         }
     }
     namespace = "com.b1101.tark"
-    compileSdk = flutter.compileSdkVersion
+    // API 37 is what androidx.core 1.18+ and permission_handler_android 14
+    // compile against (core's AAR metadata refuses anything below 36.1).
+    // compileSdk only widens the APIs visible to the compiler; runtime
+    // behaviour is governed by targetSdk below, which is unchanged.
+    compileSdk = maxOf(flutter.compileSdkVersion, 37)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -111,9 +115,9 @@ dependencies {
     // means the class we compile against is a stated dependency rather than an
     // accident of someone else's transitive graph. Gradle resolves conflicts
     // to the highest version, so this cannot downgrade the embedding's copy.
-    implementation("androidx.core:core:1.13.1")
+    implementation("androidx.core:core:1.19.1")
 
     // Cafe Bazaar in-app billing (see billing/BazaarBillingHandler). Served
     // from JitPack only; see the exclusiveContent block in ../build.gradle.kts.
-    implementation("com.github.cafebazaar.Poolakey:poolakey:2.2.0")
+    implementation("com.github.cafebazaar.Poolakey:poolakey:2.3.0")
 }

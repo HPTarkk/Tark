@@ -1,41 +1,32 @@
 group 'com.wearemobilefirst.rnnoise'
 version '1.0'
 
-buildscript {
-    ext.kotlin_version = '1.9.0'
-    repositories {
-        google()
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath 'com.android.tools.build:gradle:7.3.0'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-    }
-}
-
-rootProject.allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+// Vendored plugin: the Android Gradle Plugin and Kotlin Gradle Plugin come
+// from the app's root build (android/settings.gradle.kts), so this file pins
+// neither. It follows the same rule as the upstream plugins that support AGP
+// 9: apply kotlin-android only while the app opts out of AGP's built-in
+// Kotlin (android.builtInKotlin=false in android/gradle.properties). Once the
+// app turns built-in Kotlin on, this module compiles with it unchanged.
+def agpMajor = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0].toInteger()
+def builtInKotlinProperty = project.findProperty('android.builtInKotlin') ?: rootProject.findProperty('android.builtInKotlin')
+def useBuiltInKotlin = agpMajor >= 9 && (builtInKotlinProperty == null ? true : builtInKotlinProperty.toString().toBoolean())
 
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
+if (!useBuiltInKotlin) {
+    apply plugin: 'kotlin-android'
+}
 
 android {
     namespace 'com.wearemobilefirst.rnnoise'
-    compileSdkVersion 33
-    ndkVersion "27.0.12077973"
+    // Same SDK and NDK as the app (Flutter's defaults), so the native library
+    // is built by the exact toolchain the app ships with instead of a second,
+    // older NDK that had to be installed only for this module.
+    compileSdk flutter.compileSdkVersion
+    ndkVersion flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-
-    kotlinOptions {
-        jvmTarget = '1.8'
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     sourceSets {
@@ -43,7 +34,7 @@ android {
     }
 
     defaultConfig {
-        minSdkVersion 21
+        minSdk 24
 
         externalNativeBuild {
             cmake {
@@ -59,6 +50,9 @@ android {
     }
 }
 
-dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+// Built-in Kotlin and kotlin-android both register this extension.
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
 }

@@ -32,7 +32,8 @@ set_target_properties(rnnoise PROPERTIES
 
 # 16 KB page alignment, required to load on devices with 16 KB memory pages
 # (and by Google Play for apps targeting Android 15+). NDK r28 does this by
-# default; NDK r27, which this project pins, does not.
+# default (this module now builds with the app's r28); the flag stays so an
+# older NDK on some machine still produces a loadable library.
 # The version script keeps everything but the FFI/JNI entry points local.
 target_link_options(rnnoise PRIVATE
     "-Wl,-z,max-page-size=16384"
