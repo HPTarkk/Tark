@@ -120,43 +120,6 @@ class $AssetsIconGen {
   List<AssetGenImage> get values => [icon];
 }
 
-class $AssetsImageGen {
-  const $AssetsImageGen();
-
-  /// File path: assets/image/airpod_bud.png
-  AssetGenImage get airpodBud =>
-      const AssetGenImage('assets/image/airpod_bud.png');
-
-  /// File path: assets/image/airpod_bud_light.png
-  AssetGenImage get airpodBudLight =>
-      const AssetGenImage('assets/image/airpod_bud_light.png');
-
-  /// File path: assets/image/airpods_case.png
-  AssetGenImage get airpodsCase =>
-      const AssetGenImage('assets/image/airpods_case.png');
-
-  /// File path: assets/image/airpods_case_light.png
-  AssetGenImage get airpodsCaseLight =>
-      const AssetGenImage('assets/image/airpods_case_light.png');
-
-  /// File path: assets/image/helmet.png
-  AssetGenImage get helmet => const AssetGenImage('assets/image/helmet.png');
-
-  /// File path: assets/image/helmet_light.png
-  AssetGenImage get helmetLight =>
-      const AssetGenImage('assets/image/helmet_light.png');
-
-  /// List of all assets
-  List<AssetGenImage> get values => [
-    airpodBud,
-    airpodBudLight,
-    airpodsCase,
-    airpodsCaseLight,
-    helmet,
-    helmetLight,
-  ];
-}
-
 class $AssetsLegalGen {
   const $AssetsLegalGen();
 
@@ -228,7 +191,6 @@ class $AssetsSfxGen {
 abstract final class Assets {
   static const $AssetsAvatarsGen avatars = $AssetsAvatarsGen();
   static const $AssetsIconGen icon = $AssetsIconGen();
-  static const $AssetsImageGen image = $AssetsImageGen();
   static const $AssetsLegalGen legal = $AssetsLegalGen();
   static const $AssetsSfxGen sfx = $AssetsSfxGen();
 }

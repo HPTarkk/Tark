@@ -1910,6 +1910,12 @@ abstract class AppLocalizations {
   /// **'بعدی'**
   String get usage_tips_next;
 
+  /// No description provided for @usage_tips_skip.
+  ///
+  /// In fa, this message translates to:
+  /// **'رد کردن'**
+  String get usage_tips_skip;
+
   /// No description provided for @settings_gear_tooltip.
   ///
   /// In fa, this message translates to:
