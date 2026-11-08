@@ -77,15 +77,31 @@ fun Project.setAndroidMinSdk(value: Int) {
     }
 }
 
+// Flutter's default compileSdk, read from the Flutter Gradle extension that
+// :app applies (the class lives in Flutter's included build, hence reflection).
+fun Project.flutterDefaultCompileSdk(): Int? =
+    extensions.findByName("flutter")?.let { ext ->
+        runCatching { ext.javaClass.getMethod("getCompileSdkVersion").invoke(ext) as Int }
+            .getOrNull()
+    }
+
 fun Project.alignAndroidSdkFloorsWithApp() {
     val app = project(":app")
     val appCompileSdk = app.androidCompileSdk()
+    // Plugins are raised to Flutter's default compileSdk, never to a higher
+    // one the app opts into: each new SDK's android.jar adds nullability
+    // annotations, and Kotlin plugins written against the previous SDK stop
+    // compiling (bluetooth_low_energy_android 6.2.1 does on API 37). A plugin
+    // compiled against a lower SDK than the app is fine; one compiled against
+    // a lower SDK than it was written for is not, so only stale ones move.
+    val pluginCompileSdkFloor =
+        listOfNotNull(appCompileSdk, app.flutterDefaultCompileSdk()).minOrNull()
     val ownCompileSdk = androidCompileSdk()
-    if (appCompileSdk != null && ownCompileSdk != null && ownCompileSdk < appCompileSdk) {
+    if (pluginCompileSdkFloor != null && ownCompileSdk != null && ownCompileSdk < pluginCompileSdkFloor) {
         logger.lifecycle(
-            "Raising :$name compileSdk $ownCompileSdk -> $appCompileSdk (Tarkk app floor)",
+            "Raising :$name compileSdk $ownCompileSdk -> $pluginCompileSdkFloor (Tarkk plugin floor)",
         )
-        setAndroidCompileSdk(appCompileSdk)
+        setAndroidCompileSdk(pluginCompileSdkFloor)
     }
 
     // NDK 27 rejects native modules below API 21. More importantly, a plugin
