@@ -8,10 +8,13 @@ Real-time, push-to-talk voice between two or more phones — **no internet, no s
 
 ---
 
-Copyright (c) 2026 Tarkk — dual-licensed.
+Copyright (c) 2026 Tarkk. All rights reserved except as expressly licensed.
 
-**Open source:** AGPL-3.0. Use, modify, distribute freely under its terms.
-**Commercial:** want it in a closed-source product, or don't want AGPL's terms? Email **tarkk.hp@gmail.com** for a negotiated license (royalty, revenue-share, subscription, or one-time).
+**License:** [PolyForm Noncommercial 1.0.0](LICENSE). You may use, modify, and share this software for noncommercial purposes, subject to the license terms. This project is source-available, not OSI-approved open source.
+
+**Commercial use:** Prior written permission is required. Contact **tarkk.hp@gmail.com** to discuss separate commercial licensing terms, including possible fees or revenue sharing. No commercial permission is granted by this notice.
+
+**Previously released versions:** Code already distributed under AGPL-3.0 remains available under that license for recipients of those versions; this change does not revoke previously granted rights.
 
 ## Features
 
