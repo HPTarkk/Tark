@@ -4,23 +4,20 @@ import 'room_invite_join_client.dart';
 import 'room_invite_join_exchange.dart';
 import 'room_member_transport_identity.dart';
 
-typedef PersistJoinedRoomTransportIdentity =
-    Future<void> Function({
-      required SavedRoom saved,
-      required RoomMemberTransportKeyPair memberKeyPair,
-      required RoomMemberTransportCertificate certificate,
-    });
+typedef PersistJoinedRoomTransportIdentity = Future<void> Function({
+  required SavedRoom saved,
+  required RoomMemberTransportKeyPair memberKeyPair,
+  required RoomMemberTransportCertificate certificate,
+});
 
 /// Application boundary that turns a correlated issuer acceptance into the
 /// joiner's durable local Room state.
 final class RoomInviteJoinImporter {
   const RoomInviteJoinImporter({
-    required RoomRepository repository,
-    RoomInviteJoinClient client = const RoomInviteJoinClient(),
-    PersistJoinedRoomTransportIdentity? persistTransportIdentity,
-  }) : _repository = repository,
-       _client = client,
-       _persistTransportIdentity = persistTransportIdentity;
+    required this._repository,
+    this._client = const RoomInviteJoinClient(),
+    this._persistTransportIdentity,
+  });
 
   final RoomRepository _repository;
   final RoomInviteJoinClient _client;

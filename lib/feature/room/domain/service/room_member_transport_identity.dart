@@ -92,8 +92,8 @@ final class RoomMemberTransportCertificate {
     required this.issuerSignature,
     this.inviteGrant,
     this.issuerChain = const [],
-    List<int>? chainRootPublicKey,
-  }) : _chainRootPublicKey = chainRootPublicKey;
+    this._chainRootPublicKey,
+  });
 
   static const currentVersion = 1;
 

@@ -52,15 +52,12 @@ final class AndroidNetworkRebindCoordinator {
     this._rebindWifiSockets,
     this._modes,
     this._roles, {
-    AndroidNetworkBindingPort port = const PlatformAndroidNetworkBindingPort(),
-    Map<String, DateTime> Function()? peersHeardAt,
-    Future<String?> Function()? stationAddress,
+    this._port = const PlatformAndroidNetworkBindingPort(),
+    this._peersHeardAt,
+    this._stationAddress,
     DateTime Function()? clock,
     this.bridgeTick = const Duration(seconds: 1),
-  }) : _port = port,
-       _peersHeardAt = peersHeardAt,
-       _stationAddress = stationAddress,
-       _clock = clock ?? DateTime.now;
+  }) : _clock = clock ?? DateTime.now;
 
   final void Function() _rebindWifiSockets;
   final TransferModeStore _modes;

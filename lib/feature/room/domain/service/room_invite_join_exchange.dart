@@ -24,11 +24,10 @@ typedef RoomJoinCertificateIssuer =
 /// Room identity.
 final class RoomInviteJoinExchange {
   RoomInviteJoinExchange({
-    required RoomInviteAcceptanceCoordinator acceptance,
-    RoomJoinCertificateIssuer? issueCertificate,
+    required this._acceptance,
+    this._issueCertificate,
     this.requireMembershipReceipt = false,
-  }) : _acceptance = acceptance,
-       _issueCertificate = issueCertificate;
+  });
 
   static const currentVersion = 1;
   static const maxDisplayNameLength = 80;
@@ -96,9 +95,8 @@ final class RoomInviteJoinExchange {
         }
         return response.encode();
       case RoomInviteAcceptanceStatus.rejected:
-        return RoomInviteJoinResponse.rejected(
-          requestId: request.requestId,
-        ).encode();
+        return RoomInviteJoinResponse.rejected(requestId: request.requestId)
+            .encode();
       case RoomInviteAcceptanceStatus.roomUnavailable:
         return RoomInviteJoinResponse.roomUnavailable(
           requestId: request.requestId,

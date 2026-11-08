@@ -18,14 +18,11 @@ class HttpTarkServiceClient implements TarkServiceClient {
   HttpTarkServiceClient({
     Uri? baseUrl,
     http.Client? client,
-    Future<Map<String, String>> Function()? commonHeaders,
-    Duration timeout = TarkApiConfig.timeout,
-    int maxBytes = TarkApiConfig.maxBytes,
+    this._commonHeaders,
+    this._timeout = TarkApiConfig.timeout,
+    this._maxBytes = TarkApiConfig.maxBytes,
   }) : _base = baseUrl ?? Uri.parse(TarkApiConfig.baseUrl),
-       _client = client ?? http.Client(),
-       _commonHeaders = commonHeaders,
-       _timeout = timeout,
-       _maxBytes = maxBytes;
+       _client = client ?? http.Client();
 
   final Uri _base;
   final http.Client _client;

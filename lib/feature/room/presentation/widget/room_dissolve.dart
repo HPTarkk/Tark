@@ -326,10 +326,9 @@ class _Leaving extends ChangeNotifier {
     required this.followers,
     required this.reduced,
     required TickerProvider vsync,
-    required VoidCallback onFrame,
-    required VoidCallback onLanded,
-  }) : _onFrame = onFrame,
-       _onLanded = onLanded {
+    required this._onFrame,
+    required this._onLanded,
+  }) {
     _ticker = vsync.createTicker(_tick);
   }
 

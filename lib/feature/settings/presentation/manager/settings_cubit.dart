@@ -41,12 +41,9 @@ class SettingsCubit extends Cubit<SettingsState> {
   /// edit the running session in place.
   WalkieTalkieCubit? get liveSession => _liveSession;
 
-  SettingsCubit({
-    WalkieTalkieCubit? liveSession,
-    required SettingsRepository repository,
-  }) : _liveSession = liveSession,
-       _repository = repository,
-       super(SettingsState.initial(isLive: liveSession != null)) {
+  SettingsCubit({WalkieTalkieCubit? liveSession, required this._repository})
+    : _liveSession = liveSession,
+      super(SettingsState.initial(isLive: liveSession != null)) {
     _init();
   }
 

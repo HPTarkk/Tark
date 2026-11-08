@@ -19,12 +19,10 @@ import 'account_store.dart';
 /// takes the account's.
 class ProfileSync {
   ProfileSync({
-    required AccountSession session,
-    required AccountStore store,
-    required SettingsRepository settings,
-  }) : _session = session,
-       _store = store,
-       _settings = settings;
+    required this._session,
+    required this._store,
+    required this._settings,
+  });
 
   final AccountSession _session;
   final AccountStore _store;

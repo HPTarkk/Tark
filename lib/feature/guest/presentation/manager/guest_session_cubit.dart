@@ -29,15 +29,11 @@ import '../../data/guest_web_client.dart';
 class GuestSessionCubit extends Cubit<GuestSessionState> {
   GuestSessionCubit(
     this._client, {
-    required AudioEngine engine,
-    required SettingsRepository settingsRepository,
-    required WakiPacketCodec codec,
-    required SfxPlayer sfx,
-  }) : _engine = engine,
-       _settingsRepository = settingsRepository,
-       _codec = codec,
-       _sfx = sfx,
-       super(GuestSessionState.initial()) {
+    required this._engine,
+    required this._settingsRepository,
+    required this._codec,
+    required this._sfx,
+  }) : super(GuestSessionState.initial()) {
     _loadPrefs();
     _packetSub = _client.messages.listen((bytes) {
       final packet = _codec.decode(bytes, 'host');

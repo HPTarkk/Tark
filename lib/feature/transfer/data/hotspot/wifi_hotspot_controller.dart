@@ -22,9 +22,8 @@ class WifiHotspotController implements HotspotHost {
     @ignoreParam Future<Set<String>> Function()? localAddresses,
     @ignoreParam this.apWatchInterval = const Duration(seconds: 2),
     @ignoreParam this.apDiscoveryWindow = const Duration(seconds: 12),
-    @ignoreParam bool? supported,
-  }) : _localAddresses = localAddresses ?? _ipv4Addresses,
-       _supported = supported;
+    @ignoreParam this._supported,
+  }) : _localAddresses = localAddresses ?? _ipv4Addresses;
 
   static const _channel = MethodChannel('tark/hotspot');
   static const _events = EventChannel('tark/hotspot/events');

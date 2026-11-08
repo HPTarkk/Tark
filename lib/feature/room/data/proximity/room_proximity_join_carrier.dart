@@ -73,10 +73,9 @@ final class RoomProximityEnvelope {
 final class RoomProximityJoinCarrier
     implements RoomInviteJoinConfirmedSnapshotCarrier {
   RoomProximityJoinCarrier({
-    required RoomProximityControlChannel channel,
-    required RoomInvitation invitation,
-  }) : _channel = channel,
-       _invitation = invitation {
+    required this._channel,
+    required this._invitation,
+  }) {
     _subscription = _channel.messages.listen(_onMessage);
     _closedSubscription = _channel.closed.listen((_) => _failPending());
   }
@@ -248,14 +247,11 @@ final class RoomProximityJoinCarrier
 
 final class RoomProximityJoinIssuerSession {
   RoomProximityJoinIssuerSession({
-    required RoomProximityControlChannel channel,
-    required RoomInvitation invitation,
-    required RoomInviteJoinExchange exchange,
-    required RoomRepository repository,
-  }) : _channel = channel,
-       _invitation = invitation,
-       _exchange = exchange,
-       _repository = repository {
+    required this._channel,
+    required this._invitation,
+    required this._exchange,
+    required this._repository,
+  }) {
     _subscription = _channel.messages.listen(_onMessage);
   }
 
@@ -269,9 +265,9 @@ final class RoomProximityJoinIssuerSession {
   final Map<String, String> _confirmationCache = {};
   final Map<String, Future<String>> _confirmationInFlight = {};
 
-  Future<String> get _correlation async => (await RoomRendezvousIdentity.derive(
-    _invitation.invitationId,
-  )).correlation;
+  Future<String> get _correlation async =>
+      (await RoomRendezvousIdentity.derive(_invitation.invitationId))
+          .correlation;
 
   Future<void> _onMessage(String raw) async {
     RoomProximityEnvelope envelope;

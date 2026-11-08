@@ -17,10 +17,10 @@ import 'dart:collection';
 /// be able to delay the next high-priority write behind it.
 class PriorityWriteScheduler<T> {
   PriorityWriteScheduler({
-    required Future<void> Function(T payload) write,
+    required this._write,
     this.maxQueuedLowPriority = 5,
     this.maxQueuedRealtime = 5,
-  }) : _write = write;
+  });
 
   final Future<void> Function(T payload) _write;
 

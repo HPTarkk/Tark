@@ -25,14 +25,11 @@ import '../entity/room.dart';
 /// phone left on the lobby is not pinging an empty network.
 final class RoomPreLiveAnnouncer {
   RoomPreLiveAnnouncer({
-    required TransferRepository transport,
-    required String name,
-    Duration interval = const Duration(seconds: 1),
+    required this._transport,
+    required this._name,
+    this._interval = const Duration(seconds: 1),
     DateTime Function()? clock,
-  }) : _transport = transport,
-       _name = name,
-       _interval = interval,
-       _clock = clock ?? DateTime.now;
+  }) : _clock = clock ?? DateTime.now;
 
   final DateTime Function() _clock;
 

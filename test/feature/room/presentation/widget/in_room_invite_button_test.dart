@@ -416,11 +416,7 @@ class _FakeTransferRepository implements TransferRepository {
 }
 
 class _FakeHotspotLinkKeeper implements HotspotLinkKeeper {
-  _FakeHotspotLinkKeeper({
-    required HotspotLinkState state,
-    HotspotCredentials? credentials,
-  }) : _state = state,
-       _credentials = credentials;
+  _FakeHotspotLinkKeeper({required this._state, this._credentials});
 
   final _states = StreamController<HotspotLinkState>.broadcast(sync: true);
   final _credentialsChanges = StreamController<HotspotCredentials>.broadcast(

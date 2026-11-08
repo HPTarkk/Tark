@@ -18,13 +18,12 @@ import 'room_bluetooth_permissions.dart';
 final class BluetoothInviteHost {
   BluetoothInviteHost({
     RoomProximityControlChannel? control,
-    BluetoothTransport? transport,
+    this._transport,
     Future<bool> Function()? permissions,
     BluetoothInviteLink? link,
     this.listenFor = const Duration(minutes: 5),
   }) : link = link ?? BluetoothInviteLink.fresh(),
        _control = control ?? RoomProximityControlChannel(),
-       _transport = transport,
        _permissions = permissions ?? ensureRoomInviteBluetoothPermissions;
 
   final RoomProximityControlChannel _control;

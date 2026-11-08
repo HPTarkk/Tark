@@ -36,15 +36,15 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.47.1"
+          flutter-version: "3.47.9"
           channel: stable
           cache: true
 
-      # .metadata pins Tarkk's project baseline to Flutter 3.41.9 / Dart 3.11.5.
-      # The committed lockfile has since been touched by a newer SDK and carries
-      # SDK-pinned transitive versions that 3.41.9 cannot reproduce byte-for-byte,
-      # so CI resolves from the committed pubspec constraints instead of silently
-      # testing a different Flutter formatter/runtime than the project baseline.
+      # pubspec.yaml requires Dart ^3.13.0 (Flutter 3.47), and the committed
+      # lockfile is resolved with this exact Flutter release. CI still
+      # resolves from the pubspec constraints rather than enforcing the
+      # lockfile, so an SDK-pinned package that differs between 3.47 patch
+      # releases cannot fail the gate on its own.
       - name: Get dependencies
         run: flutter pub get
 

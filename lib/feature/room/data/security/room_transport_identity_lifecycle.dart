@@ -12,10 +12,9 @@ import 'room_transport_identity_secure_store.dart';
 /// issuer identity locally.
 final class RoomTransportIdentityLifecycle {
   RoomTransportIdentityLifecycle({
-    required RoomTransportIdentitySecureStore store,
+    required this._store,
     RoomMemberTransportIdentityCrypto? crypto,
-  }) : _store = store,
-       _crypto = crypto ?? RoomMemberTransportIdentityCrypto();
+  }) : _crypto = crypto ?? RoomMemberTransportIdentityCrypto();
 
   final RoomTransportIdentitySecureStore _store;
   final RoomMemberTransportIdentityCrypto _crypto;

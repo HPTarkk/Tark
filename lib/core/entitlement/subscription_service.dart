@@ -73,18 +73,13 @@ class GatePurchaseOwnedElsewhere extends GateOutcome {
 /// and the screens cannot disagree.
 class SubscriptionService {
   SubscriptionService({
-    required AppSecureStorage storage,
-    required InstallIdentity identity,
-    required EntitlementVerifier verifier,
-    required SubscriptionRemote remote,
-    required bool monetized,
+    required this._storage,
+    required this._identity,
+    required this._verifier,
+    required this._remote,
+    required this._monetized,
     DateTime Function()? clock,
-  }) : _storage = storage,
-       _identity = identity,
-       _verifier = verifier,
-       _remote = remote,
-       _monetized = monetized,
-       _clock = clock ?? DateTime.now;
+  }) : _clock = clock ?? DateTime.now;
 
   final AppSecureStorage _storage;
   final InstallIdentity _identity;
