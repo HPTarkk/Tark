@@ -115,11 +115,10 @@ class CodeEntryState extends Equatable {
 /// wait longer.
 class CodeEntryCubit extends Cubit<CodeEntryState> {
   CodeEntryCubit({
-    required AuthRepository repository,
+    required this._repository,
     required this.kind,
     DateTime Function()? clock,
-  }) : _repository = repository,
-       _clock = clock ?? DateTime.now,
+  }) : _clock = clock ?? DateTime.now,
        super(const CodeEntryState());
 
   final AuthRepository _repository;

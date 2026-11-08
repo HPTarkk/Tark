@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.2.3+39
 
 environment:
-  sdk: ^3.11.5
+  sdk: ^3.13.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -32,7 +32,7 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^2.0.0
   # Vendored (packages/audio_io) with one Android patch: audio streams are
   # opened as voice-communication class instead of media, so call-mode
   # routing (Bluetooth handsfree, speakerphone) actually applies to them.
@@ -40,22 +40,22 @@ dependencies:
     path: packages/audio_io
   rnnoise:
     path: packages/rnnoise
-  equatable: ^2.0.8
+  equatable: ^3.0.0
   dartz: ^0.10.1
   injectable: ^3.0.0
   get_it: ^9.2.1
   intl: ^0.20.2
   flutter_bloc: ^9.1.1
   bloc: ^9.2.0
-  go_router: ^17.2.3
-  permission_handler: ^12.0.1
+  go_router: ^18.1.3
+  permission_handler: ^13.0.2
   shared_preferences: ^2.3.0
-  package_info_plus: ^9.0.1
-  # 0.1.1 migrated the plugin to AGP built-in Kotlin. Tarkk's current Flutter
-  # 3.41.9 / legacy-KGP Android baseline cannot compile that plugin class.
-  # Keep the API-compatible 0.1.0 until the app toolchain is deliberately
-  # migrated to Flutter's built-in-Kotlin support.
-  flutter_blue_classic: 0.1.0
+  package_info_plus: ^10.2.2
+  # 0.1.1+ no longer applies kotlin-android itself (AGP built-in Kotlin).
+  # Flutter 3.47's Gradle plugin applies it to such plugins while the app
+  # still opts out of built-in Kotlin (android/gradle.properties), so the
+  # earlier 0.1.0 pin is no longer needed.
+  flutter_blue_classic: ^0.1.1
   opus_dart: ^3.0.1
   opus_flutter: ^3.0.3
   # Direct, for the opus_encoder_ctl binding in
@@ -75,7 +75,7 @@ dependencies:
   # transitively; listed here because we use it.
   fixnum: ^1.1.1
   audioplayers: ^6.1.0
-  home_widget: ^0.9.3
+  home_widget: ^0.10.0
   # Ed25519 identities bind durable Room members to matched live transport
   # challenges without trusting an IP, display name, SSID or self-claimed id.
   cryptography: ^2.9.0
@@ -91,16 +91,12 @@ dependencies:
   # server nonce; see PlatformGoogleIdTokenSource.
   google_sign_in: ^7.2.0
   google_sign_in_platform_interface: ^3.1.0
-  # 7.2.12 migrated the plugin to AGP built-in Kotlin, which Tarkk's
-  # legacy-KGP Android baseline (android.builtInKotlin=false) cannot compile
-  # — same story as flutter_blue_classic above. 7.2.11 is the last release
-  # that applies kotlin-android itself. Unpin together with that migration.
-  google_sign_in_android: 7.2.11
   # Opens the app from the verification links in account emails
   # (https://tarkk.ir/v/...), see core/account/email_link.dart.
   app_links: ^7.2.1
 
 
+  crypto: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

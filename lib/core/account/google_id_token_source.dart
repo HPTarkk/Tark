@@ -46,8 +46,7 @@ abstract interface class GoogleIdTokenSource {
 /// the fresh nonce right before each `authenticate` gives a per-request
 /// nonce without relying on undefined behaviour of the app-facing class.
 class PlatformGoogleIdTokenSource implements GoogleIdTokenSource {
-  PlatformGoogleIdTokenSource({required String serverClientId})
-    : _serverClientId = serverClientId;
+  PlatformGoogleIdTokenSource({required this._serverClientId});
 
   final String _serverClientId;
 

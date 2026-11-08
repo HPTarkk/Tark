@@ -99,18 +99,17 @@ import '../domain/float64_fifo.dart';
 /// where playback goes through AVAudioEngine instead.
 class AudioPlaybackBuffer {
   AudioPlaybackBuffer({
-    required Sink<List<double>> output,
+    required this._output,
     int sampleRate = 48000,
     int targetBufferMs = 100,
     int drainIntervalMs = 10,
     int outputPrefillMs = kDefaultOutputPrefillMs,
     this.adaptive = true,
     this.debugLogging = false,
-    int Function()? outputUnderrunFrames,
-    int Function()? outputQueuedFrames,
+    this._outputUnderrunFrames,
+    this._outputQueuedFrames,
     VoiceQueue? voiceQueue,
-  }) : _output = output,
-       _native = voiceQueue,
+  }) : _native = voiceQueue,
        _sampleRate = sampleRate,
        _targetSamples = sampleRate * targetBufferMs ~/ 1000,
        _minTargetSamples =
@@ -120,9 +119,7 @@ class AudioPlaybackBuffer {
        _drainSize = sampleRate * drainIntervalMs ~/ 1000,
        _drainIntervalMs = drainIntervalMs,
        _defaultChunkLen = sampleRate * 10 ~/ 1000,
-       _prefillSamples = sampleRate * outputPrefillMs ~/ 1000,
-       _outputUnderrunFrames = outputUnderrunFrames,
-       _outputQueuedFrames = outputQueuedFrames {
+       _prefillSamples = sampleRate * outputPrefillMs ~/ 1000 {
     final native = _native;
     if (native != null) {
       native.targetFrames = _targetSamples;

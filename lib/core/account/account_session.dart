@@ -17,11 +17,10 @@ import 'account_store.dart';
 /// was reset, the account was deleted).
 class AccountSession {
   AccountSession({
-    required AuthenticatedApiClient api,
-    required AccountStore store,
+    required this._api,
+    required this._store,
     required this.available,
-  }) : _api = api,
-       _store = store {
+  }) {
     _endedSub = _api.sessionEnded.listen((_) => unawaited(_endLocally()));
   }
 

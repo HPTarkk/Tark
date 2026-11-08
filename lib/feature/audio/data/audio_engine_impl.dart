@@ -1191,14 +1191,9 @@ class _MixingOutputSink implements Sink<List<double>> {
   _MixingOutputSink(
     this._real,
     this._mediaBuffer, {
-    required double Function({
-      required bool voiceActive,
-      required int frameDurationMs,
-    })
-    advanceDucking,
-    required double Function() outputRate,
-  }) : _advanceDucking = advanceDucking,
-       _outputRate = outputRate;
+    required this._advanceDucking,
+    required this._outputRate,
+  });
 
   final Sink<List<double>> _real;
 

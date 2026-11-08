@@ -37,10 +37,9 @@ class PreflightSession {
   PreflightSession._(
     this.initial,
     this._controller, {
-    Recheck? recheckBackground,
-    Recheck? recheckMic,
-  }) : _recheckBackground = recheckBackground,
-       _recheckMic = recheckMic;
+    this._recheckBackground,
+    this._recheckMic,
+  });
 
   /// Test seam: wraps a fixed, already-resolved result with no further
   /// updates. Mirrors `DiagnosticLog.debugAttach`'s naming — this is not for
@@ -92,7 +91,8 @@ class PreflightSession {
   /// re-check-on-resume `BackgroundPermissionBanner` already uses for the
   /// identical hand-off. A no-op for the debug sessions, which have no live
   /// probe to rerun.
-  Future<void> recheckBackground() => _recheckBackground?.call() ?? Future.value();
+  Future<void> recheckBackground() =>
+      _recheckBackground?.call() ?? Future.value();
 
   /// Re-runs the mic probe (and its piggybacked route check) on demand.
   ///

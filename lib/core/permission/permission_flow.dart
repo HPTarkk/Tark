@@ -49,9 +49,8 @@ class PermissionFlowController extends ChangeNotifier {
   PermissionFlowController({
     required List<Permission> permissions,
     required this.kind,
-    required PermissionBackend backend,
-  }) : permissions = List.unmodifiable(permissions),
-       _backend = backend;
+    required this._backend,
+  }) : permissions = List.unmodifiable(permissions);
 
   /// Everything the caller needs; the flow only ever asks for what is
   /// still missing out of it.

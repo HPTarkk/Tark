@@ -14,16 +14,12 @@ import 'google_id_token_source.dart';
 /// Never throws; every method answers an [AuthResult].
 class AuthRepository {
   AuthRepository({
-    required AccountSession session,
-    required AccountStore store,
-    required GoogleIdTokenSource google,
-    required Future<String> Function() localeCode,
-    required Future<String> Function() localName,
-  }) : _session = session,
-       _store = store,
-       _google = google,
-       _localeCode = localeCode,
-       _localName = localName;
+    required this._session,
+    required this._store,
+    required this._google,
+    required this._localeCode,
+    required this._localName,
+  });
 
   final AccountSession _session;
   final AccountStore _store;

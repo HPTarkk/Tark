@@ -81,11 +81,10 @@ final class RoomInviteJoinAttemptResult {
 /// Joiner-side orchestration for the secure Room join carrier hop.
 final class RoomInviteJoinOrchestrator {
   RoomInviteJoinOrchestrator({
-    RoomInviteJoinClient client = const RoomInviteJoinClient(),
+    this._client = const RoomInviteJoinClient(),
     RoomMemberTransportIdentityCrypto? identityCrypto,
     Random? random,
-  }) : _client = client,
-       _identityCrypto = identityCrypto ?? RoomMemberTransportIdentityCrypto(),
+  }) : _identityCrypto = identityCrypto ?? RoomMemberTransportIdentityCrypto(),
        _random = random ?? Random.secure();
 
   final RoomInviteJoinClient _client;

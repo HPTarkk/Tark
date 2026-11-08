@@ -22,11 +22,10 @@ enum BluetoothInviteJoinResult {
 class BluetoothInviteJoiner {
   BluetoothInviteJoiner({
     RoomProximityControlChannel Function()? control,
-    BluetoothTransport? transport,
+    this._transport,
     Future<bool> Function()? permissions,
     Future<bool> Function()? locationReady,
   }) : _control = control ?? RoomProximityControlChannel.new,
-       _transport = transport,
        _permissions = permissions ?? ensureRoomInviteBluetoothPermissions,
        _locationReady = locationReady ?? roomScanLocationReady;
 

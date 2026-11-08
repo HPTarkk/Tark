@@ -30,8 +30,7 @@ import 'app_motion.dart';
 /// first, then the incoming one resolves out of it — still never two screens
 /// at once.
 class SolidSheetRoute<T> extends PageRoute<T> {
-  SolidSheetRoute({required WidgetBuilder builder, super.settings})
-    : _builder = builder;
+  SolidSheetRoute({required WidgetBuilder this._builder, super.settings});
 
   /// Page-based form, built by [SolidSheetPage.createRoute].
   SolidSheetRoute._page(SolidSheetPage<T> page)
