@@ -3686,6 +3686,48 @@ abstract class AppLocalizations {
   /// **'بذار طرف نزدیک همین گوشی، این کد رو با «پیوستن با QR» اسکن کنه. مستقیم میاد تو اتاق.'**
   String get people_invite_hint;
 
+  /// No description provided for @invite_method_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'روش اتصال'**
+  String get invite_method_label;
+
+  /// No description provided for @invite_method_hotspot.
+  ///
+  /// In fa, this message translates to:
+  /// **'هات‌اسپات'**
+  String get invite_method_hotspot;
+
+  /// No description provided for @invite_method_bluetooth.
+  ///
+  /// In fa, this message translates to:
+  /// **'بلوتوث'**
+  String get invite_method_bluetooth;
+
+  /// No description provided for @invite_method_locked.
+  ///
+  /// In fa, this message translates to:
+  /// **'اشتراک لازم داره'**
+  String get invite_method_locked;
+
+  /// No description provided for @invite_method_hotspot_note.
+  ///
+  /// In fa, this message translates to:
+  /// **'بیشترین برد. یه اتصال خصوصی بین گوشی‌هاتونه و اینترنت رو به اشتراک نمی‌ذاره.'**
+  String get invite_method_hotspot_note;
+
+  /// No description provided for @invite_method_bluetooth_note.
+  ///
+  /// In fa, this message translates to:
+  /// **'برد کمتر. برای دو تا گوشی که نزدیک هم می‌مونن خوبه.'**
+  String get invite_method_bluetooth_note;
+
+  /// No description provided for @invite_method_bluetooth_note_free.
+  ///
+  /// In fa, this message translates to:
+  /// **'رایگان. برد کمتر؛ برای دو تا گوشی که نزدیک هم می‌مونن خوبه.'**
+  String get invite_method_bluetooth_note_free;
+
   /// No description provided for @people_invite_joined.
   ///
   /// In fa, this message translates to:

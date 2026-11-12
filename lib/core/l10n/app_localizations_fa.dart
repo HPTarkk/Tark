@@ -2007,6 +2007,30 @@ class AppLocalizationsFa extends AppLocalizations {
       'بذار طرف نزدیک همین گوشی، این کد رو با «پیوستن با QR» اسکن کنه. مستقیم میاد تو اتاق.';
 
   @override
+  String get invite_method_label => 'روش اتصال';
+
+  @override
+  String get invite_method_hotspot => 'هات‌اسپات';
+
+  @override
+  String get invite_method_bluetooth => 'بلوتوث';
+
+  @override
+  String get invite_method_locked => 'اشتراک لازم داره';
+
+  @override
+  String get invite_method_hotspot_note =>
+      'بیشترین برد. یه اتصال خصوصی بین گوشی‌هاتونه و اینترنت رو به اشتراک نمی‌ذاره.';
+
+  @override
+  String get invite_method_bluetooth_note =>
+      'برد کمتر. برای دو تا گوشی که نزدیک هم می‌مونن خوبه.';
+
+  @override
+  String get invite_method_bluetooth_note_free =>
+      'رایگان. برد کمتر؛ برای دو تا گوشی که نزدیک هم می‌مونن خوبه.';
+
+  @override
   String people_invite_joined(Object name) {
     return '$name وارد شد';
   }

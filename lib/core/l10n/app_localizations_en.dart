@@ -2017,6 +2017,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'Have them scan this with Join with QR, close to this phone. They come straight in.';
 
   @override
+  String get invite_method_label => 'How they connect';
+
+  @override
+  String get invite_method_hotspot => 'Hotspot';
+
+  @override
+  String get invite_method_bluetooth => 'Bluetooth';
+
+  @override
+  String get invite_method_locked => 'Needs a subscription';
+
+  @override
+  String get invite_method_hotspot_note =>
+      'Longest range. A private link between your phones — it doesn\'t share internet.';
+
+  @override
+  String get invite_method_bluetooth_note =>
+      'Shorter range. Best for two phones that stay close.';
+
+  @override
+  String get invite_method_bluetooth_note_free =>
+      'Free. Shorter range, best for two phones that stay close.';
+
+  @override
   String people_invite_joined(Object name) {
     return '$name joined';
   }
