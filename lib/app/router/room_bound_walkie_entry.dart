@@ -50,6 +50,7 @@ class RoomBoundWalkieEntry extends StatefulWidget {
     this.guidedReconnect,
     this.wifiCheck,
     this.prepareHost,
+    this.bluetoothInviteHost,
     this.moveOffRouter,
     this.carryOver,
   });
@@ -79,6 +80,10 @@ class RoomBoundWalkieEntry extends StatefulWidget {
 
   /// Brings this phone's hotspot up. Null uses the real bridge; tests set it.
   final Future<HotspotCredentials?> Function()? prepareHost;
+
+  /// Makes the Bluetooth side of a one-scan invite. Null uses the phone's
+  /// radio; tests set it.
+  final BluetoothInviteHost Function()? bluetoothInviteHost;
 
   /// Whether two phones that met on a shared router move onto one phone's
   /// own hotspot before the channel opens. Null follows the platform (Android
@@ -766,8 +771,20 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     try {
       final current = await _roomForAction(room);
       if (current == null || !mounted) return;
-      final bluetooth = _roomPin == TransferMode.bluetooth;
+      var bluetooth = _roomPin == TransferMode.bluetooth;
       final enabled = widget.guidedReconnect ?? Platform.isAndroid;
+      // Without a plan the hotspot is not this phone's to raise, and
+      // Bluetooth is: the invite opens on the free method, with the hotspot
+      // one tap away behind its lock, instead of opening on a paywall.
+      final getIt = GetIt.instance;
+      if (enabled &&
+          !bluetooth &&
+          getIt.isRegistered<LicenseGate>() &&
+          !getIt<LicenseGate>().allows(PremiumFeature.wifiTransport)) {
+        bluetooth = true;
+        await _modeStore?.setPinnedMode(TransferMode.bluetooth);
+        if (!mounted) return;
+      }
       // Hosting either link is Android-only. Elsewhere the code carries
       // membership alone, as it always has.
       if (!enabled ||
@@ -779,10 +796,17 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       }
       if (!bluetooth && !await _ensureWifiAccess(room: current)) return;
       if (!mounted) return;
+      // The host can change how the other phone connects on the code itself,
+      // where this phone can raise either link.
+      final canChoose = _hotspotHost != null && await _canHostHotspot();
+      if (!mounted) return;
 
       _endInvite();
       _abandonReconnectAttempt();
-      final token = ++_inviteToken;
+      // Not final: changing the method on the code starts the invite over on
+      // the other link, and everything still unwinding from the first one
+      // has to find itself out of date.
+      var token = ++_inviteToken;
       final dismiss = Completer<void>();
       var waiting = false;
       var scanInstead = false;
@@ -790,23 +814,88 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       _invitee = invitee;
       final Future<RoomInviteLink?> link;
       BluetoothInviteHost? bluetoothHost;
+      BluetoothInviteHost newBluetoothHost() =>
+          widget.bluetoothInviteHost?.call() ?? BluetoothInviteHost();
       // Try again on the sheet: whatever the failed attempt left half up goes
       // down first, then the same link is raised afresh.
       Future<RoomInviteLink?> relink() async {
-        if (!mounted || token != _inviteToken) return null;
+        final at = token;
+        if (!mounted || at != _inviteToken) return null;
         if (bluetooth) {
           await bluetoothHost?.dispose();
-          if (!mounted || token != _inviteToken) return null;
-          final host = BluetoothInviteHost();
+          if (!mounted || at != _inviteToken) return null;
+          final host = newBluetoothHost();
           bluetoothHost = host;
           return host.start();
         }
         await _releaseOwnHotspot();
-        if (!mounted || token != _inviteToken) return null;
+        if (!mounted || at != _inviteToken) return null;
         _roleStore?.setRole(SessionRole.host);
         final credentials = await _prepareHost();
-        if (!mounted || token != _inviteToken) return null;
+        if (!mounted || at != _inviteToken) return null;
         return credentials == null ? null : HotspotInviteLink(credentials);
+      }
+
+      // One radio change at a time, in the order they were asked for: a
+      // hotspot still coming down under a Bluetooth beacon going up (or the
+      // other way round) is how both end up half-made.
+      var radios = Future<void>.value();
+      // What Settings said before this invite. Going back to the hotspot
+      // restores it rather than flattening a Guest preference into Wi-Fi.
+      final pinBefore = _modeStore?.pinnedMode;
+      // The host picked the other method on the code. The wait on the old
+      // link ends, the old link comes down, the Room is set to the new
+      // transport (so Start, a retry and the next invite all agree with what
+      // the code says) and the new link is raised.
+      Future<RoomInviteLink?> changeMethod(RoomInviteMethod method) {
+        final toBluetooth = method == RoomInviteMethod.bluetooth;
+        Logger.diagnostic(
+          'room_invite: method -> ${toBluetooth ? 'bluetooth' : 'hotspot'}',
+        );
+        _inviteGrace?.cancel();
+        _inviteGrace = null;
+        _abandonReconnectAttempt();
+        final at = token = ++_inviteToken;
+        waiting = false;
+        if (identical(_invitee, invitee)) {
+          invitee.value = RoomInviteeProgress.waiting;
+        }
+        final raised = radios.then<RoomInviteLink?>((_) async {
+          if (!mounted || at != _inviteToken) return null;
+          final previous = bluetoothHost;
+          bluetoothHost = null;
+          await previous?.dispose();
+          if (!mounted || at != _inviteToken) return null;
+          bluetooth = toBluetooth;
+          await _modeStore?.setPinnedMode(
+            toBluetooth
+                ? TransferMode.bluetooth
+                : (pinBefore == TransferMode.bluetooth
+                      ? TransferMode.wifi
+                      : pinBefore),
+          );
+          // Un-pinning leaves the transport where it was, which here is the
+          // Bluetooth this invite is leaving.
+          if (!toBluetooth && _modeStore?.mode == TransferMode.bluetooth) {
+            await _modeStore?.setMode(TransferMode.wifi);
+          }
+          if (!mounted || at != _inviteToken) return null;
+          if (toBluetooth) {
+            // The role outlives the hotspot it was set for; the release
+            // below keys on either.
+            await _releaseOwnHotspot();
+            if (!mounted || at != _inviteToken) return null;
+          }
+          final link = await relink();
+          if (!mounted || at != _inviteToken) return null;
+          Logger.diagnostic(
+            'room_invite: method ${toBluetooth ? 'bluetooth' : 'hotspot'} '
+            '${link == null ? 'failed' : 'ready'}',
+          );
+          return link;
+        });
+        radios = raised.then<void>((_) {}, onError: (Object _) {});
+        return raised;
       }
 
       if (bluetooth) {
@@ -815,7 +904,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         // finding the newcomer is about to do.
         await _releaseOwnHotspot();
         if (!mounted || token != _inviteToken) return;
-        final host = BluetoothInviteHost();
+        final host = newBluetoothHost();
         bluetoothHost = host;
         link = host.start();
       } else {
@@ -842,6 +931,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         dismissWhen: dismiss.future,
         invitee: invitee,
         onRetryLink: relink,
+        method: bluetooth
+            ? RoomInviteMethod.bluetooth
+            : RoomInviteMethod.hotspot,
+        onMethodChanged: canChoose ? changeMethod : null,
         onScanInstead: () => scanInstead = true,
         onShown: () {
           if (token != _inviteToken) return;
@@ -879,8 +972,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         return;
       }
       _inviteGrace?.cancel();
+      final closedAt = token;
       _inviteGrace = Timer(_inviteGraceAfterClose, () {
-        if (token != _inviteToken) return;
+        if (closedAt != _inviteToken) return;
         Logger.diagnostic(
           'room_invite: nobody connected after the sheet closed',
         );

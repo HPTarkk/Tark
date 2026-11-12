@@ -15,7 +15,9 @@ import 'package:tark/core/widget/qr_widgets.dart';
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_direct_join_bundle.dart';
+import 'package:tark/feature/room/domain/entity/room_invite_link.dart';
 import 'package:tark/feature/room/domain/repository/room_repository.dart';
+import 'package:tark/feature/room/presentation/bluetooth_invite_host.dart';
 import 'package:tark/feature/transfer/api/hotspot_invite_api.dart';
 import 'package:tark/feature/transfer/domain/entity/connection_health.dart';
 import 'package:tark/feature/transfer/domain/entity/live_link.dart';
@@ -55,6 +57,7 @@ void main() {
     bool start = false,
     JourneyCarryOver? carryOver,
     bool settleFirstFrame = true,
+    BluetoothInviteHost Function()? bluetoothInviteHost,
   }) async {
     SharedPreferences.setMockInitialValues({});
     identities = {};
@@ -117,6 +120,7 @@ void main() {
             guidedReconnect: true,
             wifiCheck: true,
             prepareHost: prepareHost,
+            bluetoothInviteHost: bluetoothInviteHost,
             start: start,
             carryOver: carryOver,
           ),
@@ -398,6 +402,63 @@ void main() {
     expect(find.byKey(const Key('one-scan-room-invite-qr')), findsOneWidget);
     await finish(tester);
   });
+
+  testWidgets('the host changes the method on the code: the hotspot comes '
+      'down, Bluetooth comes up, and back again', (tester) async {
+    var prepared = 0;
+    final bluetoothHosts = <_FakeBluetoothHost>[];
+    final host = await pumpEntry(
+      tester,
+      prepareHost: () async {
+        prepared++;
+        return creds;
+      },
+      bluetoothInviteHost: () {
+        final next = _FakeBluetoothHost();
+        bluetoothHosts.add(next);
+        return next;
+      },
+    );
+    final modes = getIt<TransferModeStore>() as _FakeModeStore;
+
+    await tapInvite(tester);
+    String code() => tester
+        .widget<GlowingQrCard>(find.byKey(const Key('one-scan-room-invite-qr')))
+        .data;
+    expect(ScannedCode.parse(code())?.credentials, creds);
+    expect(prepared, 1);
+
+    // The hotspot raised for the first code is on the air.
+    host.hosting = true;
+    await tester.tap(find.byKey(const Key('room-invite-method-bluetooth')));
+    await settle(tester);
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(host.stops, greaterThan(0), reason: 'no hotspot left behind');
+    expect(bluetoothHosts, hasLength(1));
+    expect(bluetoothHosts.single.started, isTrue);
+    expect(
+      BluetoothInviteLink.tryParse(code())?.link.token,
+      bluetoothHosts.single.link.token,
+    );
+    expect(
+      modes.pinned,
+      TransferMode.bluetooth,
+      reason: 'the Room follows what the code says',
+    );
+    host.hosting = false;
+
+    await tester.tap(find.byKey(const Key('room-invite-method-hotspot')));
+    await settle(tester);
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(bluetoothHosts.single.disposed, isTrue);
+    expect(prepared, 2);
+    expect(ScannedCode.parse(code())?.credentials, creds);
+    expect(modes.pinned, isNot(TransferMode.bluetooth));
+    expect(tester.takeException(), isNull);
+    await finish(tester);
+  });
 }
 
 class _FakeTransfer implements TransferRepository {
@@ -482,8 +543,10 @@ class _FakeModeStore implements TransferModeStore {
   @override
   TransferMode get mode => _mode;
 
+  TransferMode? pinned;
+
   @override
-  TransferMode? get pinnedMode => null;
+  TransferMode? get pinnedMode => pinned;
 
   @override
   Future<void> setMode(TransferMode mode) async => _mode = mode;
@@ -498,5 +561,37 @@ class _FakeModeStore implements TransferModeStore {
   Future<void> initialize() async {}
 
   @override
-  Future<void> setPinnedMode(TransferMode? mode) async {}
+  Future<void> setPinnedMode(TransferMode? mode) async {
+    pinned = mode;
+    if (mode != null) _mode = mode;
+  }
+}
+
+/// A Bluetooth invite host with no radio under it: findable at once, and
+/// nobody ever dials in.
+class _FakeBluetoothHost implements BluetoothInviteHost {
+  final _joiner = Completer<bool>();
+  bool started = false;
+  bool disposed = false;
+
+  @override
+  final BluetoothInviteLink link = BluetoothInviteLink.fresh();
+
+  @override
+  Duration get listenFor => const Duration(minutes: 5);
+
+  @override
+  Future<RoomInviteLink?> start() async {
+    started = true;
+    return link;
+  }
+
+  @override
+  Future<bool> awaitJoiner({required Duration within}) => _joiner.future;
+
+  @override
+  Future<void> dispose() async {
+    disposed = true;
+    if (!_joiner.isCompleted) _joiner.complete(false);
+  }
 }

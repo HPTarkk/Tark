@@ -16,6 +16,23 @@ A scan is the start. Once the joiner's membership receipt is confirmed, neither 
 
 When Start is pressed with a proximity hand-off open, the hand-off plans the hotspot. Without one — after a restart, or once the socket has closed — there is nothing to arrange, so the link the phone already holds is tried as it is, and the signed peer proof decides whether it reaches anybody. Only when that fails does the lobby offer connecting the phones by hand, beside the failure message. An unresolved probe is never treated as proof that a hotspot is needed.
 
+## The host's method on an invite
+
+The one transport choice a person makes is on the invite code, and it is the
+host's: **Hotspot** or **Bluetooth**, on a switch above the code. Changing it
+takes the old link down, raises the other and re-makes the code in place; the
+Room's transport preference follows, so Start and later invites agree with
+what the code said.
+
+The method is not a separate field in the payload. The code *is* the method
+(a `WIFI:` payload for a hotspot, `tark-bt1:` for Bluetooth), so the scanning
+phone cannot read one method and be handed another. It tells its own wait in
+the scene of that link.
+
+Without a plan the invite opens on Bluetooth, with Hotspot shown behind its
+lock. There is no internet-sharing choice: see
+[hotspot-internet-sharing.md](hotspot-internet-sharing.md).
+
 ## UX invariants
 
 - Do not show “same network”, hotspot/client role, SSID, IP address, or Wi-Fi requirements in the normal Room lobby.

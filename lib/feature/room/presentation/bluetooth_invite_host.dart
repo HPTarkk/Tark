@@ -15,7 +15,7 @@ import 'room_bluetooth_permissions.dart';
 /// advertiser, dials it once (which is how this phone learns it has arrived),
 /// and both then swap that short finding socket for the real audio link —
 /// this phone hosts it, the other dials the address it just reached.
-final class BluetoothInviteHost {
+class BluetoothInviteHost {
   BluetoothInviteHost({
     RoomProximityControlChannel? control,
     this._transport,

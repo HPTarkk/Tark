@@ -31,6 +31,7 @@ import '../../domain/entity/room_invite_link.dart';
 import '../../domain/repository/room_repository.dart';
 import '../../domain/service/room_member_transport_identity.dart';
 import 'room_invite_grant_toggle.dart';
+import 'room_invite_method_switch.dart';
 import '../../../../core/widget/status_note.dart';
 
 /// Where the person who scanned this phone's code is, as this phone's link
@@ -84,6 +85,14 @@ enum RoomInviteeProgress {
 /// finding each other — so the person holding this phone sees their friend
 /// arriving instead of a code nobody needs any more — and if that attempt
 /// falls through, the code comes back, still good.
+///
+/// [method] is how the code on screen has the other phone connect, and
+/// [onMethodChanged] lets the host change it right on the code: the sheet
+/// asks the opener for the other link (the opener takes the old one down
+/// and raises the new one), the code folds back into the beacon of the new
+/// link and resolves into the new code. Without [onMethodChanged] there is
+/// nothing to choose — a live call already runs on one — and no switch is
+/// shown.
 Future<bool> showOneScanRoomInviteSheet(
   BuildContext context, {
   RoomRepository? repository,
@@ -97,6 +106,8 @@ Future<bool> showOneScanRoomInviteSheet(
   Future<RoomInviteLink?> Function()? onRetryLink,
   VoidCallback? onScanInstead,
   ValueListenable<RoomInviteeProgress>? invitee,
+  RoomInviteMethod? method,
+  Future<RoomInviteLink?> Function(RoomInviteMethod method)? onMethodChanged,
 }) async {
   final rooms =
       repository ??
@@ -135,7 +146,13 @@ Future<bool> showOneScanRoomInviteSheet(
     return false;
   }
   if (!context.mounted) return false;
-  if (GetIt.instance.isRegistered<LicenseGate>() &&
+  // A Bluetooth code asks for nothing that is sold: Bluetooth is the free
+  // way in, and stays reachable without a plan.
+  final overBluetooth =
+      method == RoomInviteMethod.bluetooth ||
+      (method == null && linkKind == LinkPreparingKind.bluetooth);
+  if (!overBluetooth &&
+      GetIt.instance.isRegistered<LicenseGate>() &&
       !await openSubscriptionGate(context, PremiumFeature.wifiTransport)) {
     return false;
   }
@@ -163,6 +180,8 @@ Future<bool> showOneScanRoomInviteSheet(
           onRetryLink: onRetryLink,
           onScanInstead: onScanInstead,
           invitee: invitee,
+          method: method,
+          onMethodChanged: onMethodChanged,
         ),
       ) ??
       false;
@@ -232,6 +251,8 @@ class OneScanRoomInviteSheet extends StatefulWidget {
     this.onRetryLink,
     this.onScanInstead,
     this.invitee,
+    this.method,
+    this.onMethodChanged,
   });
 
   final RoomRepository? repository;
@@ -269,6 +290,17 @@ class OneScanRoomInviteSheet extends StatefulWidget {
   /// The newcomer's progress on this phone's link; see
   /// [showOneScanRoomInviteSheet].
   final ValueListenable<RoomInviteeProgress>? invitee;
+
+  /// How the code [link] is being raised for has the other phone connect.
+  /// Null when the opener did not say; [linkKind] then stands.
+  final RoomInviteMethod? method;
+
+  /// Asked for the other link when the host changes the method on the code.
+  /// The opener owns the radios, so it takes the old link down and raises
+  /// the new one; null from it is a failure, told on the tile like any
+  /// other. Null hides the choice.
+  final Future<RoomInviteLink?> Function(RoomInviteMethod method)?
+  onMethodChanged;
 
   @override
   State<OneScanRoomInviteSheet> createState() => _OneScanRoomInviteSheetState();
@@ -334,6 +366,49 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   StreamSubscription<HotspotCredentials>? _credentialsSub;
 
   bool get _isTransportHost => _transfer?.sessionRole == SessionRole.host;
+
+  /// The method the code on screen (or on its way) uses. Starts as the
+  /// opener's and follows the host's taps from then on.
+  late RoomInviteMethod? _method = widget.method;
+
+  LicenseGate? get _license => GetIt.instance.isRegistered<LicenseGate>()
+      ? GetIt.instance<LicenseGate>()
+      : null;
+
+  /// The host picked another way for the other phone to connect.
+  ///
+  /// Nothing is confirmed and nothing closes: the code on screen folds back
+  /// into the beacon of the new link while the opener swaps the radios, and
+  /// resolves into the new code when it is up. Taps in quick succession are
+  /// each a new attempt; only the last one's link can land.
+  Future<void> _selectMethod(RoomInviteMethod method) async {
+    final change = widget.onMethodChanged;
+    if (change == null || method == _method) return;
+    if (_invitee != RoomInviteeProgress.waiting) return;
+    if (method == RoomInviteMethod.hotspot) {
+      // Locked: the tap opens the plans. Declining leaves the free code
+      // exactly as it was.
+      final license = _license;
+      if (license != null &&
+          !license.allows(PremiumFeature.wifiTransport) &&
+          !await openSubscriptionGate(context, PremiumFeature.wifiTransport)) {
+        return;
+      }
+      if (!mounted || method == _method) return;
+    }
+    final attempt = ++_linkAttempt;
+    setState(() {
+      _method = method;
+      _retried = false;
+      _arrivalLost = false;
+      _hosted = null;
+      _hostingFailed = false;
+      _hostingPending = true;
+      // The next code is a new one for the opener to wait on.
+      _shownReported = false;
+    });
+    unawaited(_awaitHosting(change(method), attempt));
+  }
 
   /// What the arrival scene is showing. Starts at the code being read, so
   /// the brackets that framed the code are what fold into the link.
@@ -500,7 +575,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   /// A live call's hotspot (which can be re-hosted with fresh credentials)
   /// wins over the link raised for this sheet.
   RoomInviteLink? get _networkLink {
-    final live = _credentials;
+    final live = _method == RoomInviteMethod.bluetooth ? null : _credentials;
     return live != null ? HotspotInviteLink(live) : _hosted;
   }
 
@@ -659,6 +734,14 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
 
   /// Which link the wait is for.
   LinkPreparingKind get _linkKind {
+    switch (_method) {
+      case RoomInviteMethod.bluetooth:
+        return LinkPreparingKind.bluetooth;
+      case RoomInviteMethod.hotspot:
+        return LinkPreparingKind.hotspot;
+      case null:
+        break;
+    }
     if (_hostRecovering) return LinkPreparingKind.hotspot;
     return widget.linkKind ??
         (widget.link != null
@@ -670,7 +753,9 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   bool get _preparing =>
       (_hostingPending && _error == null && !_issueFailed) ||
       _loading ||
-      (_hostRecovering && _roomInvite != null);
+      (_hostRecovering &&
+          _roomInvite != null &&
+          _method != RoomInviteMethod.bluetooth);
 
   /// What went wrong, in one plain sentence, once nothing is pending.
   String _failureReason(BuildContext context) {
@@ -752,6 +837,17 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
           title: context.getString.people_invite_title,
           subtitle: _roomName ?? '',
         ),
+        if (_method case final method?
+            when widget.onMethodChanged != null && _error == null) ...[
+          const SizedBox(height: 14),
+          RoomInviteMethodSwitch(
+            value: method,
+            hotspotLocked:
+                !(_license?.allows(PremiumFeature.wifiTransport) ?? true),
+            bluetoothIsFree: _license?.canPurchase ?? false,
+            onChanged: (next) => unawaited(_selectMethod(next)),
+          ),
+        ],
         const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, constraints) {

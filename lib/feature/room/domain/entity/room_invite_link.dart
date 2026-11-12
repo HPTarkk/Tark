@@ -73,3 +73,17 @@ final class BluetoothInviteLink extends RoomInviteLink {
     return (link: BluetoothInviteLink(token), roomInvite: roomInvite);
   }
 }
+
+/// How the phone showing an invite code wants the scanning phone to reach it.
+///
+/// The host's choice, made on the code itself. It is not sent as a field of
+/// its own: the code *is* the method — a `WIFI:` payload for [hotspot], a
+/// Bluetooth rendezvous for [bluetooth] — so the scanning phone cannot read
+/// one method and be handed the other.
+enum RoomInviteMethod {
+  /// This phone raises a hotspot and the scanning phone joins it.
+  hotspot,
+
+  /// This phone listens over Bluetooth and the scanning phone dials it.
+  bluetooth,
+}
