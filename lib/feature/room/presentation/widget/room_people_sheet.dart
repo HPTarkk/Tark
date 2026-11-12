@@ -24,6 +24,7 @@ import '../../domain/repository/room_repository.dart';
 import '../room_member_display_name.dart';
 import 'room_invite_grant_toggle.dart';
 import '../../../../core/widget/state_emblems.dart';
+import '../../../../core/widget/beacon_pulse.dart';
 
 /// Who is in this Room, and how to add someone.
 ///
@@ -904,13 +905,7 @@ class _PrimaryAction extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (busy)
-                SizedBox.square(
-                  dimension: 17,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.amber),
-                  ),
-                )
+                BeaconPulse(size: 17, color: AppColors.amber)
               else
                 Icon(icon, color: AppColors.amber, size: 19),
               const SizedBox(width: 9),

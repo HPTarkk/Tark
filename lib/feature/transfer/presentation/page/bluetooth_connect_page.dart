@@ -185,6 +185,7 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage>
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
           icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: () => _back(context),
         ),

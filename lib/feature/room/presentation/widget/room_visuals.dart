@@ -10,6 +10,7 @@ import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/tark_mark.dart';
 import '../../domain/entity/room.dart';
 import '../room_member_display_name.dart';
+import '../../../../core/widget/beacon_pulse.dart';
 
 /// The Room screens' shared visual vocabulary: members as tinted faces, the
 /// amber-lit card a Room sits in while it is the one in play, and the wide
@@ -567,14 +568,10 @@ class RoomStartButton extends StatelessWidget {
                 ),
               ),
               child: busy
-                  ? SizedBox(
+                  ? BeaconPulse(
                       key: const ValueKey('busy'),
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        color: amber,
-                      ),
+                      size: 22,
+                      color: amber,
                     )
                   : Icon(
                       icon,
@@ -645,13 +642,7 @@ class RoomConnectButton extends StatelessWidget {
           minimumSize: const Size(double.infinity, 56),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
-        icon: busy
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Icon(icon),
+        icon: busy ? BeaconPulse(size: 20, inheritColor: true) : Icon(icon),
         label: Text(label, textAlign: TextAlign.center),
       );
     }
@@ -694,14 +685,10 @@ class RoomConnectButton extends StatelessWidget {
                   switchInCurve: AppMotion.easeOut,
                   switchOutCurve: AppMotion.leaving,
                   child: busy
-                      ? SizedBox(
+                      ? BeaconPulse(
                           key: const ValueKey('busy'),
-                          width: 28,
-                          height: 28,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.6,
-                            color: amber,
-                          ),
+                          size: 28,
+                          color: amber,
                         )
                       : Icon(
                           icon,

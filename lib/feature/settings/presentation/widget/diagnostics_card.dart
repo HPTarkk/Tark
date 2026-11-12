@@ -20,6 +20,7 @@ import '../manager/settings_cubit.dart';
 import 'settings_category_card.dart';
 import 'settings_row.dart';
 import '../../../../core/widget/status_note.dart';
+import '../../../../core/widget/beacon_pulse.dart';
 
 /// Settings → Advanced → Diagnostics: choose how much room the on-device log
 /// may take, hand it back to us, or wipe it.
@@ -192,7 +193,7 @@ class _DiagnosticsCardState extends State<DiagnosticsCard> {
                         color: build.hasExactCommit
                             ? AppColors.textSecondary
                             : AppColors.amber,
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.8,
                       ),
@@ -214,14 +215,7 @@ class _DiagnosticsCardState extends State<DiagnosticsCard> {
             label: s.settings_share_log,
             subtitle: s.settings_share_log_desc(_humanSize(context)),
             trailing: _busy
-                ? SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.amber,
-                    ),
-                  )
+                ? BeaconPulse(size: 16, color: AppColors.amber)
                 : Icon(
                     Icons.chevron_right_rounded,
                     color: AppColors.textSecondary,
@@ -343,9 +337,8 @@ class _LogBudgetSectionState extends State<_LogBudgetSection> {
               Expanded(
                 child: Text(
                   s.settings_log_usage(
-                    LogBudget.format(
-                      math.max(0, widget.usedBytes),
-                    ).localized(context),
+                    LogBudget.format(math.max(0, widget.usedBytes))
+                        .localized(context),
                     LogBudget.format(selected).localized(context),
                   ),
                   style: TextStyle(
@@ -440,7 +433,7 @@ class _LogBudgetSectionState extends State<_LogBudgetSection> {
 
   static TextStyle get _hintStyle => TextStyle(
     color: AppColors.textSecondary.withAlpha(160),
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 1,
   );
 }

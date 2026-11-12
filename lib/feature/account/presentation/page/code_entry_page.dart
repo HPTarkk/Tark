@@ -16,6 +16,7 @@ import '../widget/auth_error_text.dart';
 import '../widget/auth_widgets.dart';
 import '../widget/code_input.dart';
 import 'forgot_password_page.dart';
+import '../../../../core/widget/beacon_pulse.dart';
 
 /// "Check your email": the 6-digit code for sign-up or password reset.
 ///
@@ -224,14 +225,7 @@ class _Verifying extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: AppColors.amber,
-            ),
-          ),
+          BeaconPulse(size: 14, color: AppColors.amber),
           const SizedBox(width: 10),
           Text(
             context.getString.code_verifying,

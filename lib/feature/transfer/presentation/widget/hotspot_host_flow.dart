@@ -14,6 +14,7 @@ import '../../domain/entity/hotspot_credentials.dart';
 import '../manager/wifi_hotspot_cubit.dart';
 import 'hotspot_shared_widgets.dart';
 import 'hotspot_wifi_note.dart';
+import '../../../../core/widget/beacon_pulse.dart';
 
 /// Android host side of the hotspot bridge: shows the Wi-Fi QR + credentials
 /// while waiting for the peer to scan it and join.
@@ -205,7 +206,7 @@ class _ChannelCodeChip extends StatelessWidget {
             label,
             style: TextStyle(
               color: AppColors.textSecondary,
-              fontSize: 9.5,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.4,
             ),
@@ -255,7 +256,7 @@ class _HostBadge extends StatelessWidget {
             label,
             style: TextStyle(
               color: AppColors.green,
-              fontSize: 9.5,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.4,
             ),
@@ -479,14 +480,7 @@ class _WaitingPulseState extends State<_WaitingPulse>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(
-              color: AppColors.amber,
-              strokeWidth: 2,
-            ),
-          ),
+          BeaconPulse(size: 14, color: AppColors.amber),
           const SizedBox(width: 10),
           Text(
             widget.label,

@@ -403,7 +403,7 @@ class HotspotCredentialRow extends StatelessWidget {
               label,
               style: TextStyle(
                 color: AppColors.textSecondary,
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.5,
               ),

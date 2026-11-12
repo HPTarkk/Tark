@@ -21,6 +21,7 @@ import '../widget/guest_console.dart';
 import '../widget/guest_settings_toggles.dart';
 import '../../../../core/motion/scene_turn.dart';
 import '../../../../core/widget/state_emblems.dart';
+import '../../../../core/widget/beacon_pulse.dart';
 
 /// The whole guest journey in one page:
 ///   opened without an offer  → "scan the host's QR" instructions
@@ -213,7 +214,7 @@ class _ReplyQr extends StatelessWidget {
             context.getString.guest_web_reply_chip,
             style: TextStyle(
               color: AppColors.amber,
-              fontSize: 9.5,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.8,
             ),
@@ -421,14 +422,7 @@ class _StartAudioButton extends StatelessWidget {
                     ],
             ),
             child: starting
-                ? SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      color: AppColors.amber,
-                      strokeWidth: 2,
-                    ),
-                  )
+                ? BeaconPulse(size: 18, color: AppColors.amber)
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

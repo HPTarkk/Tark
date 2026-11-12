@@ -234,6 +234,59 @@ void main() {
       );
     }
   }
+
+  for (final lang in ['en', 'fa']) {
+    testWidgets(
+      'renaming is the app sheet, and saves only a new name ($lang)',
+      (tester) async {
+        await getIt.reset();
+        addTearDown(getIt.reset);
+        final saved = _savedRoom('c' * 32, 'Northbound', memberCount: 2);
+        final repository = _FakeRoomRepository(
+          rooms: [saved],
+          selected: saved.room.id,
+        );
+        getIt.registerFactory<RoomListCubit>(() => RoomListCubit(repository));
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: buildAppTheme(),
+            locale: Locale(lang),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(disableAnimations: true),
+              child: child!,
+            ),
+            home: RoomListPage.buildPage(),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(Key('room-menu-${saved.room.id.value}')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('room-action-rename')));
+        await tester.pumpAndSettle();
+
+        // The app's own sheet, never a stock dialog.
+        expect(find.byType(AlertDialog), findsNothing);
+        final field = find.byKey(const Key('room-name-field'));
+        final submit = find.byKey(const Key('room-name-submit'));
+        expect(tester.widget<TextField>(field).controller!.text, 'Northbound');
+        // The same name is nothing to save.
+        expect(tester.widget<FilledButton>(submit).onPressed, isNull);
+        await tester.enterText(field, '   ');
+        await tester.pump();
+        expect(tester.widget<FilledButton>(submit).onPressed, isNull);
+
+        await tester.enterText(field, '  Coast road ');
+        await tester.pump();
+        await tester.tap(submit);
+        await tester.pumpAndSettle();
+        expect(repository.renames, ['Coast road']);
+        expect(find.byKey(const Key('room-name-field')), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 }
 
 Future<void> _capture(WidgetTester tester, GlobalKey boundary, String path) =>
@@ -317,8 +370,11 @@ class _FakeRoomRepository implements RoomRepository {
 
   @override
   Future<SavedRoom> rename(RoomId id, String name) async {
-    throw UnimplementedError();
+    renames.add(name);
+    return _rooms.firstWhere((saved) => saved.room.id == id);
   }
+
+  final renames = <String>[];
 
   @override
   Future<SavedRoom> setArchived(RoomId id, bool archived) async {

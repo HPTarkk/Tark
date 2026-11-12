@@ -7,6 +7,7 @@ import '../../../../core/widget/tark_mark.dart';
 import '../manager/consent_state.dart';
 import '../widget/legal_document_view.dart';
 import 'legal_document_page.dart';
+import '../../../../core/widget/beacon_pulse.dart';
 
 /// The gate: what somebody sees when there is a published document they have
 /// not agreed to.
@@ -237,7 +238,7 @@ class _Badge extends StatelessWidget {
         label,
         style: TextStyle(
           color: AppColors.amber,
-          fontSize: 9.5,
+          fontSize: 11,
           fontWeight: FontWeight.w800,
           letterSpacing: language == 'fa' ? 0 : 1.2,
         ),
@@ -286,14 +287,10 @@ class _AcceptBar extends StatelessWidget {
             switchInCurve: AppMotion.easeOut,
             switchOutCurve: AppMotion.leaving,
             child: isSaving
-                ? const SizedBox(
+                ? BeaconPulse(
                     key: ValueKey('saving'),
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.black,
-                    ),
+                    size: 20,
+                    color: Colors.black,
                   )
                 : Text(
                     label,

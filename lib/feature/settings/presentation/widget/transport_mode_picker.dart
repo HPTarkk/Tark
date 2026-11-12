@@ -10,6 +10,7 @@ import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/segmented_track.dart';
 import '../../../transfer/api/transfer_api.dart';
 
 /// Chooses a transport explicitly. Old automatic preferences display as
@@ -63,45 +64,61 @@ class TransportModePicker extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    children: [
-                      _ModeButton(
-                        label: s.transport_wifi_hotspot,
-                        icon: Icons.wifi_rounded,
-                        selected: _isWifiGroup(pinned),
-                        locked: !unlocked,
-                        // Leave an existing hotspot pin alone — only switch to
-                        // plain WiFi when coming from a different group.
-                        onTap: () => select(
-                          _isWifiGroup(pinned)
-                              ? pinned ?? TransferMode.wifi
-                              : TransferMode.wifi,
-                        ),
-                      ),
-                      _ModeButton(
-                        label: s.transport_bluetooth,
-                        icon: Icons.bluetooth_rounded,
-                        selected: pinned == TransferMode.bluetooth,
-                        locked: false,
-                        onTap: () => select(TransferMode.bluetooth),
-                      ),
-                      _ModeButton(
-                        label: s.transport_guest,
-                        icon: Icons.qr_code_rounded,
-                        selected: pinned == TransferMode.guest,
-                        locked: false,
-                        beta: TransferMode.guest.betaFeature != null,
-                        onTap: () => select(TransferMode.guest),
-                      ),
-                    ],
-                  ),
+                SegmentedTrack<_Choice>(
+                  stacked: true,
+                  value: pinned == TransferMode.bluetooth
+                      ? _Choice.bluetooth
+                      : pinned == TransferMode.guest
+                      ? _Choice.guest
+                      : _Choice.wifi,
+                  // Shown as selected while still locked (the default
+                  // nobody has paid for yet): the tap opens the plans.
+                  onReselected: (choice) {
+                    if (choice == _Choice.wifi && !unlocked) {
+                      select(pinned ?? TransferMode.wifi);
+                    }
+                  },
+                  onChanged: (choice) => select(switch (choice) {
+                    // Leave an existing hotspot pin alone — only switch to
+                    // plain WiFi when coming from a different group.
+                    _Choice.wifi =>
+                      _isWifiGroup(pinned)
+                          ? pinned ?? TransferMode.wifi
+                          : TransferMode.wifi,
+                    _Choice.bluetooth => TransferMode.bluetooth,
+                    _Choice.guest => TransferMode.guest,
+                  }),
+                  segments: [
+                    TrackSegment(
+                      value: _Choice.wifi,
+                      icon: Icons.wifi_rounded,
+                      label: s.transport_wifi_hotspot,
+                      // Locked stays tappable — the tap is what opens the
+                      // paywall. Dimming carries "not yours yet".
+                      dimmed: !unlocked,
+                      semanticsHint: unlocked ? null : s.invite_method_locked,
+                      mark: unlocked
+                          ? null
+                          : Icon(
+                              Icons.lock_rounded,
+                              size: 11,
+                              color: AppColors.amber.withAlpha(200),
+                            ),
+                    ),
+                    TrackSegment(
+                      value: _Choice.bluetooth,
+                      icon: Icons.bluetooth_rounded,
+                      label: s.transport_bluetooth,
+                    ),
+                    TrackSegment(
+                      value: _Choice.guest,
+                      icon: Icons.qr_code_rounded,
+                      label: s.transport_guest,
+                      mark: TransferMode.guest.betaFeature != null
+                          ? const BetaMark(size: 12)
+                          : null,
+                    ),
+                  ],
                 ),
                 // Disclosed only while Guest is the pick: the mark on the
                 // button says "beta", this says what that means for you.
@@ -137,88 +154,6 @@ class TransportModePicker extends StatelessWidget {
   }
 }
 
-class _ModeButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final bool locked;
-  final bool beta;
-  final VoidCallback onTap;
-
-  const _ModeButton({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.locked,
-    required this.onTap,
-    this.beta = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // Locked buttons stay tappable — the tap is what opens the paywall.
-    // Dimming carries the "not yours yet" signal instead of disabling.
-    final foreground = selected
-        ? AppColors.amber
-        : locked
-        ? AppColors.textSecondary.withAlpha(120)
-        : AppColors.textSecondary;
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: AppMotion.card,
-          curve: AppMotion.easeOut,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.amber.withAlpha(25) : null,
-            borderRadius: BorderRadius.circular(9),
-            border: selected
-                ? Border.all(color: AppColors.amber.withAlpha(140))
-                : null,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(icon, size: 16, color: foreground),
-                  if (locked)
-                    Positioned(
-                      right: -6,
-                      top: -4,
-                      child: Icon(
-                        Icons.lock_rounded,
-                        size: 10,
-                        color: AppColors.amber.withAlpha(200),
-                      ),
-                    ),
-                  if (beta)
-                    const PositionedDirectional(
-                      end: -13,
-                      top: -8,
-                      child: BetaMark(size: 12),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: foreground,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.2,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+/// The three things the picker offers. Wi-Fi and the hotspot bridge are one
+/// choice here: the same sockets on a local network.
+enum _Choice { wifi, bluetooth, guest }

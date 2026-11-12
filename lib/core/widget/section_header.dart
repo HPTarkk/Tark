@@ -58,7 +58,7 @@ class SectionHeader extends StatelessWidget {
                           badge!,
                           style: TextStyle(
                             color: AppColors.amber,
-                            fontSize: 10,
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
                         ),

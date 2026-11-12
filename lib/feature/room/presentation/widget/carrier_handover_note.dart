@@ -5,6 +5,7 @@ import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/service/room_carrier_promotion_controller.dart';
 import 'carrier_status_scope.dart';
+import '../../../../core/widget/beacon_pulse.dart';
 
 /// The only thing the carrier handover ever says out loud.
 ///
@@ -82,13 +83,7 @@ class _Note extends StatelessWidget {
       child: Row(
         children: [
           if (copy.working)
-            SizedBox.square(
-              dimension: 15,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(accent),
-              ),
-            )
+            BeaconPulse(size: 15, color: accent)
           else
             Icon(Icons.cell_tower_rounded, size: 17, color: accent),
           const SizedBox(width: 11),

@@ -91,6 +91,7 @@ class _GuestLinkPageState extends State<GuestLinkPage>
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
           icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: () => _back(context),
         ),
@@ -382,7 +383,7 @@ class _LanBadge extends StatelessWidget {
             context.getString.guest_no_server_badge,
             style: TextStyle(
               color: AppColors.green,
-              fontSize: 9.5,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.6,
             ),

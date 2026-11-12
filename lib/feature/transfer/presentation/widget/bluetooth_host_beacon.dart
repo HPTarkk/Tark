@@ -68,7 +68,7 @@ class BluetoothHostBeacon extends StatelessWidget {
                     s.bt_visible_as,
                     style: TextStyle(
                       color: AppColors.textSecondary,
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.5,
                     ),

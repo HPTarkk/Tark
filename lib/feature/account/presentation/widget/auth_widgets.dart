@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/status_hero.dart';
 import '../../../../core/utils/localized_digits_formatter.dart';
 import '../../../../core/widget/status_note.dart';
+import '../../../../core/widget/beacon_pulse.dart';
 
 /// The frame every account screen shares: a back arrow, the [StatusHero], a
 /// heading and a line of explanation, then the screen's own fields, all
@@ -87,9 +88,8 @@ class AuthScaffold extends StatelessWidget {
                         top: 4,
                       ),
                       child: IconButton(
-                        tooltip: MaterialLocalizations.of(
-                          context,
-                        ).backButtonTooltip,
+                        tooltip: MaterialLocalizations.of(context)
+                            .backButtonTooltip,
                         // Mirrors itself in Persian, so it always points
                         // back towards where the screen came from.
                         icon: Icon(
@@ -403,12 +403,7 @@ class AuthPrimaryButton extends StatelessWidget {
         size: 26,
       );
     } else if (busy) {
-      content = SizedBox(
-        key: const ValueKey('busy'),
-        width: 20,
-        height: 20,
-        child: CircularProgressIndicator(strokeWidth: 2.4, color: ink),
-      );
+      content = BeaconPulse(key: const ValueKey('busy'), size: 20, color: ink);
     } else {
       content = Text(
         label,

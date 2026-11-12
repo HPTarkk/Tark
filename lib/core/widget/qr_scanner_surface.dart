@@ -13,6 +13,7 @@ import '../permission/permission_primer.dart';
 import '../theme/app_colors.dart';
 import '../utils/logger.dart';
 import 'qr_widgets.dart';
+import 'beacon_pulse.dart';
 
 /// The app's one camera surface for reading a QR code.
 ///
@@ -682,13 +683,7 @@ class _Viewfinder extends StatelessWidget {
                       if (busy)
                         Padding(
                           padding: const EdgeInsetsDirectional.only(end: 10),
-                          child: SizedBox.square(
-                            dimension: 12,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(color),
-                            ),
-                          ),
+                          child: BeaconPulse(size: 12, color: color),
                         )
                       else
                         Container(

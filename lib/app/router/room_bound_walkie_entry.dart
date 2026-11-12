@@ -33,6 +33,7 @@ import '../../feature/transfer/api/hotspot_invite_api.dart';
 import '../../feature/transfer/api/transfer_api.dart';
 import '../../feature/walkie/api/walkie_api.dart';
 import '../../core/widget/state_emblems.dart';
+import '../../core/widget/beacon_pulse.dart';
 
 /// Composition-root bridge between a durable selected Room and the live
 /// Walkie surface.
@@ -3940,10 +3941,10 @@ class _WifiOffButtonState extends State<_WifiOffButton>
       icon: AnimatedSwitcher(
         duration: AppMotion.chip,
         child: _waiting
-            ? const SizedBox.square(
+            ? const BeaconPulse(
                 key: ValueKey('waiting'),
-                dimension: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                size: 18,
+                inheritColor: true,
               )
             : const Icon(Icons.wifi_off_rounded, key: ValueKey('off')),
       ),
