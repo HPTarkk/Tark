@@ -13,15 +13,15 @@ import '../../../transfer/domain/service/transport_advisor.dart';
 import '../../service/preflight_result.dart';
 import '../../service/preflight_service.dart';
 import '../widget/signal_radar.dart';
+import '../../../../core/widget/beacon_pulse.dart';
 
 /// Signature of [PreflightService.start] — a seam so tests can substitute a
 /// fake session instead of a real probe/platform-channel run, the same way
 /// [MicProbe.run]'s `resolveEngine` lets its own tests avoid the real engine.
-typedef PreflightSessionStarter =
-    PreflightSession Function({
-      required AppLocalizations s,
-      required ChannelPlan plan,
-    });
+typedef PreflightSessionStarter = PreflightSession Function({
+  required AppLocalizations s,
+  required ChannelPlan plan,
+});
 
 /// Shows the full pre-ride Preflight page and waits for the user's answer.
 ///
@@ -780,16 +780,7 @@ class _Cta extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (incomplete) ...[
-                      SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation(
-                            AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
+                      BeaconPulse(size: 14, color: AppColors.textSecondary),
                       const SizedBox(width: 10),
                     ],
                     Text(

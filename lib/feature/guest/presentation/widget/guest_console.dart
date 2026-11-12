@@ -16,6 +16,7 @@ import '../../../audio/presentation/widget/audio_visualizer.dart';
 import '../manager/guest_session_cubit.dart';
 import 'guest_settings_toggles.dart';
 import '../../../../core/utils/localized_digits_formatter.dart';
+import '../../../../core/widget/beacon_pulse.dart';
 
 /// The connected guest's walkie console — the browser twin of the mobile
 /// walkie page: identity, live visualizer, TX/RX, the host as a channel
@@ -147,7 +148,7 @@ class _IdentityCard extends StatelessWidget {
                                 s.edit_name,
                                 style: TextStyle(
                                   color: AppColors.amber,
-                                  fontSize: 10,
+                                  fontSize: 11,
                                   letterSpacing: 1,
                                 ),
                               ),
@@ -333,7 +334,7 @@ class _VisualizerCard extends StatelessWidget {
                     state.isReady ? s.monitoring : s.initializing,
                     style: TextStyle(
                       color: AppColors.textSecondary.withAlpha(150),
-                      fontSize: 10,
+                      fontSize: 11,
                       letterSpacing: 2.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -376,14 +377,7 @@ class _LinkBanner extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        color: AppColors.red,
-                        strokeWidth: 2,
-                      ),
-                    ),
+                    BeaconPulse(size: 14, color: AppColors.red),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -671,7 +665,7 @@ class _VoxCard extends StatelessWidget {
                         s.voice_quiet,
                         style: TextStyle(
                           color: AppColors.textSecondary.withAlpha(160),
-                          fontSize: 10,
+                          fontSize: 11,
                           letterSpacing: 1,
                         ),
                       ),
@@ -679,7 +673,7 @@ class _VoxCard extends StatelessWidget {
                         s.voice_loud,
                         style: TextStyle(
                           color: AppColors.textSecondary.withAlpha(160),
-                          fontSize: 10,
+                          fontSize: 11,
                           letterSpacing: 1,
                         ),
                       ),

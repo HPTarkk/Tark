@@ -192,9 +192,8 @@ class _SelectedRoomIdentityLineState extends State<_SelectedRoomIdentityLine> {
   @override
   void initState() {
     super.initState();
-    _identity = RideRoomIdentityResolver(
-      GetIt.instance<RoomRepository>(),
-    ).load();
+    _identity = RideRoomIdentityResolver(GetIt.instance<RoomRepository>())
+        .load();
   }
 
   @override
@@ -456,7 +455,7 @@ class SignalIndicator extends StatelessWidget {
                 duration: const Duration(milliseconds: 350),
                 style: TextStyle(
                   color: accent,
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1,
                 ),

@@ -16,6 +16,7 @@ import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/localized_counter.dart';
 import '../../../../core/widget/monogram_mark.dart';
+import '../../../../core/widget/sheet_shell.dart';
 import '../../domain/entity/room.dart';
 import '../manager/room_list_cubit.dart';
 import '../widget/room_archive_sheet.dart';
@@ -264,51 +265,139 @@ class _RoomListPageState extends State<RoomListPage> {
     await context.read<RoomListCubit>().rename(saved.room.id, name);
   }
 
+  /// Asks for a Room name in the app's own sheet rather than a stock dialog:
+  /// the same panel, grabber and scrim as every other sheet, the field riding
+  /// above the keyboard, and Save as the one filled button.
   static Future<String?> _nameDialog(
     BuildContext context, {
     required String title,
     required String action,
     required String hint,
     String initialValue = '',
-  }) async {
-    final controller = TextEditingController(text: initialValue);
-    final result = await showDialog<String>(
-      context: context,
-      routeSettings: const RouteSettings(name: 'RoomNameDialog'),
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          key: const Key('room-name-field'),
-          controller: controller,
-          autofocus: true,
-          maxLength: 48,
-          buildCounter: localizedCounter(),
-          inputFormatters: [LocaleDigitsFormatter.of(context)],
-          textInputAction: TextInputAction.done,
-          decoration: InputDecoration(hintText: hint),
-          onSubmitted: (value) {
-            final trimmed = value.trim();
-            if (trimmed.isNotEmpty) Navigator.pop(dialogContext, trimmed);
-          },
+  }) => showModalBottomSheet<String>(
+    context: context,
+    routeSettings: const RouteSettings(name: 'RoomNameDialog'),
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    barrierColor: Colors.black.withValues(alpha: 0.62),
+    builder: (_) => _RoomNameSheet(
+      title: title,
+      action: action,
+      hint: hint,
+      initialValue: initialValue,
+    ),
+  );
+}
+
+class _RoomNameSheet extends StatefulWidget {
+  const _RoomNameSheet({
+    required this.title,
+    required this.action,
+    required this.hint,
+    required this.initialValue,
+  });
+
+  final String title;
+  final String action;
+  final String hint;
+  final String initialValue;
+
+  @override
+  State<_RoomNameSheet> createState() => _RoomNameSheetState();
+}
+
+class _RoomNameSheetState extends State<_RoomNameSheet> {
+  late final TextEditingController _name =
+      TextEditingController(text: widget.initialValue)
+        ..selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: widget.initialValue.length,
+        );
+
+  @override
+  void initState() {
+    super.initState();
+    _name.addListener(_changed);
+  }
+
+  void _changed() => setState(() {});
+
+  @override
+  void dispose() {
+    _name
+      ..removeListener(_changed)
+      ..dispose();
+    super.dispose();
+  }
+
+  String get _trimmed => _name.text.trim();
+
+  /// Nothing to save until there is a name, and it is a different one.
+  bool get _canSave =>
+      _trimmed.isNotEmpty && _trimmed != widget.initialValue.trim();
+
+  void _save() {
+    if (_trimmed.isEmpty) return;
+    HapticFeedback.selectionClick();
+    Navigator.of(context).pop(_trimmed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      // The whole sheet rides above the keyboard, so the field and Save are
+      // never under it.
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SheetShell(
+        topFraction: 0.2,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SheetTitle(title: widget.title, subtitle: widget.initialValue),
+              const SizedBox(height: 16),
+              TextField(
+                key: const Key('room-name-field'),
+                controller: _name,
+                autofocus: true,
+                maxLength: 48,
+                buildCounter: localizedCounter(),
+                inputFormatters: [LocaleDigitsFormatter.of(context)],
+                textInputAction: TextInputAction.done,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(hintText: widget.hint),
+                onSubmitted: (_) => _save(),
+              ),
+              const SizedBox(height: 14),
+              FilledButton(
+                key: const Key('room-name-submit'),
+                onPressed: _canSave ? _save : null,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: Text(
+                  widget.action,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(context.getString.rooms_cancel),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(context.getString.rooms_cancel),
-          ),
-          FilledButton(
-            key: const Key('room-name-submit'),
-            onPressed: () {
-              final trimmed = controller.text.trim();
-              if (trimmed.isNotEmpty) Navigator.pop(dialogContext, trimmed);
-            },
-            child: Text(action),
-          ),
-        ],
       ),
     );
-    controller.dispose();
-    return result;
   }
 }
 

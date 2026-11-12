@@ -60,6 +60,7 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
           elevation: 0,
           scrolledUnderElevation: 0,
           leading: IconButton(
+            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
             icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
             onPressed: () => context.pop(),
           ),
@@ -262,7 +263,7 @@ class _VoiceCard extends StatelessWidget {
 
   static TextStyle get _hintStyle => TextStyle(
     color: AppColors.textSecondary.withAlpha(160),
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 1,
   );
 
@@ -782,8 +783,17 @@ class _DelayCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(s.settings_delay_low_hint, style: _hintStyle),
-                  Text(s.settings_delay_high_hint, style: _hintStyle),
+                  Flexible(
+                    child: Text(s.settings_delay_low_hint, style: _hintStyle),
+                  ),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      s.settings_delay_high_hint,
+                      style: _hintStyle,
+                      textAlign: TextAlign.end,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -807,8 +817,8 @@ class _DelayCard extends StatelessWidget {
 
   static TextStyle get _hintStyle => TextStyle(
     color: AppColors.textSecondary.withAlpha(160),
-    fontSize: 10,
-    letterSpacing: 1,
+    fontSize: 11,
+    letterSpacing: 0.4,
   );
 }
 

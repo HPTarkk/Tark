@@ -192,7 +192,7 @@ class _ReconnectCard extends StatelessWidget {
                     s.bt_last_session,
                     style: TextStyle(
                       color: AppColors.textSecondary,
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 2,
                     ),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
+import 'package:tark/core/widget/beacon_pulse.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_carrier.dart';
 import 'package:tark/feature/room/domain/service/room_carrier_promotion_controller.dart';
@@ -157,7 +158,7 @@ void main() {
     // A spinner says "wait"; a settled fact must not, or the room looks like it
     // is permanently mid-repair.
     await pump(tester, sourceAt(RoomCarrierStage.raising, localIsHost: true));
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(BeaconPulse), findsOneWidget);
     expect(find.byIcon(Icons.cell_tower_rounded), findsNothing);
 
     // Torn down between the two, rather than swapped: the note crossfades, so
@@ -172,7 +173,7 @@ void main() {
         durability: RoomCarrierDurability.owned,
       ),
     );
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(BeaconPulse), findsNothing);
     expect(find.byIcon(Icons.cell_tower_rounded), findsOneWidget);
   });
 

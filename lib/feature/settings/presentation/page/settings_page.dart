@@ -58,6 +58,7 @@ class _SettingsPageState extends State<SettingsPage> {
           elevation: 0,
           scrolledUnderElevation: 0,
           leading: IconButton(
+            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
             icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
             onPressed: () => context.pop(),
           ),

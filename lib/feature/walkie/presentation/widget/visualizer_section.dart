@@ -248,7 +248,7 @@ class _StatusReadoutState extends State<_StatusReadout>
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: scope.dim ? color.withAlpha(190) : color,
-            fontSize: 9.5,
+            fontSize: 11,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.2,
           ),

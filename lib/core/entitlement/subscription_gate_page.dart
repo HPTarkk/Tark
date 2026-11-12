@@ -23,6 +23,7 @@ import 'plan_pricing.dart';
 import 'premium_feature.dart';
 import 'subscription_policy.dart';
 import 'subscription_service.dart';
+import '../widget/beacon_pulse.dart';
 
 /// The one door every paid feature opens. Returns true when the feature may
 /// go ahead — already unlocked, or unlocked on this screen.
@@ -322,9 +323,8 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
                   child: Padding(
                     padding: const EdgeInsetsDirectional.only(end: 4, top: 4),
                     child: IconButton(
-                      tooltip: MaterialLocalizations.of(
-                        context,
-                      ).closeButtonTooltip,
+                      tooltip: MaterialLocalizations.of(context)
+                          .closeButtonTooltip,
                       icon: Icon(
                         Icons.close_rounded,
                         color: AppColors.textSecondary,
@@ -370,9 +370,8 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
                     label: Text(context.getString.lobby_free_bluetooth),
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.textSecondary,
-                      textStyle: Theme.of(
-                        context,
-                      ).textTheme.labelLarge?.copyWith(fontSize: 12),
+                      textStyle: Theme.of(context).textTheme.labelLarge
+                          ?.copyWith(fontSize: 12),
                       minimumSize: const Size(48, 48),
                     ),
                   ),
@@ -1272,14 +1271,10 @@ class _CheckoutBar extends StatelessWidget {
                     switchInCurve: AppMotion.easeOut,
                     switchOutCurve: AppMotion.leaving,
                     child: busy
-                        ? SizedBox(
+                        ? BeaconPulse(
                             key: const ValueKey('busy'),
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.6,
-                              color: AppColors.background,
-                            ),
+                            size: 22,
+                            color: AppColors.background,
                           )
                         : Column(
                             key: const ValueKey('label'),

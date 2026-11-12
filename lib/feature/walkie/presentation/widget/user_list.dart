@@ -783,7 +783,7 @@ class UserTile extends StatelessWidget {
                   s.user_idle,
                   style: TextStyle(
                     color: AppColors.textSecondary,
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 1,
                   ),
@@ -973,7 +973,7 @@ class _TalkingMark extends StatelessWidget {
             label,
             style: TextStyle(
               color: green,
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
               letterSpacing: 1,
             ),

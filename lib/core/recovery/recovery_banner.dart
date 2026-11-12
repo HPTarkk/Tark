@@ -4,6 +4,7 @@ import '../motion/app_motion.dart';
 import '../theme/app_colors.dart';
 import 'recovery_action.dart';
 import 'recovery_check.dart';
+import '../widget/beacon_pulse.dart';
 
 /// The one way this app tells someone that something is wrong and what to do
 /// about it.
@@ -213,14 +214,7 @@ class _ActionChipState extends State<_ActionChip> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (_running) ...[
-                SizedBox(
-                  width: 11,
-                  height: 11,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.6,
-                    valueColor: AlwaysStoppedAnimation(accent),
-                  ),
-                ),
+                BeaconPulse(size: 11, color: accent),
                 const SizedBox(width: 8),
               ],
               Text(

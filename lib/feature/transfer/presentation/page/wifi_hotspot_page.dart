@@ -358,6 +358,7 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
           icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: () => _back(context),
         ),
@@ -435,6 +436,7 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
           icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: () => _back(context),
         ),

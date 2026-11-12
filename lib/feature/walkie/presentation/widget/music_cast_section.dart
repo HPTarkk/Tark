@@ -18,6 +18,7 @@ import '../../../../core/widget/ticker_text.dart';
 import '../../../audio/api/audio_api.dart';
 import '../../../room/presentation/widget/room_visuals.dart';
 import '../manager/walkie_talkie_cubit.dart';
+import '../../../../core/widget/beacon_pulse.dart';
 
 /// System-audio (music) casting card. Android 10+ only. Devices where
 /// playback capture is unavailable still get an honest disabled state instead
@@ -297,14 +298,7 @@ class _IdleBody extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (starting)
-                  SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      color: AppColors.amber,
-                      strokeWidth: 2,
-                    ),
-                  )
+                  BeaconPulse(size: 14, color: AppColors.amber)
                 else
                   Icon(
                     locked ? Icons.lock_rounded : Icons.podcasts_rounded,

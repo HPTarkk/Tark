@@ -49,7 +49,7 @@ class EditProfileChip extends StatelessWidget {
               s.edit_name,
               style: TextStyle(
                 color: AppColors.amber,
-                fontSize: 10,
+                fontSize: 11,
                 letterSpacing: 1,
               ),
             ),

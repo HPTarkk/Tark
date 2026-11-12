@@ -13,6 +13,7 @@ import '../../../../core/widget/link_preparing_visual.dart';
 import '../../../../core/widget/qr_scanner_surface.dart';
 import '../../../../core/widget/qr_widgets.dart';
 import '../../../../core/widget/state_emblems.dart';
+import '../../../../core/widget/beacon_pulse.dart';
 
 /// Which half of a reconnect this phone is doing.
 enum RoomReconnectSide {
@@ -1019,9 +1020,8 @@ class _WifiNeeded extends StatelessWidget {
                 children: [
                   IconButton(
                     key: const Key('room-reconnect-back'),
-                    tooltip: MaterialLocalizations.of(
-                      context,
-                    ).backButtonTooltip,
+                    tooltip: MaterialLocalizations.of(context)
+                        .backButtonTooltip,
                     onPressed: onBack,
                     icon: Icon(
                       // Mirrors itself in right-to-left (matchTextDirection).
@@ -1165,9 +1165,8 @@ class _ShowSide extends StatelessWidget {
                 children: [
                   IconButton(
                     key: const Key('room-reconnect-back'),
-                    tooltip: MaterialLocalizations.of(
-                      context,
-                    ).backButtonTooltip,
+                    tooltip: MaterialLocalizations.of(context)
+                        .backButtonTooltip,
                     onPressed: onBack,
                     icon: Icon(
                       // Mirrors itself in right-to-left (matchTextDirection), so it
@@ -1351,16 +1350,7 @@ class _StatusBlock extends StatelessWidget {
       padding: const EdgeInsets.only(top: 96),
       child: Column(
         children: [
-          SizedBox(
-            width: 56,
-            height: 56,
-            child: icon == null
-                ? CircularProgressIndicator(
-                    strokeWidth: 3,
-                    color: AppColors.amber,
-                  )
-                : Icon(icon, size: 56, color: iconColor ?? AppColors.amber),
-          ),
+          BeaconPulse(size: 56, color: AppColors.amber),
           const SizedBox(height: 20),
           Text(
             text,
