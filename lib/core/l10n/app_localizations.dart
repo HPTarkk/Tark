@@ -2832,7 +2832,7 @@ abstract class AppLocalizations {
   ///
   /// In fa, this message translates to:
   /// **'{used} از {max} پر شده'**
-  String settings_log_usage(Object max, Object used);
+  String settings_log_usage(String used, String max);
 
   /// No description provided for @settings_log_recycling.
   ///

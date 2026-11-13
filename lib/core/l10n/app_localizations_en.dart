@@ -1534,7 +1534,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Standard keeps the log as it has always been. Screens also records the pages you open and the main buttons you tap. Everything adds every tap and every settings change. It all stays on this phone.';
 
   @override
-  String settings_log_usage(Object max, Object used) {
+  String settings_log_usage(String used, String max) {
     return '$used of $max used';
   }
 
