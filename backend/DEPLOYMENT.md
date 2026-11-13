@@ -47,6 +47,31 @@ and renews the HTTPS certificate by itself.
 
 **Your machine:** Docker, and the `ssh`/`scp` that ship with Windows 10/11.
 
+**A fresh server** (or a replacement for the current one) is prepared by
+`setup-server.ps1`, so nothing has to be typed on the server by hand. It works
+on AlmaLinux, Rocky, CentOS Stream, RHEL, Fedora, Ubuntu and Debian, and every
+step can be run again safely:
+
+```powershell
+# Key login, once per server (ssh asks for the server's password one time)
+.\backend\deploy\vps\setup-server.ps1 -Server root@203.0.113.10 -InstallKey
+
+# Look only: the machine, what it can reach, Docker, the firewall
+.\backend\deploy\vps\setup-server.ps1 -Server root@203.0.113.10 -Check
+
+# Install Docker + Compose, open ports 80/443 in the server's firewall, add swap
+.\backend\deploy\vps\setup-server.ps1 -Server root@203.0.113.10
+
+# Accept SSH logins with a key only (it proves the key works first)
+.\backend\deploy\vps\setup-server.ps1 -Server root@203.0.113.10 -LockSsh
+```
+
+`-Check` warns about anything the server cannot reach. Where Docker's own
+package host or Docker Hub refuses the server, give mirrors with
+`-DockerRepoBase` and `-DockerMirrors`. If Google's sign-in keys are refused
+(403 from an Iranian address), Google sign-in cannot work until
+`TARK_GOOGLE_JWKS_URL` points at a copy the server can reach.
+
 ```powershell
 # 1. First time: build, ship the image, create .env.production with fresh secrets
 .\backend\deploy\vps\deploy.ps1 -Server deploy@203.0.113.10 -Init
