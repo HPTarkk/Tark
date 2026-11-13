@@ -39,8 +39,14 @@ class AppRouter {
   /// The page for a route that can be arrived at *continuously*: a
   /// [ContinuityPage] when the navigation carried a [ContinuityHandoff] as
   /// `extra` (onboarding handing over to Landing, room creation, or the join
-  /// scanner), otherwise exactly the page a plain `builder:` route gets, so
-  /// every other way into the route is untouched.
+  /// scanner), otherwise a plain [MaterialPage], so every other way into the
+  /// route moves with the app's one page transition.
+  ///
+  /// Every route goes through here, never `builder:`. go_router 18 only gives
+  /// a `builder:` route a Material page when it finds *material_ui*'s
+  /// MaterialApp above it; this app runs Flutter's own, so a `builder:` route
+  /// silently gets a zero-length NoTransitionPage: no slide, no hero flight.
+  /// test/app/profile_open_motion_test.dart holds every route to this.
   static Page<void> pageFor(GoRouterState state, Widget child) {
     final name = state.name ?? state.path;
     final arguments = <String, String>{
@@ -114,13 +120,16 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.splashPath,
         name: AppRoutes.splashName,
-        builder: (context, state) => SplashPage.buildPage(
-          onFinished: () async {
-            final location = QuickAccess.resolveStartLocation(
-              GetIt.instance<SharedPreferences>(),
-            );
-            if (context.mounted) context.go(location);
-          },
+        pageBuilder: (context, state) => pageFor(
+          state,
+          SplashPage.buildPage(
+            onFinished: () async {
+              final location = QuickAccess.resolveStartLocation(
+                GetIt.instance<SharedPreferences>(),
+              );
+              if (context.mounted) context.go(location);
+            },
+          ),
         ),
       ),
       GoRoute(
@@ -136,8 +145,11 @@ class AppRouter {
         name: AppRoutes.onboardingName,
         // `replay` is set when opened from Settings → Startup, so finishing
         // pops back there instead of entering Landing.
-        builder: (context, state) => OnboardingPage.buildPage(
-          replay: state.uri.queryParameters['replay'] == 'true',
+        pageBuilder: (context, state) => pageFor(
+          state,
+          OnboardingPage.buildPage(
+            replay: state.uri.queryParameters['replay'] == 'true',
+          ),
         ),
       ),
       GoRoute(
@@ -178,8 +190,10 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.roomQrJoinIssuerPath,
         name: AppRoutes.roomQrJoinIssuerName,
-        builder: (context, state) =>
-            _ipAccess(context, (_) => RoomQrJoinIssuerPage.buildPage()),
+        pageBuilder: (context, state) => pageFor(
+          state,
+          _ipAccess(context, (_) => RoomQrJoinIssuerPage.buildPage()),
+        ),
       ),
       GoRoute(
         path: AppRoutes.walkiePath,
@@ -217,8 +231,11 @@ class AppRouter {
         // `intent` is set when Landing's Create/Join already asked which side
         // this phone is; absent when the page is reached any other way, and
         // then it asks for itself.
-        builder: (context, state) => BluetoothConnectPage.buildPage(
-          intent: ChannelIntent.fromKey(state.uri.queryParameters['intent']),
+        pageBuilder: (context, state) => pageFor(
+          state,
+          BluetoothConnectPage.buildPage(
+            intent: ChannelIntent.fromKey(state.uri.queryParameters['intent']),
+          ),
         ),
       ),
       GoRoute(
@@ -226,7 +243,8 @@ class AppRouter {
         name: AppRoutes.bluetoothResumeName,
         // Cold start only, when the last call ran over Bluetooth — see
         // QuickAccess.shouldResumeBluetooth.
-        builder: (context, state) => BluetoothResumePage.buildPage(),
+        pageBuilder: (context, state) =>
+            pageFor(state, BluetoothResumePage.buildPage()),
       ),
       GoRoute(
         path: AppRoutes.wifiHotspotPath,
@@ -236,14 +254,19 @@ class AppRouter {
         // invite. Deliberately not a query parameter: the payload contains
         // the network's passphrase, and a URL is the one place it must never
         // be written.
-        builder: (context, state) => _ipAccess(
-          context,
-          (_) => WifiHotspotPage.buildPage(
-            initialSegment: state.uri.queryParameters['mode'] == 'hotspot'
-                ? WifiHotspotSegment.hotspot
-                : WifiHotspotSegment.wifi,
-            intent: ChannelIntent.fromKey(state.uri.queryParameters['intent']),
-            handedCode: state.extra is String ? state.extra! as String : null,
+        pageBuilder: (context, state) => pageFor(
+          state,
+          _ipAccess(
+            context,
+            (_) => WifiHotspotPage.buildPage(
+              initialSegment: state.uri.queryParameters['mode'] == 'hotspot'
+                  ? WifiHotspotSegment.hotspot
+                  : WifiHotspotSegment.wifi,
+              intent: ChannelIntent.fromKey(
+                state.uri.queryParameters['intent'],
+              ),
+              handedCode: state.extra is String ? state.extra! as String : null,
+            ),
           ),
         ),
       ),
@@ -252,9 +275,12 @@ class AppRouter {
         name: AppRoutes.guestLinkName,
         // Free, and shipped as a beta: no subscription gate, but the first
         // visit on an install is met by the friendly beta intro.
-        builder: (context, state) => BetaIntroGate(
-          feature: TransferMode.guest.betaFeature!,
-          child: GuestLinkPage.buildPage(),
+        pageBuilder: (context, state) => pageFor(
+          state,
+          BetaIntroGate(
+            feature: TransferMode.guest.betaFeature!,
+            child: GuestLinkPage.buildPage(),
+          ),
         ),
       ),
       GoRoute(
@@ -264,26 +290,27 @@ class AppRouter {
         // opened from an active channel (see WalkieHeader's gear icon),
         // so Settings can edit that live session in place — null when
         // opened from Landing, before any session exists.
-        builder: (context, state) =>
-            SettingsPage.buildPage(liveSession: state.extra),
+        pageBuilder: (context, state) =>
+            pageFor(state, SettingsPage.buildPage(liveSession: state.extra)),
       ),
       GoRoute(
         path: AppRoutes.profilePath,
         name: AppRoutes.profileName,
         // Same live-session threading as Advanced below: Settings forwards
         // its own `extra`, so a mid-channel change reaches the channel.
-        builder: (context, state) =>
-            ProfilePage.buildPage(liveSession: state.extra),
+        pageBuilder: (context, state) =>
+            pageFor(state, ProfilePage.buildPage(liveSession: state.extra)),
       ),
       GoRoute(
         path: AppRoutes.permissionsPath,
         name: AppRoutes.permissionsName,
-        builder: (context, state) => PermissionsPage.buildPage(),
+        pageBuilder: (context, state) =>
+            pageFor(state, PermissionsPage.buildPage()),
       ),
       GoRoute(
         path: AppRoutes.signInPath,
         name: AppRoutes.signInName,
-        builder: (context, state) => SignInPage.buildPage(),
+        pageBuilder: (context, state) => pageFor(state, SignInPage.buildPage()),
       ),
       GoRoute(
         path: AppRoutes.accountLinkPath,
@@ -291,18 +318,20 @@ class AppRouter {
         // `extra` is the EmailLink that opened the app. Never a query
         // parameter: the link token finishes a sign-up or a password reset,
         // and a URL is the one place it must not be written down.
-        builder: (context, state) => switch (state.extra) {
+        pageBuilder: (context, state) => pageFor(state, switch (state.extra) {
           final EmailLink link => CodeEntryPage.buildForLink(link),
           _ => SignInPage.buildPage(),
-        },
+        }),
       ),
       GoRoute(
         path: AppRoutes.advancedSettingsPath,
         name: AppRoutes.advancedSettingsName,
         // Same live-session threading as the settings route above — the
         // main Settings page forwards its own `extra` when pushing here.
-        builder: (context, state) =>
-            AdvancedSettingsPage.buildPage(liveSession: state.extra),
+        pageBuilder: (context, state) => pageFor(
+          state,
+          AdvancedSettingsPage.buildPage(liveSession: state.extra),
+        ),
       ),
     ],
   );
