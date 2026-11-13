@@ -2,10 +2,10 @@ name: Backend
 
 on:
   pull_request:
-    paths: ["backend/**", ".github/workflows/backend.yml"]
+    paths: ["backend/**", "website/_headers", "website/_redirects", ".github/workflows/backend.yml"]
   push:
     branches: [main]
-    paths: ["backend/**", ".github/workflows/backend.yml"]
+    paths: ["backend/**", "website/_headers", "website/_redirects", ".github/workflows/backend.yml"]
 
 permissions:
   contents: read
@@ -59,3 +59,23 @@ jobs:
       - uses: actions/checkout@v7
       - name: build the image
         run: docker build -t tarkd:ci backend
+
+  sites:
+    name: caddy-serves-the-sites
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: take caddy out of the image the stack runs
+        run: |
+          id=$(docker create caddy:2-alpine)
+          docker cp "$id:/usr/bin/caddy" "$RUNNER_TEMP/caddy"
+          docker rm "$id"
+      - name: the Caddyfile is valid
+        env:
+          TARK_DOMAIN: api.example.com
+          TARK_ADMIN_DOMAIN: admin.example.com
+        run: |
+          "$RUNNER_TEMP/caddy" validate --config backend/deploy/vps/Caddyfile --adapter caddyfile
+      - name: website and guest app are served as before
+        run: CADDY="$RUNNER_TEMP/caddy" bash backend/deploy/vps/test-sites.sh

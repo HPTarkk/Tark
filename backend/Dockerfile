@@ -8,7 +8,7 @@
 #   docker buildx imagetools inspect gcr.io/distroless/static-debian12:nonroot --format '{{.Manifest.Digest}}'
 # golang must be at least the Go version in go.mod (a newer patch fixes standard
 # library vulnerabilities; CI runs govulncheck).
-FROM golang:1.27.3@sha256:f20d83a83e18dbd2a4714b8ffd4b30b287b6243962dd75608e86abcc63ba4efc AS build
+FROM golang:1.27.4@sha256:5e8afd493a7124a8586e134d9b532731161d4b9becf9dee5a5956b107426f93d AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
