@@ -160,6 +160,19 @@ check() {
     if [ -n "$listeners" ]; then printf '%s\n' "$listeners" | awk '{ print "    " $0 }'; else echo "    nothing yet"; fi
   fi
 
+  # A kernel update only takes effect after a restart.
+  if command -v rpm >/dev/null; then
+    local newest
+    newest=$(rpm -q kernel-core --last 2>/dev/null | awk 'NR == 1 { sub(/^kernel-core-/, "", $1); print $1 }')
+    if [ -n "$newest" ] && [ "$newest" != "$(uname -r)" ]; then
+      step "Restart"
+      warn "a newer kernel is installed ($newest); it is used after the next restart (reboot)"
+    fi
+  elif [ -f /var/run/reboot-required ]; then
+    step "Restart"
+    warn "the system asks for a restart to finish its updates (reboot)"
+  fi
+
   echo
   if [ "$WARNINGS" -eq 0 ]; then echo "Everything checked is fine."; else echo "$WARNINGS warning(s) above."; fi
 }
@@ -210,9 +223,11 @@ install_docker() {
 
 # Registry mirrors and log limits. Only written when it would change something,
 # and an existing daemon.json that this script did not write is left alone.
+# The label is how this script knows the file is its own; Docker only accepts
+# labels of the form key=value.
 configure_docker() {
   step "Docker settings"
-  local file=/etc/docker/daemon.json marker='"tark-managed"' mirrors_json='' m want
+  local file=/etc/docker/daemon.json marker='tark-managed' mirrors_json='' m want
   if [ -n "$DOCKER_MIRRORS" ]; then
     IFS=',' read -r -a list <<< "$DOCKER_MIRRORS"
     for m in "${list[@]}"; do
@@ -224,7 +239,7 @@ configure_docker() {
   fi
   want=$(cat <<EOF
 {
-  "labels": [$marker],
+  "labels": ["$marker=true"],
   "log-driver": "json-file",
   "log-opts": { "max-size": "10m", "max-file": "5" },
   "registry-mirrors": [$mirrors_json]
@@ -246,6 +261,8 @@ EOF
     # Containers of a running stack come back by themselves (restart: unless-stopped).
     systemctl restart docker
   else
+    # Clears "start limit hit" left by earlier failed starts.
+    systemctl reset-failed docker >/dev/null 2>&1 || true
     systemctl start docker
   fi
   docker info >/dev/null 2>&1 || die "The Docker service did not start (journalctl -u docker)."
