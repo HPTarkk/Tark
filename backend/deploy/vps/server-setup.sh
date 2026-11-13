@@ -57,6 +57,12 @@ docker_family() {
   esac
 }
 
+# The newest installed kernel on rpm systems (empty elsewhere).
+newest_kernel() {
+  command -v rpm >/dev/null || return 0
+  rpm -q kernel-core --last 2>/dev/null | awk 'NR == 1 { sub(/^kernel-core-/, "", $1); print $1 }'
+}
+
 need_root() { [ "$(id -u)" = 0 ] || die "Run this as root."; }
 
 # http_code URL: the status the server gets, or 000 when it cannot connect.
@@ -163,7 +169,7 @@ check() {
   # A kernel update only takes effect after a restart.
   if command -v rpm >/dev/null; then
     local newest
-    newest=$(rpm -q kernel-core --last 2>/dev/null | awk 'NR == 1 { sub(/^kernel-core-/, "", $1); print $1 }')
+    newest=$(newest_kernel)
     if [ -n "$newest" ] && [ "$newest" != "$(uname -r)" ]; then
       step "Restart"
       warn "a newer kernel is installed ($newest); it is used after the next restart (reboot)"
@@ -259,13 +265,22 @@ EOF
   systemctl enable docker >/dev/null 2>&1 || true
   if [ "${DOCKER_RESTART:-0}" = 1 ] && systemctl is-active --quiet docker; then
     # Containers of a running stack come back by themselves (restart: unless-stopped).
-    systemctl restart docker
+    systemctl restart docker || true
   else
     # Clears "start limit hit" left by earlier failed starts.
     systemctl reset-failed docker >/dev/null 2>&1 || true
-    systemctl start docker
+    systemctl start docker || true
   fi
-  docker info >/dev/null 2>&1 || die "The Docker service did not start (journalctl -u docker)."
+  if ! docker info >/dev/null 2>&1; then
+    local newest
+    newest=$(newest_kernel)
+    # Docker's networking needs kernel modules that the system installs for
+    # its newest kernel only, so a fresh server often has to restart once.
+    if [ -n "$newest" ] && [ "$newest" != "$(uname -r)" ]; then
+      die "The Docker service did not start. A newer kernel was installed ($newest, running $(uname -r)) and Docker needs its modules: restart the server (reboot), then run this again."
+    fi
+    die "The Docker service did not start (journalctl -u docker)."
+  fi
   ok "the Docker service is running and starts at boot"
 }
 
