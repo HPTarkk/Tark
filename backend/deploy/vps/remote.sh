@@ -13,6 +13,9 @@
 #   bash remote.sh log-days         list the days of API log kept on the server (30 by default)
 #   bash remote.sh log-day DATE     write one day's API log (YYYY-MM-DD, UTC) to stdout
 #   bash remote.sh admin-create EMAIL ROLE NAME   add an admin panel account (ROLE: owner, support or viewer)
+#   bash remote.sh site-install NAME FILE   publish the website or the guest app (NAME: website or guest) from a .tgz of its files (publish-sites.ps1 uses it)
+#   bash remote.sh site-rollback NAME       go back to the files published before the current ones
+#   bash remote.sh sites                    show what is published
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -94,6 +97,35 @@ wait_healthy() {
   return 1
 }
 
+# The website and the guest app are folders of static files that Caddy serves
+# from ./sites/<name>. Each publish is unpacked into its own folder under
+# sites/.releases and <name> is a link that is moved to it in one step, so a
+# visitor never gets half of the old files and half of the new ones.
+SITES_DIR=sites
+SITE_RELEASES_KEPT=3
+
+site_name() {
+  case "${1:-}" in
+    website|guest) echo "$1" ;;
+    *) die "The site name must be website or guest." ;;
+  esac
+}
+
+# site_releases NAME: this site's published folders, oldest first.
+site_releases() {
+  find "$SITES_DIR/.releases" -mindepth 1 -maxdepth 1 -type d -name "$1-*" 2>/dev/null | sort
+}
+
+site_current() {
+  [ -L "$SITES_DIR/$1" ] && basename "$(readlink "$SITES_DIR/$1")" || true
+}
+
+# site_point NAME RELEASE: make sites/NAME show sites/.releases/RELEASE.
+site_point() {
+  ln -sfn ".releases/$2" "$SITES_DIR/.$1.next"
+  mv -Tf "$SITES_DIR/.$1.next" "$SITES_DIR/$1"
+}
+
 cmd=${1:-}
 case "$cmd" in
   init)
@@ -123,6 +155,9 @@ case "$cmd" in
     ensure_backup_key
     ensure_alert_emails
     if grep -n 'CHANGE_ME' "$ENV_FILE" >&2; then die "Fill in the CHANGE_ME values above in $ENV_FILE first." 3; fi
+    # Caddy serves the website and the guest app from here; it must exist
+    # before the stack starts, or Docker creates it and nothing can publish.
+    mkdir -p "$SITES_DIR/.releases"
     prev=$(current_image || true)
     if [ -n "$prev" ] && [ "$prev" != "$image" ]; then echo "$prev" >> .deploy-history; fi
     set_kv TARK_IMAGE "$image"
@@ -178,7 +213,49 @@ case "$cmd" in
     shift
     api_exec admin-create "$@"
     ;;
+  site-install)
+    name=$(site_name "${2:-}")
+    archive=${3:?usage: remote.sh site-install <website|guest> <file.tgz>}
+    [ -f "$archive" ] || die "$archive was not found."
+    release="$name-$(date -u +%Y%m%d-%H%M%S)"
+    dest="$SITES_DIR/.releases/$release"
+    mkdir -p "$SITES_DIR/.releases"
+    [ ! -e "$dest" ] || die "$dest already exists; try again in a second."
+    mkdir "$dest"
+    # Unpacked as plain files owned by whoever runs this, never outside $dest
+    # (tar refuses absolute paths and ".." by default).
+    if ! tar -xzf "$archive" -C "$dest" --no-same-owner --no-same-permissions; then
+      rm -rf "$dest"; die "$archive could not be unpacked; nothing was changed."
+    fi
+    if [ ! -s "$dest/index.html" ]; then
+      rm -rf "$dest"; die "$archive has no index.html at its top level; nothing was changed."
+    fi
+    # Caddy runs as another user inside its container: readable, never writable.
+    chmod -R u=rwX,go=rX "$dest"
+    [ ! -e "$SITES_DIR/$name" ] || [ -L "$SITES_DIR/$name" ] || die "$SITES_DIR/$name is a real folder, not a link made by this script. Move it away first."
+    site_point "$name" "$release"
+    rm -f "$archive"
+    # Keep the newest few, so site-rollback has something to return to.
+    site_releases "$name" | head -n "-$SITE_RELEASES_KEPT" | while IFS= read -r old; do rm -rf "$old"; done
+    echo "Published $name ($release, $(find "$dest" -type f | wc -l) files)."
+    ;;
+  site-rollback)
+    name=$(site_name "${2:-}")
+    current=$(site_current "$name")
+    [ -n "$current" ] || die "$name has not been published yet."
+    prev=$(site_releases "$name" | xargs -r -n1 basename | awk -v c="$current" '$0 < c' | tail -n1)
+    [ -n "$prev" ] || die "There are no earlier files of $name to go back to."
+    site_point "$name" "$prev"
+    echo "$name now shows $prev (was $current)."
+    ;;
+  sites)
+    for name in website guest; do
+      current=$(site_current "$name")
+      echo "$name: ${current:-not published}"
+      site_releases "$name" | xargs -r -n1 basename | sed 's/^/    /'
+    done
+    ;;
   *)
-    die "usage: remote.sh init <image> | up <image> | rollback | status | backups | backup-now | backup-cat <name> | alert-test | log-days | log-day <date> | admin-create <email> <role> <name>"
+    die "usage: remote.sh init <image> | up <image> | rollback | status | backups | backup-now | backup-cat <name> | alert-test | log-days | log-day <date> | admin-create <email> <role> <name> | site-install <website|guest> <file.tgz> | site-rollback <website|guest> | sites"
     ;;
 esac

@@ -30,3 +30,88 @@
 	encode zstd gzip
 	reverse_proxy api:8081
 }
+
+# ---- The website and the browser guest app (optional) -----------------------
+#
+# Both are folders of static files, published with publish-sites.ps1 into
+# ./sites/website and ./sites/guest. Until TARK_SITE_DOMAIN / TARK_GUEST_DOMAIN
+# are set in .env.production the two blocks answer only plain HTTP for the
+# stand-in names site.localhost and guest.localhost, so nothing asks for a
+# certificate before the domain's DNS points here. To look at them before the
+# switch:
+#   curl -H "Host: site.localhost"  http://<server address>/
+#   curl -H "Host: guest.localhost" http://<server address>/
+#
+# The rules below are website/_headers and website/_redirects written for
+# Caddy; keep the three in step. One thing the old edge did is not here: it
+# told the home page the visitor's country. Without it the page uses the
+# visitor's time zone (Asia/Tehran starts in Persian), which it already did
+# whenever the country was unknown, and a remembered choice still wins.
+{$TARK_SITE_ADDRESS:http://site.localhost} {
+	root * {$TARK_SITES_ROOT:/srv/sites}/website
+	encode zstd gzip
+
+	# A page lives at its clean address: /privacy.html answers at /privacy and
+	# /fa/index.html at /fa/, as before.
+	@indexhtml path_regexp indexhtml ^(.*/)index\.html$
+	redir @indexhtml {re.indexhtml.1} 307
+	@dothtml path_regexp dothtml ^(.+)\.html$
+	redir @dothtml {re.dothtml.1} 307
+
+	# Account-email links, https://<site>/v/<register|reset|email>#<token>.
+	# On a phone with Tarkk they open the app and never arrive here; anywhere
+	# else one static page answers all three. The token is in the #fragment,
+	# which a browser never sends.
+	@emaillinks path /v/register /v/reset /v/email /v/register/ /v/reset/ /v/email/
+	rewrite @emaillinks /v/index.html
+
+	route {
+		# The host-rule files of the previous host are not content.
+		@hostrules path /_headers /_redirects
+		respond @hostrules 404
+
+		# Unless a rule below says otherwise, a browser asks before reusing a
+		# copy, so a newly published site shows at once.
+		header Cache-Control "public, max-age=0, must-revalidate"
+
+		# Read by the app at launch.
+		header /update.json {
+			Cache-Control "no-cache, no-store, must-revalidate"
+			Access-Control-Allow-Origin *
+		}
+		header /announcements.json {
+			Cache-Control "no-cache, no-store, must-revalidate"
+			Access-Control-Allow-Origin *
+		}
+		header /site-version.json Cache-Control "no-cache, no-store, must-revalidate"
+
+		# Android App Links verification: fetched directly, must be JSON.
+		header /.well-known/assetlinks.json {
+			Content-Type application/json
+			Access-Control-Allow-Origin *
+			Cache-Control "public, max-age=3600"
+		}
+
+		# The account-email page: nothing on it may pass the token on, and it
+		# stays out of search results.
+		header /v/* {
+			X-Robots-Tag "noindex, nofollow"
+			Referrer-Policy no-referrer
+			Content-Security-Policy "default-src 'none'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+			Cache-Control no-cache
+		}
+
+		try_files {path} {path}.html
+		file_server
+	}
+}
+
+# The browser guest app (a Flutter web build). It is one page that routes
+# inside the browser, so an address that is not a file gets index.html.
+{$TARK_GUEST_ADDRESS:http://guest.localhost} {
+	root * {$TARK_SITES_ROOT:/srv/sites}/guest
+	encode zstd gzip
+	header Cache-Control "public, max-age=0, must-revalidate"
+	try_files {path} /index.html
+	file_server
+}

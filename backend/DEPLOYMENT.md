@@ -136,6 +136,44 @@ email as the alert contact. Monitors abroad sometimes cannot reach servers in
 Iran for reasons that have nothing to do with the server (filtering, routing),
 so treat one short blip as noise and a lasting one as real.
 
+**The website and the guest app on the same server (optional).** Caddy can
+also serve `tarkk.ir` (the `website/` folder) and `app.tarkk.ir` (the Flutter
+web build), with the same redirects and headers the previous host applied
+(`website/_headers` and `website/_redirects`, written for Caddy in the
+`Caddyfile`; keep them in step). Nothing is switched on by a deploy alone.
+
+1. Publish the files. They go up as one archive and the server switches to
+   them in one step:
+   ```powershell
+   .\backend\deploy\vps\publish-sites.ps1 -Server root@203.0.113.10 -Site website
+   .\scripts\build-web-release.ps1 -BuildOnly
+   .\backend\deploy\vps\publish-sites.ps1 -Server root@203.0.113.10 -Site guest
+   ```
+2. Check them **before touching DNS**. Until their domains are set, the sites
+   answer plain HTTP under stand-in names:
+   ```sh
+   curl -H "Host: site.localhost"  http://203.0.113.10/
+   curl -H "Host: guest.localhost" http://203.0.113.10/
+   ```
+3. Switch. Point the DNS records of `tarkk.ir` and `app.tarkk.ir` at the
+   server, wait until they resolve to it, then set `TARK_SITE_DOMAIN=tarkk.ir`
+   and `TARK_GUEST_DOMAIN=app.tarkk.ir` in `.env.production` and deploy again.
+   Caddy gets the two certificates within seconds. In that order the gap
+   without HTTPS is the time between the DNS change reaching visitors and
+   that deploy; the other order makes Caddy ask for certificates it cannot
+   get yet. To go back, point DNS at the previous host again.
+
+`publish-sites.ps1 -Site website -Rollback` returns a site to the files
+published before (the server keeps the last three), and `bash remote.sh sites`
+shows what is published. One difference from the previous host: it told the
+home page the visitor's country, and Caddy does not. The page then goes by the
+visitor's time zone (Asia/Tehran starts in Persian), as it already did when the
+country was unknown; a language someone chose still wins.
+
+`scripts/release-website.ps1` and `scripts/build-web-release.ps1` still publish
+to the previous host. After the switch, publish with `publish-sites.ps1`
+until those are moved over.
+
 **Database backups** are automatic. Every night (23:00 UTC, about 02:30 in
 Tehran; `TARK_BACKUP_HOUR_UTC` changes it) the API writes an encrypted backup
 of the whole database into the `backups` volume, reads it back to prove it
@@ -234,7 +272,10 @@ for known vulnerabilities and verifies that the image builds.
 Verified by running them: the Go build and tests (against real PostgreSQL),
 `setup-backend.ps1` end to end (in PowerShell 7 on Linux, against an external
 PostgreSQL), `remote.sh` (with a stand-in for `docker`), the dry-run output of
-both deploy scripts, and both compose files (`docker compose config`).
+both deploy scripts, and both compose files (`docker compose config`). The website
+and guest app blocks of the `Caddyfile` are checked against a real Caddy by
+`deploy/vps/test-sites.sh` (CI runs it), and `remote.sh`'s site commands were
+run on Linux; `publish-sites.ps1` itself has not been run yet.
 
 **Not** verified, because there was no Windows machine, Docker image pulls or
 server in the environment they were written in: the Windows PowerShell 5.1

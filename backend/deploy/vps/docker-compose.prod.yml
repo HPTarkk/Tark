@@ -52,6 +52,9 @@ services:
       TARK_LOG_DIR: /logs
       # Alert when the HTTPS certificates Caddy serves are close to expiry.
       TARK_ALERT_TLS_ADDR: caddy:443
+      # Every host name Caddy serves here: the API, the admin panel and, once
+      # they are switched on, the website and the guest app.
+      TARK_ALERT_TLS_NAMES: ${TARK_ALERT_TLS_NAMES:-${TARK_DOMAIN},${TARK_ADMIN_DOMAIN},${TARK_SITE_DOMAIN:-},${TARK_GUEST_DOMAIN:-}}
     volumes:
       - backups:/backups
       - logs:/logs
@@ -75,8 +78,15 @@ services:
     environment:
       TARK_DOMAIN: ${TARK_DOMAIN:?set TARK_DOMAIN in .env.production}
       TARK_ADMIN_DOMAIN: ${TARK_ADMIN_DOMAIN:?set TARK_ADMIN_DOMAIN in .env.production}
+      # The website and the guest app. Until their domains are set they answer
+      # plain HTTP under stand-in names only, so no certificate is asked for
+      # before DNS points here (see the Caddyfile).
+      TARK_SITE_ADDRESS: ${TARK_SITE_DOMAIN:-http://site.localhost}
+      TARK_GUEST_ADDRESS: ${TARK_GUEST_DOMAIN:-http://guest.localhost}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Static files of the website and the guest app (publish-sites.ps1).
+      - ./sites:/srv/sites:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on: [api]
