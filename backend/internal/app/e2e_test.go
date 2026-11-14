@@ -32,6 +32,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/HPTarkk/Tark/backend/internal/app"
+	"github.com/HPTarkk/Tark/backend/internal/auth"
 	"github.com/HPTarkk/Tark/backend/internal/billing"
 	"github.com/HPTarkk/Tark/backend/internal/config"
 	"github.com/HPTarkk/Tark/backend/internal/mail"
@@ -1133,5 +1134,65 @@ func TestRequestMetrics(t *testing.T) {
 		if strings.Contains(k, "wp-admin") || strings.Contains(k, "BREW") {
 			t.Fatalf("raw path or method recorded: %q", k)
 		}
+	}
+}
+
+// Used refresh tokens are dropped 30 days after use; the live token and
+// recently used ones stay, so signing in, retrying and theft detection for
+// anyone who opens the app within the month work as before.
+func TestSweepDropsOldUsedRefreshTokens(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	p := e.phone()
+	p.register("sweep@example.com", "a good passphrase", "Sara")
+	stolen := p.refresh
+	r := p.do("POST", "/v1/auth/token/refresh", map[string]any{"refreshToken": stolen})
+	expect(t, r, 200, "")
+	p.refresh, p.access = r.str("refreshToken"), r.str("accessToken")
+
+	count := func() (used, live int) {
+		t.Helper()
+		if err := e.pool.QueryRow(ctx, `SELECT count(*) FILTER (WHERE used_at IS NOT NULL), count(*) FILTER (WHERE used_at IS NULL) FROM refresh_tokens`).Scan(&used, &live); err != nil {
+			t.Fatal(err)
+		}
+		return used, live
+	}
+	// Used 29 days ago: kept.
+	if _, err := e.pool.Exec(ctx, `UPDATE refresh_tokens SET used_at = now() - interval '29 days' WHERE used_at IS NOT NULL`); err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.Sweep(ctx, e.pool); err != nil {
+		t.Fatal(err)
+	}
+	if used, live := count(); used != 1 || live != 1 {
+		t.Fatalf("after 29 days: %d used and %d live tokens, want 1 and 1", used, live)
+	}
+	// Used 31 days ago: gone, and the live token that descends from it stays.
+	if _, err := e.pool.Exec(ctx, `UPDATE refresh_tokens SET used_at = now() - interval '31 days' WHERE used_at IS NOT NULL`); err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.Sweep(ctx, e.pool); err != nil {
+		t.Fatal(err)
+	}
+	if used, live := count(); used != 0 || live != 1 {
+		t.Fatalf("after 31 days: %d used and %d live tokens, want 0 and 1", used, live)
+	}
+	// The forgotten token is refused, and the session carries on.
+	expect(t, p.do("POST", "/v1/auth/token/refresh", map[string]any{"refreshToken": stolen}), 401, "unauthorized")
+	expect(t, p.do("GET", "/v1/profile", nil), 200, "")
+	expect(t, p.do("POST", "/v1/auth/token/refresh", map[string]any{"refreshToken": p.refresh}), 200, "")
+}
+
+// Rate-limit counters skip the write-ahead log (migration 0008). If a later
+// migration recreated the table as an ordinary one, every counted request
+// would wait for the disk again.
+func TestRateLimitCountersAreUnlogged(t *testing.T) {
+	e := setup(t)
+	var persistence string
+	if err := e.pool.QueryRow(context.Background(), `SELECT relpersistence FROM pg_class WHERE oid = 'rate_limits'::regclass`).Scan(&persistence); err != nil {
+		t.Fatal(err)
+	}
+	if persistence != "u" {
+		t.Fatalf("rate_limits persistence is %q, want u (unlogged)", persistence)
 	}
 }

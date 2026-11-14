@@ -14,6 +14,7 @@ sides are written against it. It is also served as interactive documentation
 api                  openapi.yaml (the contract) and the embedded Swagger UI
 deploy               server deployment: vps/ (Compose + Caddy), arvan/ (registry push)
 cmd/tarkd            the binary: serve, worker, migrate, keygen, pubkeys, healthcheck
+cmd/tarkload         load testing against a development database (see LOADTEST.md)
 internal/app         wires everything together (also used by the e2e tests)
 internal/httpapi     routing, middleware, JSON in and out; no business rules
 internal/auth        sign-up, login, Google, sessions, password and email flows
@@ -78,6 +79,7 @@ or malformed secret.
 | `TARK_DATABASE_URL` | PostgreSQL URL. Use `sslmode=verify-full` when the database is not on a private network. |
 | `TARK_HTTP_ADDR` | Listen address, default `:8080` |
 | `TARK_DB_MAX_CONNS`, `TARK_DB_AUX_CONNS` | Size of the main connection pool (default 20) and of the small pool used only for audit and rate-limit writes (default 5). Keep `replicas x (max + aux)` under the database's `max_connections`. |
+| `TARK_PASSWORD_HASH_SLOTS` | How many password hashes may run at once (each takes one processor and 46 MiB for tens of milliseconds). Default: half the processors, at least 1, so sign-ins can never take the processor away from every other request. A sign-in that cannot start within 5 s is answered 503 with `Retry-After`. |
 | `TARK_DATABASE_ALLOW_PLAINTEXT` | In production the server refuses a database connection without TLS to a host that does not look private. Set `true` only for a private network with a public-looking name. |
 | `TARK_DOCS_ENABLED` | Serve `/docs` (Swagger UI) and `/openapi.yaml`. Default `true` in development, `false` in production. |
 | `TARK_RUN_WORKERS` | Run the mail, billing and cleanup workers in the API process (default `true`). Several instances are safe. |
@@ -90,7 +92,7 @@ or malformed secret.
 | `TARK_SMTP_HOST`, `TARK_SMTP_PORT`, `TARK_SMTP_USERNAME`, `TARK_SMTP_PASSWORD`, `TARK_SMTP_SECURITY` | SMTP server. `starttls` (587) or `tls` (465); there is no plaintext mode. |
 | `TARK_MAIL_FROM`, `TARK_MAIL_FROM_NAME` | Sender address and name |
 | `TARK_SMTP2_HOST`, `TARK_SMTP2_PORT`, `TARK_SMTP2_USERNAME`, `TARK_SMTP2_PASSWORD`, `TARK_SMTP2_SECURITY`, `TARK_SMTP2_FROM` | Optional backup SMTP server, used when the first one fails. Meant for a provider inside Iran. |
-| `TARK_BAZAAR_CLIENT_ID`, `TARK_BAZAAR_CLIENT_SECRET`, `TARK_BAZAAR_REFRESH_TOKEN` | Bazaar developer API credentials |
+| `TARK_BAZAAR_PAYMENT_API_TOKEN` | The app's token for Cafe Bazaar's Payment API, sent as the `CAFEBAZAAR-PISHKHAN-API-SECRET` header when a purchase is verified or re-checked. Made in Pishkhan: the app, "API پیشخان بازار", "دریافت توکن جدید" (by the publisher account). Required in production. It replaced `TARK_BAZAAR_CLIENT_ID`, `TARK_BAZAAR_CLIENT_SECRET` and `TARK_BAZAAR_REFRESH_TOKEN` of Bazaar's old OAuth method, which are no longer read. The reviews API key below is a separate value. |
 | `TARK_BAZAAR_PACKAGE`, `TARK_BAZAAR_BASE_URL` | Package name, API base |
 | `TARK_BAZAAR_SKUS` | Plans on sale, in display order (default `tark_premium_1m,tark_premium_3m,tark_premium_6m,tark_premium_12m`). Ids are `tark_premium_<months>m`; the app lists whatever is here (`GET /v1/subscription/plans`), so adding or removing a length needs only the Bazaar product and this setting. Purchases of a plan taken off the list still verify. `TEST_SUB` is the 5-minute test product: list it only on a test server, since it is sold and accepted only where listed. Owners work out prices on the admin panel's Pricing page. |
 | `TARK_CLIENT_IP_HEADER`, `TARK_TRUSTED_PROXIES` | Where the real client IP is, and which peers may set it (CIDRs). Needed behind ArvanCloud's CDN or load balancer. |
@@ -233,6 +235,14 @@ contacts or location reaches this server.
    admin refund action. The server only infers a revocation from a period cut
    short, or from a known token no longer being found, in case Bazaar support
    ever revokes one.
+   Two details of Bazaar's Payment API are taken from its documentation and
+   still need one live lookup to confirm: that the path segment after
+   `/subscriptions/` is the plan's SKU (the docs call it `subscription_id`
+   and show `1`), and that a missing purchase answers 404 with
+   `"error": "not_found"`. Until then the client errs on the safe side: any
+   other 404 counts as "Bazaar could not be asked", never as "no such
+   purchase". Lookups must use a subscription's original purchase token; a
+   renewal's token does not work.
 2. **Email provider.** Gmail SMTP with an app password on the support
    account is the primary (free, a few hundred emails a day). It still needs
    testing from an ArvanCloud server. A backup provider inside Iran for

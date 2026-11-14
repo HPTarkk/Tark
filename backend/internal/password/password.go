@@ -6,7 +6,10 @@
 //
 // Hashing is memory-hard on purpose, which also makes it the easiest thing
 // to abuse for denial of service. A semaphore bounds how many hashes run at
-// once, so a flood of logins queues instead of exhausting memory.
+// once, so a flood of logins queues instead of exhausting memory or taking
+// every processor away from the rest of the API. A hash that cannot start
+// within MaxWait is refused (ErrBusy), so the queue itself stays short and
+// the caller is told to come back instead of being left hanging.
 package password
 
 import (
@@ -19,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -51,13 +55,22 @@ const (
 var (
 	ErrMismatch = errors.New("password: mismatch")
 	ErrFormat   = errors.New("password: unrecognised hash format")
+	// ErrBusy means no hashing slot came free within MaxWait. It wraps
+	// context.DeadlineExceeded, which the HTTP layer answers with 503 and
+	// Retry-After.
+	ErrBusy = fmt.Errorf("password: every hashing slot is busy: %w", context.DeadlineExceeded)
 )
 
+// MaxWait is how long a hash waits for a free slot. Longer than this and the
+// person is better served by a quick "try again" than by a spinner.
+const MaxWait = 5 * time.Second
+
 type Hasher struct {
-	pepper []byte
-	params Params
-	slots  chan struct{}
-	dummy  string
+	pepper  []byte
+	params  Params
+	slots   chan struct{}
+	maxWait time.Duration
+	dummy   string
 }
 
 // New builds a Hasher. concurrency bounds simultaneous hashes.
@@ -69,9 +82,10 @@ func New(pepper []byte, params Params, concurrency int) (*Hasher, error) {
 		concurrency = 1
 	}
 	h := &Hasher{
-		pepper: append([]byte(nil), pepper...),
-		params: params,
-		slots:  make(chan struct{}, concurrency),
+		pepper:  append([]byte(nil), pepper...),
+		params:  params,
+		slots:   make(chan struct{}, concurrency),
+		maxWait: MaxWait,
 	}
 	dummy, err := h.hash(context.Background(), "tark-dummy-password-for-timing")
 	if err != nil {
@@ -120,16 +134,30 @@ func (h *Hasher) Verify(ctx context.Context, pw, encoded string) (needsRehash bo
 
 // VerifyDummy spends the same time as a real check. Called when there is no
 // account (or no password) to check against, so response time does not
-// reveal whether an email is registered.
-func (h *Hasher) VerifyDummy(ctx context.Context, pw string) {
-	_, _ = h.Verify(ctx, pw, h.dummy)
+// reveal whether an email is registered. It returns an error only when the
+// check could not run at all (ErrBusy, or ctx ended); the caller must answer
+// that exactly as it would for a real account, or a busy server would tell
+// the two apart.
+func (h *Hasher) VerifyDummy(ctx context.Context, pw string) error {
+	if _, err := h.Verify(ctx, pw, h.dummy); err != nil && !errors.Is(err, ErrMismatch) {
+		return err
+	}
+	return nil
 }
 
 func (h *Hasher) derive(ctx context.Context, pw string, salt []byte, p Params) ([]byte, error) {
 	select {
 	case h.slots <- struct{}{}:
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	default:
+		wait := time.NewTimer(h.maxWait)
+		defer wait.Stop()
+		select {
+		case h.slots <- struct{}{}:
+		case <-wait.C:
+			return nil, ErrBusy
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
 	}
 	defer func() { <-h.slots }()
 

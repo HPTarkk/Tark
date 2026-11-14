@@ -29,45 +29,42 @@ var (
 	ErrUnavailable = errors.New("bazaar: unavailable")
 )
 
-// Bazaar is the store's developer API as the billing service needs it.
-// Kept behind an interface because the exact API has not been checked
-// against Bazaar's documentation yet (the docs host is blocked where this
-// was written); only BazaarHTTP depends on those details.
+// Bazaar is the store's developer API as the billing service needs it. Only
+// BazaarHTTP depends on the details of that API.
 type Bazaar interface {
 	Subscription(ctx context.Context, sku, purchaseToken string) (Subscription, error)
 }
 
-// BazaarHTTP talks to pardakht.cafebazaar.ir.
+// BazaarHTTP talks to pardakht.cafebazaar.ir with Bazaar's current Payment
+// API, which replaced the OAuth method (client id, client secret and a
+// refresh token traded for access tokens):
 //
-// Per Bazaar's developer API docs (v2), summarised in the project's
-// backend-design/bazaar-billing.md:
-//   - OAuth: POST {base}/auth/token/ with grant_type=refresh_token,
-//     client_id, client_secret, refresh_token -> access_token, expires_in.
-//     The refresh token is long-lived and not rotated.
-//   - GET {base}/api/applications/{package}/subscriptions/{sku}/purchases/{token}/
+//   - One token per app, made in Pishkhan (the app's "API پیشخان بازار" page,
+//     "دریافت توکن جدید"), sent on every request in the
+//     CAFEBAZAAR-PISHKHAN-API-SECRET header. There is nothing to refresh.
+//   - GET {base}/api/applications/{package}/subscriptions/{sku}/purchases/{token}
 //     -> initiationTimestampMsec, validUntilTimestampMsec, autoRenewing.
 //     A success does not mean active; validUntil is compared with our clock.
-//     Only 404 not_found is definitive; anything else means "unknown".
+//     The token must be the subscription's original purchase token.
+//   - Only a 404 whose body says not_found is a definitive "no such
+//     purchase". Bazaar also answers 404 for a package it does not know, and
+//     a refused token, a timeout or a 5xx say nothing about the purchase, so
+//     all of those are "unknown" and never downgrade anyone.
 //
 // The API never reports refunds or cancellations; see applyAnswer and
 // applyMissing for how the service infers them.
 type BazaarHTTP struct {
-	BaseURL      string
-	PackageName  string
-	ClientID     string
-	ClientSecret string
-	RefreshToken string
-	HTTP         *http.Client
-
-	mu          sync.Mutex
-	accessToken string
-	accessUntil time.Time
-	// refreshing is closed when the refresh in flight ends (nil when none);
-	// refreshErr is how it ended. One refresh serves every caller waiting,
-	// and none of them holds mu while Bazaar answers.
-	refreshing chan struct{}
-	refreshErr error
+	BaseURL     string
+	PackageName string
+	// APIToken is the app's Payment API token. It only ever travels in the
+	// request header and is never logged or put in an error.
+	APIToken string
+	HTTP     *http.Client
 }
+
+// bazaarSecretHeader carries the app token (the same header Pishkhan's other
+// APIs use).
+const bazaarSecretHeader = "CAFEBAZAAR-PISHKHAN-API-SECRET"
 
 func (b *BazaarHTTP) client() *http.Client {
 	if b.HTTP != nil {
@@ -76,138 +73,72 @@ func (b *BazaarHTTP) client() *http.Client {
 	return &http.Client{Timeout: 8 * time.Second}
 }
 
-// token returns a live access token. rejected is a token Bazaar just
-// refused; it is never handed out again, which forces a refresh unless
-// another caller has already replaced it.
-func (b *BazaarHTTP) token(ctx context.Context, rejected string) (string, error) {
-	for {
-		b.mu.Lock()
-		if b.accessToken != "" && b.accessToken != rejected && time.Now().Before(b.accessUntil) {
-			token := b.accessToken
-			b.mu.Unlock()
-			return token, nil
-		}
-		if wait := b.refreshing; wait != nil {
-			b.mu.Unlock()
-			select {
-			case <-wait:
-				b.mu.Lock()
-				err := b.refreshErr
-				b.mu.Unlock()
-				if err != nil {
-					return "", err
-				}
-				continue
-			case <-ctx.Done():
-				return "", fmt.Errorf("%w: %v", ErrUnavailable, ctx.Err())
-			}
-		}
-		done := make(chan struct{})
-		b.refreshing = done
-		b.mu.Unlock()
-
-		// Not tied to this caller's request: others may be waiting on it.
-		fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 8*time.Second)
-		token, until, err := b.fetchToken(fetchCtx)
-		cancel()
-
-		b.mu.Lock()
-		if err == nil {
-			b.accessToken, b.accessUntil = token, until
-		}
-		b.refreshErr = err
-		b.refreshing = nil
-		close(done)
-		b.mu.Unlock()
-		return token, err
-	}
-}
-
-// fetchToken trades the long-lived refresh token for an access token.
-func (b *BazaarHTTP) fetchToken(ctx context.Context) (string, time.Time, error) {
-	form := url.Values{
-		"grant_type":    {"refresh_token"},
-		"client_id":     {b.ClientID},
-		"client_secret": {b.ClientSecret},
-		"refresh_token": {b.RefreshToken},
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, b.BaseURL+"/auth/token/", strings.NewReader(form.Encode()))
+func (b *BazaarHTTP) Subscription(ctx context.Context, sku, purchaseToken string) (Subscription, error) {
+	u := fmt.Sprintf("%s/api/applications/%s/subscriptions/%s/purchases/%s",
+		b.BaseURL, url.PathEscape(b.PackageName), url.PathEscape(sku), url.PathEscape(purchaseToken))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return "", time.Time{}, err
+		return Subscription{}, err
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(bazaarSecretHeader, b.APIToken)
+	req.Header.Set("Accept", "application/json")
+
 	resp, err := b.client().Do(req)
 	if err != nil {
-		return "", time.Time{}, fmt.Errorf("%w: token: %v", ErrUnavailable, err)
+		return Subscription{}, fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		// Every verification stops until this is fixed (possibly by redoing
-		// the one-time authorisation by hand), so the error names it.
-		return "", time.Time{}, fmt.Errorf("%w: bazaar oauth refresh failed with status %d; check the developer API credentials", ErrUnavailable, resp.StatusCode)
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	resp.Body.Close()
+	switch {
+	case resp.StatusCode == http.StatusOK:
+	case resp.StatusCode == http.StatusNotFound:
+		code, about := bazaarError(body)
+		if code == "not_found" && !strings.Contains(about, "package") && !strings.Contains(about, "application") {
+			return Subscription{}, ErrNotFound
+		}
+		// The package name is wrong, or something in between answered: that
+		// is our setup, not a verdict on this purchase.
+		return Subscription{}, fmt.Errorf("%w: status 404 (%s); check the package name and the API address", ErrUnavailable, orUnknown(code))
+	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+		// Every verification stops until the token is replaced, so the error names it.
+		return Subscription{}, fmt.Errorf("%w: bazaar refused the Payment API token (status %d); check TARK_BAZAAR_PAYMENT_API_TOKEN", ErrUnavailable, resp.StatusCode)
+	default:
+		return Subscription{}, fmt.Errorf("%w: status %d", ErrUnavailable, resp.StatusCode)
 	}
-	var body struct {
-		AccessToken string `json:"access_token"`
-		ExpiresIn   int64  `json:"expires_in"`
+	var raw struct {
+		Initiation int64 `json:"initiationTimestampMsec"`
+		ValidUntil int64 `json:"validUntilTimestampMsec"`
+		AutoRenew  bool  `json:"autoRenewing"`
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&body); err != nil || body.AccessToken == "" {
-		return "", time.Time{}, fmt.Errorf("%w: token response unreadable", ErrUnavailable)
+	if err := json.Unmarshal(body, &raw); err != nil || raw.ValidUntil == 0 {
+		// An answer we cannot read says nothing about the purchase.
+		return Subscription{}, fmt.Errorf("%w: unreadable response", ErrUnavailable)
 	}
-	life := time.Duration(body.ExpiresIn) * time.Second
-	if life <= 0 {
-		life = 30 * time.Minute
-	}
-	// Renew a minute early so a request never races the expiry.
-	return body.AccessToken, time.Now().Add(life - time.Minute), nil
+	return Subscription{
+		InitiatedAt:  time.UnixMilli(raw.Initiation).UTC(),
+		ValidUntil:   time.UnixMilli(raw.ValidUntil).UTC(),
+		AutoRenewing: raw.AutoRenew,
+	}, nil
 }
 
-func (b *BazaarHTTP) Subscription(ctx context.Context, sku, purchaseToken string) (Subscription, error) {
-	rejected := ""
-	for attempt := 0; attempt < 2; attempt++ {
-		access, err := b.token(ctx, rejected)
-		if err != nil {
-			return Subscription{}, err
-		}
-		u := fmt.Sprintf("%s/api/applications/%s/subscriptions/%s/purchases/%s/",
-			b.BaseURL, url.PathEscape(b.PackageName), url.PathEscape(sku), url.PathEscape(purchaseToken))
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-		if err != nil {
-			return Subscription{}, err
-		}
-		// The header, not ?access_token=, keeps the token out of access logs.
-		req.Header.Set("Authorization", "Bearer "+access)
-
-		resp, err := b.client().Do(req)
-		if err != nil {
-			return Subscription{}, fmt.Errorf("%w: %v", ErrUnavailable, err)
-		}
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
-		resp.Body.Close()
-		switch {
-		case resp.StatusCode == http.StatusUnauthorized && attempt == 0:
-			rejected = access
-			continue // access token revoked early; get a new one once
-		case resp.StatusCode == http.StatusNotFound:
-			return Subscription{}, ErrNotFound
-		case resp.StatusCode != http.StatusOK:
-			return Subscription{}, fmt.Errorf("%w: status %d", ErrUnavailable, resp.StatusCode)
-		}
-		var raw struct {
-			Initiation int64 `json:"initiationTimestampMsec"`
-			ValidUntil int64 `json:"validUntilTimestampMsec"`
-			AutoRenew  bool  `json:"autoRenewing"`
-		}
-		if err := json.Unmarshal(body, &raw); err != nil || raw.ValidUntil == 0 {
-			// An answer we cannot read says nothing about the purchase.
-			return Subscription{}, fmt.Errorf("%w: unreadable response", ErrUnavailable)
-		}
-		return Subscription{
-			InitiatedAt:  time.UnixMilli(raw.Initiation).UTC(),
-			ValidUntil:   time.UnixMilli(raw.ValidUntil).UTC(),
-			AutoRenewing: raw.AutoRenew,
-		}, nil
+// bazaarError reads Bazaar's error body ({"error": ..., "error_description":
+// ...}), lower-cased. Both are empty when the body is not that.
+func bazaarError(body []byte) (code, description string) {
+	var e struct {
+		Error       string `json:"error"`
+		Description string `json:"error_description"`
 	}
-	return Subscription{}, fmt.Errorf("%w: unauthorized", ErrUnavailable)
+	if json.Unmarshal(body, &e) != nil {
+		return "", ""
+	}
+	return strings.ToLower(strings.TrimSpace(e.Error)), strings.ToLower(e.Description)
+}
+
+func orUnknown(code string) string {
+	if code == "" || len(code) > 40 {
+		return "no error code"
+	}
+	return code
 }
 
 // FakeBazaar is for development and tests. Tokens starting with

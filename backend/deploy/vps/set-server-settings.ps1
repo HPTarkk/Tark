@@ -5,7 +5,7 @@
 
 .DESCRIPTION
   Asks for each setting that deploy.ps1 -Init leaves for you (mail server,
-  Cafe Bazaar credentials, alert address) and writes the answers straight to
+  Cafe Bazaar's Payment API token, alert address) and writes the answers straight to
   the server over SSH. Passwords and tokens are typed hidden, are never shown,
   never stored on this computer and never put on a command line. Press Enter at
   a question to leave that setting as it is on the server.
@@ -68,9 +68,7 @@ $Questions = @(
     @('TARK_SMTP_SECURITY', 'Mail', 'SMTP security: starttls or tls', $false),
     @('TARK_SMTP_USERNAME', 'Mail', 'Mailbox user name (usually the full address)', $false),
     @('TARK_SMTP_PASSWORD', 'Mail', 'Mailbox password', $true),
-    @('TARK_BAZAAR_CLIENT_ID', 'Bazaar', 'Cafe Bazaar API client id', $true),
-    @('TARK_BAZAAR_CLIENT_SECRET', 'Bazaar', 'Cafe Bazaar API client secret', $true),
-    @('TARK_BAZAAR_REFRESH_TOKEN', 'Bazaar', 'Cafe Bazaar API refresh token', $true),
+    @('TARK_BAZAAR_PAYMENT_API_TOKEN', 'Bazaar', "Cafe Bazaar Payment API token (Pishkhan > the app > API > new token)", $true),
     @('TARK_ALERT_EMAILS', 'Alerts', 'Who gets alert emails (comma-separated)', $false)
 )
 

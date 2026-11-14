@@ -68,7 +68,9 @@ func (s *Service) Login(ctx context.Context, rawEmail, pw string, c Client) (Sig
 		return SignedIn{}, err
 	}
 	if userID == "" {
-		s.pw.VerifyDummy(ctx, pw)
+		if err := s.pw.VerifyDummy(ctx, pw); err != nil {
+			return SignedIn{}, err
+		}
 		failed = true
 		return SignedIn{}, s.loginFailed(ctx, "", c.IP)
 	}
