@@ -66,11 +66,17 @@ step can be run again safely:
 .\backend\deploy\vps\setup-server.ps1 -Server root@203.0.113.10 -LockSsh
 ```
 
-`-Check` warns about anything the server cannot reach. Where Docker's own
-package host or Docker Hub refuses the server, give mirrors with
-`-DockerRepoBase` and `-DockerMirrors`. If Google's sign-in keys are refused
-(403 from an Iranian address), Google sign-in cannot work until
-`TARK_GOOGLE_JWKS_URL` points at a copy the server can reach.
+`-Check` warns about anything the server cannot reach. Two refusals are
+expected from an Iranian data centre and are already handled:
+
+- **Docker Hub image downloads.** `deploy.ps1` sends the PostgreSQL and Caddy
+  images from your machine together with the backend image, so the server
+  downloads nothing. (`-DockerRepoBase` and `-DockerMirrors` exist for a server
+  that cannot even reach Docker's package host, or if you prefer a mirror.)
+- **Google's sign-in keys** (403). The backend then has Google's tokeninfo
+  endpoint check each Google sign-in instead, which is reachable. Only the
+  verdict on the signature comes from there; issuer, audience, expiry and nonce
+  are still checked by the backend from the token itself.
 
 ```powershell
 # 1. First time: build, ship the image, create .env.production with fresh secrets
@@ -93,9 +99,11 @@ config. `deploy.ps1 -Init` is safe to repeat: it never overwrites an existing
 By default the image is copied straight to the server (no registry, so it works
 where Docker Hub or other registries are hard to reach). With `-Registry
 registry.example.com/team` it is pushed there and the server pulls it. The
-server still pulls `postgres` and `caddy` from Docker Hub: set
-`TARK_POSTGRES_IMAGE` / `TARK_CADDY_IMAGE` in `.env.production` to mirrors if it
-cannot.
+`postgres` and `caddy` images are copied to the server the same way the first
+time (`-RefreshBaseImages` sends them again to pick up their updates,
+`-SkipBaseImages` leaves pulling to the server). If you set
+`TARK_POSTGRES_IMAGE` / `TARK_CADDY_IMAGE` in `.env.production`, the server
+pulls those itself.
 
 **Back up `.env.production`** somewhere private: losing `TARK_DATA_KEY` makes
 the stored Bazaar tokens unreadable, and changing `TARK_PASSWORD_PEPPER` locks

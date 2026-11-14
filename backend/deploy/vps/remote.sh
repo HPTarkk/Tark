@@ -155,6 +155,9 @@ case "$cmd" in
     ensure_backup_key
     ensure_alert_emails
     if grep -n 'CHANGE_ME' "$ENV_FILE" >&2; then die "Fill in the CHANGE_ME values above in $ENV_FILE first." 3; fi
+    # Placeholders from an older example file would start a stack that asks
+    # for a certificate for example.com and emails links that lead nowhere.
+    if grep -nE '^TARK_(DOMAIN|ADMIN_DOMAIN|LINK_BASE_URL|SITE_DOMAIN|GUEST_DOMAIN)=.*example\.(com|org|net)' "$ENV_FILE" >&2; then die "The lines above in $ENV_FILE still hold example addresses; put the real ones there first." 3; fi
     # Caddy serves the website and the guest app from here; it must exist
     # before the stack starts, or Docker creates it and nothing can publish.
     mkdir -p "$SITES_DIR/.releases"

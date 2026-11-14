@@ -126,6 +126,7 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 	limits := ratelimit.NewPG(aux, lookup)
 	aud := audit.New(aux, lookup, log)
 	gv := google.NewVerifier(cfg.Google.ClientIDs, cfg.Google.JWKSURL, nil)
+	gv.UseTokenInfo(cfg.Google.TokenInfoURL)
 
 	authSvc := auth.NewService(pool, lookup, pw, limits, aud, outbox, gv, cfg.Keys.TokenKey, auth.Settings{
 		AccessTTL: cfg.AccessTokenTTL, RefreshTTL: cfg.RefreshTokenTTL, SessionMaxLifetime: cfg.SessionMaxLifetime,

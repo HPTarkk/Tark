@@ -89,6 +89,9 @@ type GoogleConfig struct {
 	ClientIDs    []string
 	RequireNonce bool
 	JWKSURL      string
+	// Asked to check a token's signature while the keys at JWKSURL cannot
+	// be fetched. Empty switches that off.
+	TokenInfoURL string
 }
 
 type BazaarConfig struct {
@@ -307,6 +310,7 @@ func Load() (*Config, error) {
 		ClientIDs:    splitList(get("TARK_GOOGLE_CLIENT_IDS", "")),
 		RequireNonce: boolean("TARK_GOOGLE_REQUIRE_NONCE", true),
 		JWKSURL:      get("TARK_GOOGLE_JWKS_URL", "https://www.googleapis.com/oauth2/v3/certs"),
+		TokenInfoURL: get("TARK_GOOGLE_TOKENINFO_URL", "https://oauth2.googleapis.com/tokeninfo"),
 	}
 
 	c.Bazaar = BazaarConfig{

@@ -7,6 +7,11 @@
   starts it with docker compose. Nothing is built on the server, and the image
   does not have to come from Docker Hub (useful where it is hard to reach).
 
+  The PostgreSQL and Caddy images the stack also needs are sent from this
+  machine in the same way when the server does not have them yet, so the server
+  never has to download from Docker Hub (which refuses some networks) or from a
+  mirror run by someone else.
+
   The server needs: Docker Engine with the Compose plugin, an SSH login that can
   run docker, and a domain whose DNS points at it (Caddy gets the HTTPS
   certificate by itself). This machine needs: Docker, ssh and scp (Windows 10/11
@@ -48,6 +53,16 @@
 .PARAMETER SkipBuild
   Reuse an image that is already built locally (needs -Tag).
 
+.PARAMETER SkipBaseImages
+  Do not send the PostgreSQL and Caddy images; the server pulls them itself.
+
+.PARAMETER RefreshBaseImages
+  Send the PostgreSQL and Caddy images even if the server has them, to pick up
+  their updates. They are applied when the stack next starts (this deploy).
+
+.PARAMETER ServerPlatform
+  The server's platform, for the PostgreSQL and Caddy images (default linux/amd64).
+
 .PARAMETER DryRun
   Print what would run, change nothing.
 #>
@@ -63,6 +78,9 @@ param(
     [switch]$Init,
     [switch]$Rollback,
     [switch]$SkipBuild,
+    [switch]$SkipBaseImages,
+    [switch]$RefreshBaseImages,
+    [string]$ServerPlatform = 'linux/amd64',
     [switch]$DryRun
 )
 
@@ -97,6 +115,32 @@ function Send-File([string[]]$localPaths, [string]$remoteDir) {
     $names = @($localPaths | ForEach-Object { Split-Path -Leaf $_ })
     Push-Location $dir
     try { Invoke-Native 'scp' ($scpArgs + $names + @("${Server}:$remoteDir/")) } finally { Pop-Location }
+}
+
+# The images the compose file falls back to when .env.production names no others.
+function Get-BaseImages {
+    $compose = Get-Content -LiteralPath (Join-Path $Here 'docker-compose.prod.yml') -Raw
+    $found = [regex]::Matches($compose, 'image:\s*\$\{TARK_(?:POSTGRES|CADDY)_IMAGE:-([A-Za-z0-9._/:@-]+)\}')
+    return @($found | ForEach-Object { $_.Groups[1].Value })
+}
+
+function Test-RemoteImage([string]$name) {
+    if ($DryRun) { return $false }
+    & ssh @sshArgs $Server "docker image inspect '$name' >/dev/null 2>&1"
+    return ($LASTEXITCODE -eq 0)
+}
+
+# docker save + scp + docker load, for an image that is on this machine.
+function Send-Image([string]$name) {
+    $file = 'tark-image-' + ($name -replace '[^A-Za-z0-9._-]', '_') + '.tar'
+    $tar = Join-Path ([System.IO.Path]::GetTempPath()) $file
+    try {
+        Invoke-Native 'docker' @('save', '-o', $tar, $name)
+        Send-File @($tar) $RemotePath
+        Invoke-Remote "cd '$RemotePath' && docker load -i '$file' && rm -f '$file'"
+    } finally {
+        if (Test-Path $tar) { Remove-Item $tar -Force }
+    }
 }
 
 try {
@@ -150,6 +194,15 @@ try {
             Invoke-Remote "cd '$RemotePath' && docker load -i 'tark-api-$Tag.tar' && rm -f 'tark-api-$Tag.tar'"
         } finally {
             if (Test-Path $tar) { Remove-Item $tar -Force }
+        }
+    }
+
+    if (-not $SkipBaseImages) {
+        Step 'PostgreSQL and Caddy images'
+        foreach ($base in (Get-BaseImages)) {
+            if (-not $RefreshBaseImages -and (Test-RemoteImage $base)) { Info "$base is already on the server"; continue }
+            Invoke-Native 'docker' @('pull', '--platform', $ServerPlatform, $base)
+            Send-Image $base
         }
     }
 
