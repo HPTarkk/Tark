@@ -14,6 +14,7 @@ sides are written against it. It is also served as interactive documentation
 api                  openapi.yaml (the contract) and the embedded Swagger UI
 deploy               server deployment: vps/ (Compose + Caddy), arvan/ (registry push)
 cmd/tarkd            the binary: serve, worker, migrate, keygen, pubkeys, healthcheck
+cmd/tarkload         load testing against a development database (see LOADTEST.md)
 internal/app         wires everything together (also used by the e2e tests)
 internal/httpapi     routing, middleware, JSON in and out; no business rules
 internal/auth        sign-up, login, Google, sessions, password and email flows
@@ -78,6 +79,7 @@ or malformed secret.
 | `TARK_DATABASE_URL` | PostgreSQL URL. Use `sslmode=verify-full` when the database is not on a private network. |
 | `TARK_HTTP_ADDR` | Listen address, default `:8080` |
 | `TARK_DB_MAX_CONNS`, `TARK_DB_AUX_CONNS` | Size of the main connection pool (default 20) and of the small pool used only for audit and rate-limit writes (default 5). Keep `replicas x (max + aux)` under the database's `max_connections`. |
+| `TARK_PASSWORD_HASH_SLOTS` | How many password hashes may run at once (each takes one processor and 46 MiB for tens of milliseconds). Default: half the processors, at least 1, so sign-ins can never take the processor away from every other request. A sign-in that cannot start within 5 s is answered 503 with `Retry-After`. |
 | `TARK_DATABASE_ALLOW_PLAINTEXT` | In production the server refuses a database connection without TLS to a host that does not look private. Set `true` only for a private network with a public-looking name. |
 | `TARK_DOCS_ENABLED` | Serve `/docs` (Swagger UI) and `/openapi.yaml`. Default `true` in development, `false` in production. |
 | `TARK_RUN_WORKERS` | Run the mail, billing and cleanup workers in the API process (default `true`). Several instances are safe. |

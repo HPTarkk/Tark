@@ -59,7 +59,10 @@ const (
 	refreshRetryGap  = 60 * time.Second
 	maxLiveSessions  = 20
 	lastSeenInterval = 10 * time.Minute
-	completedReplay  = 10 * time.Minute
+	// usedTokenKeep is how long a used refresh token is remembered, which is
+	// how long after a theft the owner's next launch still ends the session.
+	usedTokenKeep   = 30 * 24 * time.Hour
+	completedReplay = 10 * time.Minute
 )
 
 // Rate limits. Per-IP limits stop one source hammering; per-target limits
@@ -326,6 +329,12 @@ func Sweep(ctx context.Context, pool *pgxpool.Pool) error {
 		store.SweepRule{Table: "google_nonces", Where: `expires_at < now()`},
 		store.SweepRule{Table: "google_seen_tokens", Where: `expires_at < now()`},
 		store.SweepRule{Table: "refresh_tokens", Where: `expires_at < now() - interval '1 day'`},
+		// A used token is only looked at again to spot a stolen copy being
+		// replayed. Keeping every one until it would have expired (six months)
+		// made this the largest table by far: one row per app launch, about
+		// 260 bytes each with its indexes. After usedTokenKeep a replayed token
+		// is simply unknown: still refused, but it no longer ends the session.
+		store.SweepRule{Table: "refresh_tokens", Where: `used_at IS NOT NULL AND used_at < now() - $1::interval`, Args: []any{usedTokenKeep}},
 		store.SweepRule{Table: "sessions", Where: `(revoked_at IS NOT NULL AND revoked_at < now() - interval '30 days') OR expires_at < now() - interval '30 days'`},
 		store.SweepRule{Table: "idempotency_keys", Where: `expires_at < now()`},
 	)

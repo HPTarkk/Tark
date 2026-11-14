@@ -69,7 +69,9 @@ type Config struct {
 	AccessTokenTTL     time.Duration
 	RefreshTokenTTL    time.Duration // idle lifetime; each refresh extends it
 	SessionMaxLifetime time.Duration
-	PasswordHashSlots  int
+	// PasswordHashSlots bounds how many password hashes run at once. Zero
+	// picks half the processors (see app.Build).
+	PasswordHashSlots int
 }
 
 type Keys struct {
@@ -265,7 +267,7 @@ func Load() (*Config, error) {
 		AccessTokenTTL:     duration("TARK_ACCESS_TOKEN_TTL", 15*time.Minute),
 		RefreshTokenTTL:    duration("TARK_REFRESH_TOKEN_TTL", 180*24*time.Hour),
 		SessionMaxLifetime: duration("TARK_SESSION_MAX_LIFETIME", 2*365*24*time.Hour),
-		PasswordHashSlots:  integer("TARK_PASSWORD_HASH_SLOTS", 4),
+		PasswordHashSlots:  integer("TARK_PASSWORD_HASH_SLOTS", 0),
 	}
 
 	for _, p := range splitList(get("TARK_TRUSTED_PROXIES", "")) {
