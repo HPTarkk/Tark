@@ -1526,7 +1526,7 @@ class AppLocalizationsFa extends AppLocalizations {
       '«عادی» گزارش رو مثل همیشه نگه می‌داره. «صفحه‌ها» صفحه‌هایی که باز می‌کنی و دکمه‌های اصلی‌ای که می‌زنی رو هم ثبت می‌کنه. «همه‌چیز» هر لمس و هر تغییر تنظیمات رو هم اضافه می‌کنه. همه‌ش روی همین گوشی می‌مونه.';
 
   @override
-  String settings_log_usage(Object max, Object used) {
+  String settings_log_usage(String used, String max) {
     return '$used از $max پر شده';
   }
 
