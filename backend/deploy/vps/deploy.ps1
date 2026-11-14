@@ -19,8 +19,9 @@
 
   First deploy:   .\deploy.ps1 -Server deploy@203.0.113.10 -Init
                   (creates .env.production on the server with fresh secrets,
-                  then stops so you can fill in the domain, SMTP and
-                  Bazaar values; the Google client id is already set:  ssh deploy@203.0.113.10 nano /opt/tark/.env.production)
+                  then stops so you can fill in the mail server, Cafe Bazaar's
+                  Payment API token and the alert address:
+                  .\set-server-settings.ps1 -Server deploy@203.0.113.10)
   Every update:   .\deploy.ps1 -Server deploy@203.0.113.10
   Go back:        .\deploy.ps1 -Server deploy@203.0.113.10 -Rollback
 
@@ -210,8 +211,8 @@ try {
         Step 'Creating .env.production on the server'
         Invoke-Remote "cd '$RemotePath' && bash remote.sh init '$image'"
         Write-Host ''
-        Write-Host "Next: fill in the CHANGE_ME values, then deploy again without -Init:" -ForegroundColor Yellow
-        Write-Host "  ssh -p $SshPort $Server nano $RemotePath/.env.production"
+        Write-Host "Next: fill in the settings it left for you, then deploy again without -Init:" -ForegroundColor Yellow
+        Write-Host "  .\set-server-settings.ps1 -Server $Server"
         return
     }
 

@@ -75,6 +75,26 @@ ensure_alert_emails() {
   echo "Added TARK_ALERT_EMAILS to $ENV_FILE: put the address(es) that should get alert emails there."
 }
 
+# Bazaar's old OAuth method needed three settings; the Payment API needs one
+# token. A file from before the change gets the new line, still to be filled
+# in, and loses the three the backend no longer reads.
+OLD_BAZAAR_KEYS='TARK_BAZAAR_CLIENT_ID|TARK_BAZAAR_CLIENT_SECRET|TARK_BAZAAR_REFRESH_TOKEN'
+migrate_bazaar_settings() {
+  if ! grep -qE '^TARK_BAZAAR_PAYMENT_API_TOKEN=' "$ENV_FILE"; then
+    set_kv TARK_BAZAAR_PAYMENT_API_TOKEN CHANGE_ME
+    echo "Added TARK_BAZAAR_PAYMENT_API_TOKEN to $ENV_FILE: put the app's Payment API token from Pishkhan there."
+  fi
+  if grep -qE "^($OLD_BAZAAR_KEYS)=" "$ENV_FILE"; then
+    # The file as it was stays next to it, in case the old values are wanted.
+    cp -p "$ENV_FILE" "$ENV_FILE.bak-before-bazaar-token"
+    chmod 600 "$ENV_FILE.bak-before-bazaar-token"
+    grep -vE "^($OLD_BAZAAR_KEYS)=" "$ENV_FILE" > "$ENV_FILE.tmp"
+    mv "$ENV_FILE.tmp" "$ENV_FILE"
+    chmod 600 "$ENV_FILE"
+    echo "Removed the three old Bazaar OAuth settings from $ENV_FILE; they are no longer used."
+  fi
+}
+
 api_exec() { "${COMPOSE[@]}" exec -T api /tarkd "$@"; }
 
 current_image() { grep -E '^TARK_IMAGE=' "$ENV_FILE" | head -n1 | cut -d= -f2-; }
@@ -147,7 +167,7 @@ case "$cmd" in
     echo "Public entitlement key for the app build (safe to publish):"
     echo "$keys" | grep '"TARK_ENTITLEMENT_KEYS"' || true
     echo
-    echo "Now edit the CHANGE_ME values (domain, SMTP, Bazaar), then deploy again without -Init."
+    echo "Now fill in the CHANGE_ME values (mail server, Bazaar's Payment API token, alert address): set-server-settings.ps1 asks for each. Then deploy again without -Init."
     ;;
   up)
     image=${2:?usage: remote.sh up <image>}
@@ -163,6 +183,7 @@ case "$cmd" in
     grep -qE '^TARK_ADMIN_DOMAIN=' "$ENV_FILE" || set_kv TARK_ADMIN_DOMAIN "$(grep -E '^TARK_ADMIN_DOMAIN=' .env.production.example | cut -d= -f2- | tr -d '\r')"
     ensure_backup_key
     ensure_alert_emails
+    migrate_bazaar_settings
     if grep -n 'CHANGE_ME' "$ENV_FILE" >&2; then die "Fill in the CHANGE_ME values above in $ENV_FILE first." 3; fi
     # Placeholders from an older example file would start a stack that asks
     # for a certificate for example.com and emails links that lead nowhere.
@@ -236,6 +257,8 @@ case "$cmd" in
       name=${line%%=*}
       [[ "$line" == *=* && "$name" =~ ^TARK_[A-Z0-9_]+$ ]] || die "Not a NAME=value line for a TARK_ setting; nothing was changed."
       case "$name" in
+        TARK_BAZAAR_CLIENT_ID|TARK_BAZAAR_CLIENT_SECRET|TARK_BAZAAR_REFRESH_TOKEN)
+          die "$name belongs to Bazaar's old OAuth method and is no longer used; set TARK_BAZAAR_PAYMENT_API_TOKEN. Nothing was changed." ;;
         TARK_ENV|TARK_IMAGE|TARK_TOKEN_KEY|TARK_LOOKUP_KEY|TARK_DATA_KEY|TARK_PASSWORD_PEPPER|TARK_ENTITLEMENT_KEYS|TARK_ENTITLEMENT_ACTIVE_KID|TARK_BACKUP_KEY)
           die "$name is generated or set by the deploy and is not changed this way; nothing was changed." ;;
       esac
@@ -244,6 +267,7 @@ case "$cmd" in
     [ "${#pairs[@]}" -gt 0 ] || die "No settings were given."
     cp -p "$ENV_FILE" "$ENV_FILE.bak-$(date -u +%Y%m%d-%H%M%S)"
     chmod 600 "$ENV_FILE".bak-*
+    migrate_bazaar_settings
     for line in "${pairs[@]}"; do
       set_kv "${line%%=*}" "${line#*=}"
       echo "Set ${line%%=*}."
@@ -254,7 +278,11 @@ case "$cmd" in
     echo "Not secret:"
     grep -E '^TARK_(DOMAIN|ADMIN_DOMAIN|SITE_DOMAIN|GUEST_DOMAIN|LINK_BASE_URL|MAIL_FROM|SMTP_HOST|SMTP_PORT|SMTP_SECURITY|ALERT_EMAILS)=' "$ENV_FILE" | sed 's/^/    /' || true
     echo "Still to fill in:"
-    unfilled=$(grep -E '^[A-Z_]+=.*(CHANGE_ME|example\.(com|org|net))' "$ENV_FILE" | cut -d= -f1 | sed 's/^/    /' || true)
+    # Looks only: a file from before the Payment API is reported the way
+    # the next deploy will leave it.
+    unfilled=$(grep -E '^[A-Z_]+=.*(CHANGE_ME|example\.(com|org|net))' "$ENV_FILE" | cut -d= -f1 | grep -vE "^($OLD_BAZAAR_KEYS)$" || true)
+    grep -qE '^TARK_BAZAAR_PAYMENT_API_TOKEN=' "$ENV_FILE" || unfilled=$(printf '%s\n%s' "$unfilled" TARK_BAZAAR_PAYMENT_API_TOKEN)
+    unfilled=$(printf '%s\n' "$unfilled" | sed '/^$/d; s/^/    /')
     echo "${unfilled:-    nothing}"
     ;;
   site-install)

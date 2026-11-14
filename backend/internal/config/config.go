@@ -99,13 +99,12 @@ type GoogleConfig struct {
 type BazaarConfig struct {
 	// Fake answers every token as a one-month active subscription. Only
 	// allowed in development.
-	Fake         bool
-	BaseURL      string
-	PackageName  string
-	ClientID     string
-	ClientSecret string
-	RefreshToken string
-	SKUs         []string
+	Fake        bool
+	BaseURL     string
+	PackageName string
+	// APIToken is the app's Payment API token from Pishkhan.
+	APIToken string
+	SKUs     []string
 }
 
 // ReviewsConfig is Cafe Bazaar's reviews API, behind the admin panel's
@@ -316,13 +315,11 @@ func Load() (*Config, error) {
 	}
 
 	c.Bazaar = BazaarConfig{
-		Fake:         boolean("TARK_BAZAAR_FAKE", false),
-		BaseURL:      strings.TrimRight(get("TARK_BAZAAR_BASE_URL", "https://pardakht.cafebazaar.ir/devapi/v2"), "/"),
-		PackageName:  get("TARK_BAZAAR_PACKAGE", "com.b1101.tark"),
-		ClientID:     secret("TARK_BAZAAR_CLIENT_ID", false),
-		ClientSecret: secret("TARK_BAZAAR_CLIENT_SECRET", false),
-		RefreshToken: secret("TARK_BAZAAR_REFRESH_TOKEN", false),
-		SKUs:         splitList(get("TARK_BAZAAR_SKUS", "tark_premium_1m,tark_premium_3m,tark_premium_6m,tark_premium_12m")),
+		Fake:        boolean("TARK_BAZAAR_FAKE", false),
+		BaseURL:     strings.TrimRight(get("TARK_BAZAAR_BASE_URL", "https://pardakht.cafebazaar.ir/devapi/v2"), "/"),
+		PackageName: get("TARK_BAZAAR_PACKAGE", "com.b1101.tark"),
+		APIToken:    secret("TARK_BAZAAR_PAYMENT_API_TOKEN", false),
+		SKUs:        splitList(get("TARK_BAZAAR_SKUS", "tark_premium_1m,tark_premium_3m,tark_premium_6m,tark_premium_12m")),
 	}
 
 	c.Reviews = ReviewsConfig{
@@ -411,8 +408,12 @@ func (c *Config) validate() []error {
 		if !c.Development() {
 			errs = append(errs, errors.New("TARK_BAZAAR_FAKE is only allowed with TARK_ENV=development"))
 		}
-	} else if c.Bazaar.ClientID == "" || c.Bazaar.ClientSecret == "" || c.Bazaar.RefreshToken == "" {
-		errs = append(errs, errors.New("TARK_BAZAAR_CLIENT_ID, TARK_BAZAAR_CLIENT_SECRET and TARK_BAZAAR_REFRESH_TOKEN are required"))
+	} else if c.Bazaar.APIToken == "" {
+		msg := "TARK_BAZAAR_PAYMENT_API_TOKEN is required (the app's token from Pishkhan's API page)"
+		if os.Getenv("TARK_BAZAAR_REFRESH_TOKEN") != "" || os.Getenv("TARK_BAZAAR_CLIENT_ID") != "" {
+			msg += "; it replaces TARK_BAZAAR_CLIENT_ID, TARK_BAZAAR_CLIENT_SECRET and TARK_BAZAAR_REFRESH_TOKEN, which are no longer read"
+		}
+		errs = append(errs, errors.New(msg))
 	}
 	errs = append(errs, c.Reviews.validate(c.Development())...)
 	p := c.Policy

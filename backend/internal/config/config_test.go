@@ -79,7 +79,7 @@ func TestDocsDefaultToDevelopmentOnly(t *testing.T) {
 	prod := map[string]string{
 		"TARK_ENV": "production", "TARK_MAIL_DRIVER": "smtp", "TARK_BAZAAR_FAKE": "false",
 		"TARK_SMTP_HOST": "smtp.example.com", "TARK_MAIL_FROM": "a@example.com",
-		"TARK_BAZAAR_CLIENT_ID": "i", "TARK_BAZAAR_CLIENT_SECRET": "s", "TARK_BAZAAR_REFRESH_TOKEN": "r",
+		"TARK_BAZAAR_PAYMENT_API_TOKEN": "t",
 	}
 	c, err = loadWith(t, prod)
 	if err != nil {
@@ -98,8 +98,8 @@ func TestProductionRefusesPlaintextDatabaseOnPublicHost(t *testing.T) {
 	prod := map[string]string{
 		"TARK_ENV": "production", "TARK_MAIL_DRIVER": "smtp", "TARK_BAZAAR_FAKE": "false",
 		"TARK_SMTP_HOST": "smtp.example.com", "TARK_MAIL_FROM": "a@example.com",
-		"TARK_BAZAAR_CLIENT_ID": "i", "TARK_BAZAAR_CLIENT_SECRET": "s", "TARK_BAZAAR_REFRESH_TOKEN": "r",
-		"TARK_DATABASE_URL": "postgres://u:p@db.example.com/tark?sslmode=disable",
+		"TARK_BAZAAR_PAYMENT_API_TOKEN": "t",
+		"TARK_DATABASE_URL":             "postgres://u:p@db.example.com/tark?sslmode=disable",
 	}
 	if _, err := loadWith(t, prod); err == nil {
 		t.Fatal("plaintext to a public host must be refused in production")
@@ -235,5 +235,28 @@ func TestReviewsSettings(t *testing.T) {
 	prod.Key = "two\nlines"
 	if errs := prod.validate(false); len(errs) != 1 {
 		t.Fatalf("multi-line key: %v", errs)
+	}
+}
+
+func TestProductionNeedsTheBazaarPaymentAPIToken(t *testing.T) {
+	prod := map[string]string{
+		"TARK_ENV": "production", "TARK_MAIL_DRIVER": "smtp", "TARK_BAZAAR_FAKE": "false",
+		"TARK_SMTP_HOST": "smtp.example.com", "TARK_MAIL_FROM": "a@example.com",
+	}
+	_, err := loadWith(t, prod)
+	if err == nil || !strings.Contains(err.Error(), "TARK_BAZAAR_PAYMENT_API_TOKEN is required") {
+		t.Fatalf("a missing token must be refused by name, got %v", err)
+	}
+	// The three settings of the old OAuth method do not count any more, and
+	// the error says what replaced them.
+	prod["TARK_BAZAAR_CLIENT_ID"], prod["TARK_BAZAAR_CLIENT_SECRET"], prod["TARK_BAZAAR_REFRESH_TOKEN"] = "i", "s", "r"
+	_, err = loadWith(t, prod)
+	if err == nil || !strings.Contains(err.Error(), "it replaces TARK_BAZAAR_CLIENT_ID") {
+		t.Fatalf("the old settings alone must be refused with a hint, got %v", err)
+	}
+	prod["TARK_BAZAAR_PAYMENT_API_TOKEN"] = "t"
+	c, err := loadWith(t, prod)
+	if err != nil || c.Bazaar.APIToken != "t" {
+		t.Fatalf("the token alone must be enough: %v", err)
 	}
 }
