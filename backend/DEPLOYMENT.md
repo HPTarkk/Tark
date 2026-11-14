@@ -94,6 +94,14 @@ expected from an Iranian data centre and are already handled:
 .\backend\deploy\vps\deploy.ps1 -Server deploy@203.0.113.10 -Rollback
 ```
 
+**Upgrading a server set up before Bazaar's Payment API (one token instead of
+the OAuth client id, client secret and refresh token):** deploy as usual. The
+deploy removes the three old lines from `.env.production`, adds
+`TARK_BAZAAR_PAYMENT_API_TOKEN=CHANGE_ME` and stops until it is filled in.
+Make the token in Pishkhan (the app, "API پیشخان بازار", "دریافت توکن جدید"),
+enter it with `set-server-settings.ps1 -Server ... -Only Bazaar` (it is typed
+hidden; mail and alert settings are not touched) and deploy again.
+
 Step 1 prints the **public entitlement key**; put it in the app's billing
 config. `deploy.ps1 -Init` is safe to repeat: it never overwrites an existing
 `.env.production`.

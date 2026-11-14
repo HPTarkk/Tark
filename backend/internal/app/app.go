@@ -119,7 +119,7 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 		} else {
 			bz = &billing.BazaarHTTP{
 				BaseURL: cfg.Bazaar.BaseURL, PackageName: cfg.Bazaar.PackageName,
-				ClientID: cfg.Bazaar.ClientID, ClientSecret: cfg.Bazaar.ClientSecret, RefreshToken: cfg.Bazaar.RefreshToken,
+				APIToken: cfg.Bazaar.APIToken,
 			}
 		}
 	}
