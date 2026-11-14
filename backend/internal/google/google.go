@@ -6,6 +6,12 @@
 // Google's keys are cached and kept after a failed refresh, because reaching
 // googleapis.com from Iran can be disrupted for a while. Keys rotate every
 // few weeks and overlap, so a cache a few days old still verifies.
+//
+// Some networks cannot fetch the keys at all (Google answers 403 to Iranian
+// data centres). When no usable keys are held, the signature is checked by
+// Google's own tokeninfo endpoint instead, which is reachable from there. Only
+// its verdict on the signature is used: every claim is still read from the
+// token and checked here.
 package google
 
 import (
@@ -20,6 +26,7 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,8 +51,11 @@ var (
 type Verifier struct {
 	clientIDs map[string]struct{}
 	jwksURL   string
-	http      *http.Client
-	now       func() time.Time
+	// tokenInfoURL, when set, is asked to check the signature while no
+	// signing keys can be fetched.
+	tokenInfoURL string
+	http         *http.Client
+	now          func() time.Time
 
 	mu          sync.Mutex
 	keys        map[string]*rsa.PublicKey
@@ -71,6 +81,11 @@ func NewVerifier(clientIDs []string, jwksURL string, client *http.Client) *Verif
 	return &Verifier{clientIDs: ids, jwksURL: jwksURL, http: client, now: time.Now}
 }
 
+// UseTokenInfo makes the verifier ask Google's tokeninfo endpoint (url) to
+// check a token's signature whenever the signing keys cannot be fetched. Call
+// it before the verifier is used. An empty url switches it off.
+func (v *Verifier) UseTokenInfo(url string) { v.tokenInfoURL = url }
+
 // Verify checks raw and returns its claims.
 func (v *Verifier) Verify(ctx context.Context, raw string) (*Claims, error) {
 	if len(raw) > 8192 {
@@ -93,17 +108,23 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (*Claims, error) {
 	if header.Alg != "RS256" || header.Kid == "" {
 		return nil, fmt.Errorf("%w: unexpected alg", ErrInvalid)
 	}
-	key, err := v.key(ctx, header.Kid)
-	if err != nil {
-		return nil, err
-	}
 	sig, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil {
 		return nil, fmt.Errorf("%w: signature encoding", ErrInvalid)
 	}
-	digest := sha256.Sum256([]byte(parts[0] + "." + parts[1]))
-	if err := rsa.VerifyPKCS1v15(key, crypto.SHA256, digest[:], sig); err != nil {
-		return nil, fmt.Errorf("%w: signature", ErrInvalid)
+	key, err := v.key(ctx, header.Kid)
+	switch {
+	case err == nil:
+		digest := sha256.Sum256([]byte(parts[0] + "." + parts[1]))
+		if err := rsa.VerifyPKCS1v15(key, crypto.SHA256, digest[:], sig); err != nil {
+			return nil, fmt.Errorf("%w: signature", ErrInvalid)
+		}
+	case errors.Is(err, ErrKeysUnset) && v.tokenInfoURL != "":
+		if err := v.askGoogle(ctx, raw); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, err
 	}
 
 	var c struct {
@@ -151,6 +172,55 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (*Claims, error) {
 		Nonce:         c.Nonce,
 		ExpiresAt:     expires,
 	}, nil
+}
+
+// askGoogle has Google itself check raw's signature. Google answers 200 only
+// for a token it signed that has not expired, and 400 for anything else. The
+// claims in its answer are compared with the token's, never used in place of
+// them, so the checks in Verify stay the only ones that decide.
+func (v *Verifier) askGoogle(ctx context.Context, raw string) error {
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	// In the body, not the address: addresses end up in logs along the way.
+	body := strings.NewReader("id_token=" + url.QueryEscape(raw))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, v.tokenInfoURL, body)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrKeysUnset, err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := v.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("%w: tokeninfo: %v", ErrKeysUnset, err)
+	}
+	defer resp.Body.Close()
+	switch {
+	case resp.StatusCode == http.StatusBadRequest:
+		return fmt.Errorf("%w: refused by Google", ErrInvalid)
+	case resp.StatusCode != http.StatusOK:
+		return fmt.Errorf("%w: tokeninfo status %d", ErrKeysUnset, resp.StatusCode)
+	}
+	var info struct {
+		Sub string `json:"sub"`
+		Aud string `json:"aud"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<16)).Decode(&info); err != nil {
+		return fmt.Errorf("%w: tokeninfo answer", ErrKeysUnset)
+	}
+	var own struct {
+		Sub string          `json:"sub"`
+		Aud json.RawMessage `json:"aud"`
+	}
+	parts := strings.Split(raw, ".")
+	if err := decodeSegment(parts[1], &own); err != nil {
+		return fmt.Errorf("%w: payload", ErrInvalid)
+	}
+	var aud string
+	_ = json.Unmarshal(own.Aud, &aud)
+	// An answer about some other token is not an answer about this one.
+	if info.Sub == "" || info.Sub != own.Sub || info.Aud == "" || info.Aud != aud {
+		return fmt.Errorf("%w: tokeninfo answer does not match the token", ErrInvalid)
+	}
+	return nil
 }
 
 func (v *Verifier) audienceOK(raw json.RawMessage) bool {

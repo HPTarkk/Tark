@@ -85,6 +85,7 @@ or malformed secret.
 | `TARK_ENTITLEMENT_KEYS`, `TARK_ENTITLEMENT_ACTIVE_KID` | Ed25519 seeds `kid:seed,…` and the one that signs. `tarkd pubkeys` prints the public halves for the app's `TARK_ENTITLEMENT_KEYS`. |
 | `TARK_GOOGLE_CLIENT_IDS` | Comma-separated OAuth client ids accepted as the ID token audience. Tarkk's is the web client `632050243845-ntpm08ltt1uhmqd9401f5k2tjgb81l7h.apps.googleusercontent.com` (the Android client is not listed: its tokens carry the web client as audience). |
 | `TARK_GOOGLE_REQUIRE_NONCE` | Default `true`. See open questions. |
+| `TARK_GOOGLE_JWKS_URL`, `TARK_GOOGLE_TOKENINFO_URL` | Where Google's signing keys are fetched, and the endpoint that checks a token's signature while they cannot be (Google answers 403 to Iranian data centres). Defaults are Google's own; an empty tokeninfo value switches the fallback off. |
 | `TARK_LINK_BASE_URL` | Base of email links, default `https://tarkk.ir` |
 | `TARK_SMTP_HOST`, `TARK_SMTP_PORT`, `TARK_SMTP_USERNAME`, `TARK_SMTP_PASSWORD`, `TARK_SMTP_SECURITY` | SMTP server. `starttls` (587) or `tls` (465); there is no plaintext mode. |
 | `TARK_MAIL_FROM`, `TARK_MAIL_FROM_NAME` | Sender address and name |

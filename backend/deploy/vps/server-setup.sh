@@ -91,6 +91,36 @@ reach_port() {
   if port_open "$hostport"; then ok "$name ($hostport)"; else warn "$name: cannot connect to $hostport ($why)"; fi
 }
 
+# Docker Hub answers its API from one host and hands out the image files from
+# another, and it is the second that refuses some networks. So this fetches a
+# real (tiny) image file, the way docker pull would.
+docker_hub_download() {
+  local name="Docker Hub image downloads" why="not needed when deploy.ps1 sends the images, which it does by default"
+  local repo=library/hello-world token digest code
+  token=$(curl -s --max-time 15 "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$repo:pull" 2>/dev/null | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+  if [ -z "$token" ]; then warn "$name: no answer from auth.docker.io ($why)"; return 0; fi
+  digest=$(curl -s --max-time 15 -H "Authorization: Bearer $token" \
+    -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+    "https://registry-1.docker.io/v2/$repo/manifests/latest" 2>/dev/null | grep -o 'sha256:[0-9a-f]\{64\}' | head -n1)
+  if [ -z "$digest" ]; then warn "$name: registry-1.docker.io gave no image list ($why)"; return 0; fi
+  code=$(curl -s -L -o /dev/null -w '%{http_code}' --max-time 20 -H "Authorization: Bearer $token" "https://registry-1.docker.io/v2/$repo/blobs/$digest" 2>/dev/null || true)
+  if [ "$code" = 200 ]; then ok "$name (200)"; else warn "$name: refused with ${code:-no answer} ($why)"; fi
+}
+
+# The backend checks Google sign-ins with Google's published keys, and asks
+# Google's tokeninfo endpoint instead when the keys cannot be fetched. Sign-in
+# works when either answers (tokeninfo says 400 to a request with no token).
+google_sign_in() {
+  local keys info
+  keys=$(http_code https://www.googleapis.com/oauth2/v3/certs)
+  if [ "$keys" = 200 ]; then ok "Google sign-in keys (200)"; return 0; fi
+  info=$(http_code https://oauth2.googleapis.com/tokeninfo)
+  case "$info" in
+    200|400) ok "Google sign-in: the keys are refused (${keys:-no answer}), but Google's token check is reachable and is used instead" ;;
+    *) warn "Google sign-in: neither the keys (${keys:-no answer}) nor the token check (${info:-no answer}) can be reached, so Google sign-in cannot work" ;;
+  esac
+}
+
 check() {
   step "The machine"
   echo "    system   ${PRETTY_NAME:-$OS_ID $OS_VERSION} ($(uname -m), kernel $(uname -r))"
@@ -114,11 +144,11 @@ check() {
   fi
 
   step "What the server can reach"
-  reach "Google sign-in keys" https://www.googleapis.com/oauth2/v3/certs "Google sign-in cannot be verified without it"
+  google_sign_in
   reach "Let's Encrypt" https://acme-v02.api.letsencrypt.org/directory "Caddy gets the HTTPS certificates there"
   reach "Cafe Bazaar API" https://pardakht.cafebazaar.ir/ "purchases are verified there"
   reach "Docker packages" "$DOCKER_REPO_BASE/linux/static/stable/" "needed once, to install Docker; a mirror can be given"
-  reach "Docker Hub" https://registry-1.docker.io/v2/ "the PostgreSQL and Caddy images are pulled from it; a mirror can be given"
+  docker_hub_download
   reach_port "Gmail SMTP" smtp.gmail.com:587 "only matters if mail is sent through Gmail"
   [ -z "$SMTP_CHECK" ] || reach_port "Mail server" "$SMTP_CHECK" "sign-up and reset emails go through it"
 
