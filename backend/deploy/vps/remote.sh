@@ -42,7 +42,7 @@ set_kv() {
 # was known picks it up on its next deploy. A value someone set is kept.
 fill_from_example() {
   local key=$1 example current
-  example=$(grep -E "^${key}=" .env.production.example | head -n1 | cut -d= -f2- || true)
+  example=$(grep -E "^${key}=" .env.production.example | head -n1 | cut -d= -f2- | tr -d '\r' || true)
   current=$(grep -E "^${key}=" "$ENV_FILE" | head -n1 | cut -d= -f2- || true)
   case "$example" in ''|*CHANGE_ME*) return 0 ;; esac
   case "$current" in ''|*CHANGE_ME*) set_kv "$key" "$example"; echo "Set $key from .env.production.example." ;; esac
@@ -133,7 +133,8 @@ case "$cmd" in
     need_docker
     if [ -f "$ENV_FILE" ]; then echo "$ENV_FILE already exists; leaving it alone."; exit 0; fi
     umask 077
-    cp .env.production.example "$ENV_FILE"
+    # Without carriage returns, in case the example came from a Windows checkout.
+    tr -d '\r' < .env.production.example > "$ENV_FILE"
     keys=$(docker run --rm "$image" keygen)
     while IFS= read -r line; do
       case "$line" in TARK_*=*) set_kv "${line%%=*}" "${line#*=}" ;; esac
@@ -151,7 +152,13 @@ case "$cmd" in
     need_docker
     [ -f "$ENV_FILE" ] || die "$ENV_FILE is missing. Run the first deploy with -Init." 2
     fill_from_example TARK_GOOGLE_CLIENT_IDS
-    grep -qE '^TARK_ADMIN_DOMAIN=' "$ENV_FILE" || set_kv TARK_ADMIN_DOMAIN "$(grep -E '^TARK_ADMIN_DOMAIN=' .env.production.example | cut -d= -f2-)"
+    # A file made from a Windows copy of the example has a carriage return at
+    # the end of every line, which would become part of each value.
+    if grep -q $'\r' "$ENV_FILE"; then
+      tr -d '\r' < "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE" && chmod 600 "$ENV_FILE"
+      echo "Removed Windows line endings from $ENV_FILE."
+    fi
+    grep -qE '^TARK_ADMIN_DOMAIN=' "$ENV_FILE" || set_kv TARK_ADMIN_DOMAIN "$(grep -E '^TARK_ADMIN_DOMAIN=' .env.production.example | cut -d= -f2- | tr -d '\r')"
     ensure_backup_key
     ensure_alert_emails
     if grep -n 'CHANGE_ME' "$ENV_FILE" >&2; then die "Fill in the CHANGE_ME values above in $ENV_FILE first." 3; fi
