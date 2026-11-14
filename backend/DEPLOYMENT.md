@@ -82,8 +82,10 @@ expected from an Iranian data centre and are already handled:
 # 1. First time: build, ship the image, create .env.production with fresh secrets
 .\backend\deploy\vps\deploy.ps1 -Server deploy@203.0.113.10 -Init
 
-# 2. Fill in the CHANGE_ME values (domain, SMTP, Bazaar; the Google client id is preset)
-ssh deploy@203.0.113.10 nano /opt/tark/.env.production
+# 2. Fill in the settings it leaves for you (mail server, Bazaar, alert address).
+#    It asks for each one; passwords and tokens are typed hidden and go straight
+#    to the server. (Or edit the file there: ssh ... nano /opt/tark/.env.production)
+.\backend\deploy\vps\set-server-settings.ps1 -Server deploy@203.0.113.10
 
 # 3. Deploy (and every later update)
 .\backend\deploy\vps\deploy.ps1 -Server deploy@203.0.113.10

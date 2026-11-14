@@ -147,7 +147,7 @@ check() {
   google_sign_in
   reach "Let's Encrypt" https://acme-v02.api.letsencrypt.org/directory "Caddy gets the HTTPS certificates there"
   reach "Cafe Bazaar API" https://pardakht.cafebazaar.ir/ "purchases are verified there"
-  reach "Docker packages" "$DOCKER_REPO_BASE/linux/static/stable/" "needed once, to install Docker; a mirror can be given"
+  reach "Docker packages" "$DOCKER_REPO_BASE/linux/centos/docker-ce.repo" "needed once, to install Docker; a mirror can be given"
   docker_hub_download
   reach_port "Gmail SMTP" smtp.gmail.com:587 "only matters if mail is sent through Gmail"
   [ -z "$SMTP_CHECK" ] || reach_port "Mail server" "$SMTP_CHECK" "sign-up and reset emails go through it"

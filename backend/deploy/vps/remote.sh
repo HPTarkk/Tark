@@ -13,6 +13,8 @@
 #   bash remote.sh log-days         list the days of API log kept on the server (30 by default)
 #   bash remote.sh log-day DATE     write one day's API log (YYYY-MM-DD, UTC) to stdout
 #   bash remote.sh admin-create EMAIL ROLE NAME   add an admin panel account (ROLE: owner, support or viewer)
+#   bash remote.sh env-set                  write settings read as NAME=value lines from standard input (set-server-settings.ps1 uses it)
+#   bash remote.sh env-status               which settings are still unfilled, and the ones that are not secret
 #   bash remote.sh site-install NAME FILE   publish the website or the guest app (NAME: website or guest) from a .tgz of its files (publish-sites.ps1 uses it)
 #   bash remote.sh site-rollback NAME       go back to the files published before the current ones
 #   bash remote.sh sites                    show what is published
@@ -42,7 +44,7 @@ set_kv() {
 # was known picks it up on its next deploy. A value someone set is kept.
 fill_from_example() {
   local key=$1 example current
-  example=$(grep -E "^${key}=" .env.production.example | head -n1 | cut -d= -f2- || true)
+  example=$(grep -E "^${key}=" .env.production.example | head -n1 | cut -d= -f2- | tr -d '\r' || true)
   current=$(grep -E "^${key}=" "$ENV_FILE" | head -n1 | cut -d= -f2- || true)
   case "$example" in ''|*CHANGE_ME*) return 0 ;; esac
   case "$current" in ''|*CHANGE_ME*) set_kv "$key" "$example"; echo "Set $key from .env.production.example." ;; esac
@@ -133,7 +135,8 @@ case "$cmd" in
     need_docker
     if [ -f "$ENV_FILE" ]; then echo "$ENV_FILE already exists; leaving it alone."; exit 0; fi
     umask 077
-    cp .env.production.example "$ENV_FILE"
+    # Without carriage returns, in case the example came from a Windows checkout.
+    tr -d '\r' < .env.production.example > "$ENV_FILE"
     keys=$(docker run --rm "$image" keygen)
     while IFS= read -r line; do
       case "$line" in TARK_*=*) set_kv "${line%%=*}" "${line#*=}" ;; esac
@@ -151,7 +154,13 @@ case "$cmd" in
     need_docker
     [ -f "$ENV_FILE" ] || die "$ENV_FILE is missing. Run the first deploy with -Init." 2
     fill_from_example TARK_GOOGLE_CLIENT_IDS
-    grep -qE '^TARK_ADMIN_DOMAIN=' "$ENV_FILE" || set_kv TARK_ADMIN_DOMAIN "$(grep -E '^TARK_ADMIN_DOMAIN=' .env.production.example | cut -d= -f2-)"
+    # A file made from a Windows copy of the example has a carriage return at
+    # the end of every line, which would become part of each value.
+    if grep -q $'\r' "$ENV_FILE"; then
+      tr -d '\r' < "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE" && chmod 600 "$ENV_FILE"
+      echo "Removed Windows line endings from $ENV_FILE."
+    fi
+    grep -qE '^TARK_ADMIN_DOMAIN=' "$ENV_FILE" || set_kv TARK_ADMIN_DOMAIN "$(grep -E '^TARK_ADMIN_DOMAIN=' .env.production.example | cut -d= -f2- | tr -d '\r')"
     ensure_backup_key
     ensure_alert_emails
     if grep -n 'CHANGE_ME' "$ENV_FILE" >&2; then die "Fill in the CHANGE_ME values above in $ENV_FILE first." 3; fi
@@ -216,6 +225,38 @@ case "$cmd" in
     shift
     api_exec admin-create "$@"
     ;;
+  env-set)
+    [ -f "$ENV_FILE" ] || die "$ENV_FILE is missing. Run the first deploy with -Init." 2
+    # Values arrive on standard input so they are never command arguments
+    # (those show in the process list). Nothing read here is printed.
+    pairs=()
+    while IFS= read -r line || [ -n "$line" ]; do
+      line=${line%$'\r'}
+      [ -n "$line" ] || continue
+      name=${line%%=*}
+      [[ "$line" == *=* && "$name" =~ ^TARK_[A-Z0-9_]+$ ]] || die "Not a NAME=value line for a TARK_ setting; nothing was changed."
+      case "$name" in
+        TARK_ENV|TARK_IMAGE|TARK_TOKEN_KEY|TARK_LOOKUP_KEY|TARK_DATA_KEY|TARK_PASSWORD_PEPPER|TARK_ENTITLEMENT_KEYS|TARK_ENTITLEMENT_ACTIVE_KID|TARK_BACKUP_KEY)
+          die "$name is generated or set by the deploy and is not changed this way; nothing was changed." ;;
+      esac
+      pairs+=("$line")
+    done
+    [ "${#pairs[@]}" -gt 0 ] || die "No settings were given."
+    cp -p "$ENV_FILE" "$ENV_FILE.bak-$(date -u +%Y%m%d-%H%M%S)"
+    chmod 600 "$ENV_FILE".bak-*
+    for line in "${pairs[@]}"; do
+      set_kv "${line%%=*}" "${line#*=}"
+      echo "Set ${line%%=*}."
+    done
+    ;;
+  env-status)
+    [ -f "$ENV_FILE" ] || die "$ENV_FILE is missing. Run the first deploy with -Init." 2
+    echo "Not secret:"
+    grep -E '^TARK_(DOMAIN|ADMIN_DOMAIN|SITE_DOMAIN|GUEST_DOMAIN|LINK_BASE_URL|MAIL_FROM|SMTP_HOST|SMTP_PORT|SMTP_SECURITY|ALERT_EMAILS)=' "$ENV_FILE" | sed 's/^/    /' || true
+    echo "Still to fill in:"
+    unfilled=$(grep -E '^[A-Z_]+=.*(CHANGE_ME|example\.(com|org|net))' "$ENV_FILE" | cut -d= -f1 | sed 's/^/    /' || true)
+    echo "${unfilled:-    nothing}"
+    ;;
   site-install)
     name=$(site_name "${2:-}")
     archive=${3:?usage: remote.sh site-install <website|guest> <file.tgz>}
@@ -259,6 +300,6 @@ case "$cmd" in
     done
     ;;
   *)
-    die "usage: remote.sh init <image> | up <image> | rollback | status | backups | backup-now | backup-cat <name> | alert-test | log-days | log-day <date> | admin-create <email> <role> <name> | site-install <website|guest> <file.tgz> | site-rollback <website|guest> | sites"
+    die "usage: remote.sh init <image> | up <image> | rollback | status | backups | backup-now | backup-cat <name> | alert-test | log-days | log-day <date> | admin-create <email> <role> <name> | env-set | env-status | site-install <website|guest> <file.tgz> | site-rollback <website|guest> | sites"
     ;;
 esac
