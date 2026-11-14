@@ -76,9 +76,14 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 	if err != nil {
 		return nil, err
 	}
+	// A hash keeps one processor busy for tens of milliseconds and cannot be
+	// interrupted. With as many slots as processors, a burst of sign-ins
+	// leaves none for every other request, and the whole API slows to a crawl
+	// (measured: 15 sign-ins a second on 2 processors turned a 4 ms token
+	// refresh into 2 s). Half of them keeps the rest of the API quick.
 	slots := cfg.PasswordHashSlots
 	if slots <= 0 {
-		slots = runtime.NumCPU()
+		slots = max(1, runtime.GOMAXPROCS(0)/2)
 	}
 	params := password.DefaultParams
 	if opts.PasswordParams != nil {
