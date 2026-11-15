@@ -227,11 +227,18 @@ manager.** Without it no backup can be restored, and losing the server loses
 the copy in `.env.production`.
 
 A backup that only lives on the server dies with the server, so copy them to
-your computer regularly (by hand, or daily from Windows Task Scheduler; see the
-script's help):
+your computer regularly:
 
 ```powershell
 .\backend\deploy\vps\fetch-backups.ps1 -Server deploy@203.0.113.10
+```
+
+To have Windows do that every day by itself (it catches up when the computer
+was off at that hour, and deletes local copies older than 14 days, never the
+newest; `-Status`, `-RunNow` and `-Remove` manage the task):
+
+```powershell
+.\backend\deploy\vps\schedule-backup-fetch.ps1 -Server deploy@203.0.113.10
 ```
 
 On the server: `bash remote.sh backups` lists them and `bash remote.sh

@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/router/routes.dart';
+import 'package:tark/core/settings/connection_history.dart';
+import 'package:tark/core/settings/settings_keys.dart';
 import 'package:tark/core/settings/settings_repository.dart';
 import 'package:tark/core/sfx/sfx_player.dart';
 import 'package:tark/core/widget/connection_journey.dart';
@@ -286,5 +289,80 @@ void main() {
     expect(find.text('LANDING'), findsOneWidget);
     expect(cubit.resets, 1);
     expect(tester.takeException(), isNull);
+  });
+
+  group('remembers how the resume ended', () {
+    late SharedPreferences prefs;
+
+    Future<void> withPrefs() async {
+      SharedPreferences.setMockInitialValues({});
+      prefs = await SharedPreferences.getInstance();
+      getIt.registerSingleton<SharedPreferences>(prefs);
+    }
+
+    testWidgets('Cancel stands the cold-start resume down', (tester) async {
+      await withPrefs();
+      await pumpPage(tester);
+      expect(ConnectionHistory.resumeShownThisRun, true);
+      cubit.push(joining());
+      started.complete(true);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await tester.tap(find.text('NEVER MIND'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('LANDING'), findsOneWidget);
+      expect(prefs.getBool(SettingsKeys.btResumeStoodDown), true);
+    });
+
+    testWidgets('a timeout counts one miss', (tester) async {
+      await withPrefs();
+      await pumpPage(tester);
+      cubit.push(joining());
+      started.complete(true);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 31));
+      expect(journey(JourneyStage.failed), findsOneWidget);
+      expect(prefs.getInt(SettingsKeys.btResumeMisses), 1);
+      expect(prefs.getBool(SettingsKeys.btResumeStoodDown), isNull);
+      await frames(tester, 3500);
+    });
+
+    testWidgets('a link that came up and dropped is not a miss', (
+      tester,
+    ) async {
+      await withPrefs();
+      await pumpPage(tester);
+      cubit.push(joining());
+      started.complete(true);
+      await tester.pump();
+      cubit.push(
+        joining().copyWith(connectionState: BluetoothConnectionState.connected),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      cubit.push(
+        joining().copyWith(
+          connectionState: BluetoothConnectionState.disconnected,
+        ),
+      );
+      await tester.pump();
+      await frames(tester, 3500);
+      expect(prefs.getInt(SettingsKeys.btResumeMisses), isNull);
+      expect(prefs.getBool(SettingsKeys.btResumeStoodDown), isNull);
+    });
+
+    testWidgets('steps aside silently without recording anything', (
+      tester,
+    ) async {
+      await withPrefs();
+      await pumpPage(tester);
+      started.complete(false);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('LANDING'), findsOneWidget);
+      expect(prefs.getKeys(), isEmpty);
+    });
   });
 }

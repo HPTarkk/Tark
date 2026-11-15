@@ -5,8 +5,11 @@
 // Security model: separate admin accounts (never app accounts), password
 // plus TOTP for everyone, three roles, short sessions in a __Host- cookie
 // with SameSite=Strict and a CSRF token on every form, per-IP and
-// per-account limits on sign-in, no JavaScript and a CSP that forbids it,
-// and every sign-in and every look at a user recorded in admin_events.
+// per-account limits on sign-in (which a stranger cannot use to lock an
+// admin out of a browser they have signed in from), a CSP that allows only
+// the panel's own script and style files and nothing inline, a bound on
+// every request body, and every sign-in and every look at a user recorded
+// in admin_events.
 // Full email addresses are masked unless an admin reveals one, which is
 // recorded too.
 package admin
@@ -88,10 +91,20 @@ type Server struct {
 }
 
 var (
-	ruleLoginIP    = ratelimit.Rule{Name: "admin_login_ip", Max: 10, Window: 15 * time.Minute}
-	ruleLoginEmail = ratelimit.Rule{Name: "admin_login_email", Max: 5, Window: 15 * time.Minute}
+	ruleLoginIP = ratelimit.Rule{Name: "admin_login_ip", Max: 10, Window: 15 * time.Minute}
+	// Password tries for one address from one source. This is the counter a
+	// person mistyping meets.
+	ruleLoginEmailIP = ratelimit.Rule{Name: "admin_login_email_ip", Max: 5, Window: 15 * time.Minute}
+	// Password tries for one address from everywhere, against guessing
+	// spread over many sources. Anyone who knows an admin's address can
+	// fill it, so a browser that has signed in as that admin before is not
+	// held back by it (see knownBrowser).
+	ruleLoginEmail = ratelimit.Rule{Name: "admin_login_email", Max: 20, Window: 15 * time.Minute}
 	ruleTOTP       = ratelimit.Rule{Name: "admin_totp", Max: 5, Window: 15 * time.Minute}
 	ruleReveal     = ratelimit.Rule{Name: "admin_reveal", Max: 30, Window: time.Hour}
+	// Wrong current passwords on the change-password form: a stolen session
+	// must not be a way to guess the password behind it.
+	rulePasswordChange = ratelimit.Rule{Name: "admin_password_change", Max: 5, Window: 15 * time.Minute}
 )
 
 func New(d Deps) (*Server, error) {
@@ -136,7 +149,7 @@ func ipFrom(ctx context.Context) string { ip, _ := ctx.Value(keyIP).(string); re
 func (s *Server) Handler() http.Handler {
 	r := chi.NewRouter()
 	s.router = r
-	r.Use(s.recoverer, headers, s.withIP, withLang)
+	r.Use(s.recoverer, headers, limitBody, s.withIP, withLang)
 	static, _ := fs.Sub(assets, "static")
 	files := http.FileServer(http.FS(static))
 	r.Handle("/static/*", serveStatic(files))
@@ -217,7 +230,23 @@ func headers(next http.Handler) http.Handler {
 			"default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
 		h.Set("Strict-Transport-Security", "max-age=31536000")
 		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		// No other site may hold a handle on a panel window, or load the
+		// panel's files into its own pages.
+		h.Set("Cross-Origin-Opener-Policy", "same-origin")
+		h.Set("Cross-Origin-Resource-Policy", "same-origin")
 		h.Set("X-Robots-Tag", "noindex, nofollow")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// maxBody bounds every request body. The largest form is a review reply,
+// well under this; without a bound the sign-in form, which anyone can post
+// to, would read megabytes per request.
+const maxBody = 64 << 10
+
+func limitBody(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxBody)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -349,7 +378,40 @@ func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) {
 
 // ---- sign-in ----------------------------------------------------------------
 
-const preCookie = "tark_admin_pre"
+// preCookieName is the cookie half of the sign-in form's double-submit
+// token. Like the session cookie it is a __Host- cookie in production, so a
+// page on another tarkk.ir host cannot plant its own value and then post a
+// sign-in form that matches it.
+func (s *Server) preCookieName() string {
+	if s.Secure {
+		return "__Host-tark_admin_pre"
+	}
+	return "tark_admin_pre"
+}
+
+// knownCookieName names the cookie that marks a browser an admin has fully
+// signed in from (password and code).
+func (s *Server) knownCookieName() string {
+	if s.Secure {
+		return "__Host-tark_admin_known"
+	}
+	return "tark_admin_known"
+}
+
+// knownToken is the mark for one admin. It is a keyed hash of the admin's
+// id: it proves nothing but "this browser signed in as them before", and the
+// only thing it is good for is skipping the address-wide sign-in counter.
+func (s *Server) knownToken(adminID string) string {
+	return s.Lookup.SumString("admin-known-browser", adminID)
+}
+
+func (s *Server) knownBrowser(r *http.Request, adminID string) bool {
+	c, err := r.Cookie(s.knownCookieName())
+	if err != nil || adminID == "" || len(c.Value) > 100 {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(c.Value), []byte(s.knownToken(adminID))) == 1
+}
 
 func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 	if sess, _, err := s.loadSession(r.Context(), r); err == nil && sess != nil {
@@ -368,13 +430,13 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 // random value.
 func (s *Server) showLogin(w http.ResponseWriter, r *http.Request, status int, msg string) {
 	token := randomToken()
-	s.setCookie(w, preCookie, token, 30*time.Minute)
+	s.setCookie(w, s.preCookieName(), token, 30*time.Minute)
 	s.render(w, r, status, "login", map[string]any{"Pre": token, "Error": msg})
 }
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	c, err := r.Cookie(preCookie)
+	c, err := r.Cookie(s.preCookieName())
 	if err != nil || c.Value == "" || subtle.ConstantTimeCompare([]byte(c.Value), []byte(r.PostFormValue("pre"))) != 1 {
 		s.showLogin(w, r, http.StatusForbidden, T(ctx, "login.expired"))
 		return
@@ -391,21 +453,29 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		s.showLogin(w, r, http.StatusTooManyRequests, T(ctx, "login.tooMany"))
 		return
 	}
-	if err := s.Limits.Hit(ctx, ruleLoginEmail, email); err != nil {
+	var id, hash string
+	err = s.Pool.QueryRow(ctx, `SELECT id, password_hash FROM admin_users WHERE email = $1 AND disabled_at IS NULL`, email).Scan(&id, &hash)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		s.fail(w, r, err)
+		return
+	}
+	// Every try is counted before the password is looked at, so a burst of
+	// parallel guesses cannot all slip past the check; a right password
+	// clears the counters again below.
+	emailIP := email + "|" + ip
+	throttled := s.Limits.Hit(ctx, ruleLoginEmailIP, emailIP)
+	if throttled == nil && !s.knownBrowser(r, id) {
+		throttled = s.Limits.Hit(ctx, ruleLoginEmail, email)
+	}
+	if throttled != nil {
 		s.record(ctx, "", "admin.login_throttled", "", ip, nil)
 		s.showLogin(w, r, http.StatusTooManyRequests, T(ctx, "login.tooMany"))
 		return
 	}
-	var id, hash string
-	err = s.Pool.QueryRow(ctx, `SELECT id, password_hash FROM admin_users WHERE email = $1 AND disabled_at IS NULL`, email).Scan(&id, &hash)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if id == "" {
 		s.Passwords.VerifyDummy(ctx, pw) // same time as a real check
 		s.record(ctx, "", "admin.login_failed", "", ip, nil)
 		s.showLogin(w, r, http.StatusUnauthorized, T(ctx, "login.wrong"))
-		return
-	}
-	if err != nil {
-		s.fail(w, r, err)
 		return
 	}
 	if _, err := s.Passwords.Verify(ctx, pw, hash); err != nil {
@@ -413,10 +483,12 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		s.showLogin(w, r, http.StatusUnauthorized, T(ctx, "login.wrong"))
 		return
 	}
-	if err := s.Limits.Reset(ctx, ruleLoginEmail, email); err != nil {
-		s.Log.ErrorContext(ctx, "admin limit reset failed", "err", err)
+	for rule, subject := range map[ratelimit.Rule]string{ruleLoginEmailIP: emailIP, ruleLoginEmail: email} {
+		if err := s.Limits.Reset(ctx, rule, subject); err != nil {
+			s.Log.ErrorContext(ctx, "admin limit reset failed", "err", err)
+		}
 	}
-	s.clearCookie(w, preCookie)
+	s.clearCookie(w, s.preCookieName())
 	if err := s.startSession(ctx, w, id, "password", ip); err != nil {
 		s.fail(w, r, err)
 		return
@@ -534,6 +606,9 @@ func (s *Server) totp(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	// From now on this browser can always reach the password check for this
+	// admin, however hard anyone else is hammering the address.
+	s.setCookie(w, s.knownCookieName(), s.knownToken(a.ID), prefTTL)
 	kind := "admin.login"
 	if enrolling {
 		kind = "admin.totp_enrolled"
@@ -618,10 +693,18 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	if err := s.Limits.Hit(ctx, rulePasswordChange, a.ID); err != nil {
+		s.record(ctx, a.ID, "admin.password_change_throttled", "", ip, nil)
+		show(http.StatusTooManyRequests, T(ctx, "login.tooMany"))
+		return
+	}
 	if _, err := s.Passwords.Verify(ctx, current, hash); err != nil {
 		s.record(ctx, a.ID, "admin.password_change_failed", "", ip, nil)
 		show(http.StatusUnauthorized, T(ctx, "pw.wrongCurrent"))
 		return
+	}
+	if err := s.Limits.Reset(ctx, rulePasswordChange, a.ID); err != nil {
+		s.Log.ErrorContext(ctx, "admin limit reset failed", "err", err)
 	}
 	if next != again {
 		show(http.StatusBadRequest, T(ctx, "pw.mismatch"))

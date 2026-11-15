@@ -70,7 +70,12 @@ func (b *BazaarHTTP) client() *http.Client {
 	if b.HTTP != nil {
 		return b.HTTP
 	}
-	return &http.Client{Timeout: 8 * time.Second}
+	return &http.Client{
+		Timeout: 8 * time.Second,
+		// The token is a header of our own, which Go would carry along to
+		// wherever a redirect points: it must not follow one anywhere.
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
 }
 
 func (b *BazaarHTTP) Subscription(ctx context.Context, sku, purchaseToken string) (Subscription, error) {

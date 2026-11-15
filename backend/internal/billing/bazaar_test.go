@@ -139,3 +139,25 @@ func TestBazaarTimeoutAndUnreachableAreUnavailable(t *testing.T) {
 		t.Fatalf("unreachable: want ErrUnavailable, got %v", err)
 	}
 }
+
+// The token is a header of our own; Go carries such headers along a redirect
+// to any host. The client must stop at the redirect instead.
+func TestBazaarTokenDoesNotFollowARedirect(t *testing.T) {
+	var leaked string
+	elsewhere := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		leaked = r.Header.Get(bazaarSecretHeader)
+		_, _ = w.Write([]byte(`{"initiationTimestampMsec":1000,"validUntilTimestampMsec":2000000000000,"autoRenewing":true}`))
+	}))
+	t.Cleanup(elsewhere.Close)
+	bazaar := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, elsewhere.URL+r.URL.Path, http.StatusTemporaryRedirect)
+	}))
+	t.Cleanup(bazaar.Close)
+	b := &BazaarHTTP{BaseURL: bazaar.URL, PackageName: "com.example", APIToken: testAPIToken}
+	if _, err := b.Subscription(context.Background(), "sku", "tok"); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("a redirect must read as unavailable, got %v", err)
+	}
+	if leaked != "" {
+		t.Fatal("the Payment API token followed a redirect to another host")
+	}
+}

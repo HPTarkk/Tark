@@ -264,6 +264,17 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
         failureMessage != null &&
         failureMessage.isNotEmpty;
     final connectFirst = widget.onConnect != null;
+    // One source for the Start button's words, so the hint above can name
+    // the button that is really on screen.
+    final startLabel = _connecting
+        ? s.connecting
+        : needsPremium
+        ? s.lobby_unlock_premium
+        : connectFirst
+        ? s.room_start_connect
+        : showFailure
+        ? s.retry
+        : s.lobby_start_ride;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -281,15 +292,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                       RoomConnectButton(
                         key: const Key('selected-room-start-ride'),
                         compact: true,
-                        label: _connecting
-                            ? s.connecting
-                            : needsPremium
-                            ? s.lobby_unlock_premium
-                            : connectFirst
-                            ? s.room_start_connect
-                            : showFailure
-                            ? s.retry
-                            : s.lobby_start_ride,
+                        label: startLabel,
                         busy: _connecting,
                         icon: needsPremium
                             ? Icons.workspace_premium_rounded
@@ -325,9 +328,8 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                           label: Text(s.lobby_free_bluetooth),
                           style: TextButton.styleFrom(
                             foregroundColor: AppColors.textSecondary,
-                            textStyle: Theme.of(
-                              context,
-                            ).textTheme.labelLarge?.copyWith(fontSize: 12),
+                            textStyle: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(fontSize: 12),
                             minimumSize: const Size(48, 48),
                           ),
                         ),
@@ -368,7 +370,12 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                   ? needsGroupPremium
                         ? s.lobby_group_premium_hint
                         : s.lobby_premium_hint
-                  : s.lobby_nothing_started,
+                  : alone
+                  // No Start button while alone: point at what is there.
+                  ? canInvite
+                        ? s.lobby_alone_hint
+                        : s.lobby_alone_hint_no_invite
+                  : s.lobby_nothing_started(startLabel),
               members: confirmedMembers,
               connecting: _connecting,
             ),

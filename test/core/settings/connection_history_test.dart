@@ -42,17 +42,54 @@ void main() {
     expect(history.canResumeClassicBluetooth, false);
   });
 
-  test(
-    'an explicit Wi-Fi preference prevents Bluetooth resume after a free repository fallback',
-    () async {
+  test('an explicit Wi-Fi preference prevents Bluetooth resume after a free repository fallback', () async {
+    await history.remember('bluetooth', bluetoothEngine: 'classic');
+    await prefs.setString(SettingsKeys.transportMode, 'bluetooth');
+    await prefs.setString(SettingsKeys.transportPin, 'wifi');
+    await prefs.setString(SettingsKeys.btLastRole, 'host');
+    await prefs.setBool(SettingsKeys.autoReconnectEnabled, true);
+    expect(history.shouldResumeClassicBluetooth(isAndroid: true), false);
+    await prefs.setString(SettingsKeys.transportPin, 'bluetooth');
+    expect(history.shouldResumeClassicBluetooth(isAndroid: true), true);
+  });
+
+  group('cold-start resume stands down', () {
+    setUp(() async {
       await history.remember('bluetooth', bluetoothEngine: 'classic');
       await prefs.setString(SettingsKeys.transportMode, 'bluetooth');
-      await prefs.setString(SettingsKeys.transportPin, 'wifi');
       await prefs.setString(SettingsKeys.btLastRole, 'host');
-      await prefs.setBool(SettingsKeys.autoReconnectEnabled, true);
-      expect(history.shouldResumeClassicBluetooth(isAndroid: true), false);
-      await prefs.setString(SettingsKeys.transportPin, 'bluetooth');
+    });
+
+    test('cancelling it once stops it on later cold starts', () async {
       expect(history.shouldResumeClassicBluetooth(isAndroid: true), true);
-    },
-  );
+      await history.standDownBluetoothResume();
+      expect(history.shouldResumeClassicBluetooth(isAndroid: true), false);
+      // Connecting on purpose still resumes the remembered role.
+      expect(history.canResumeClassicBluetooth, true);
+    });
+
+    test('one unanswered resume is ordinary, a second ends it', () async {
+      await history.recordBluetoothResumeMiss();
+      expect(history.shouldResumeClassicBluetooth(isAndroid: true), true);
+      await history.recordBluetoothResumeMiss();
+      expect(history.shouldResumeClassicBluetooth(isAndroid: true), false);
+    });
+
+    test('a real Bluetooth connection arms it again', () async {
+      await history.standDownBluetoothResume();
+      await history.rememberBluetoothEngine('classic');
+      expect(history.shouldResumeClassicBluetooth(isAndroid: true), true);
+
+      await history.recordBluetoothResumeMiss();
+      await history.remember('bluetooth');
+      await history.recordBluetoothResumeMiss();
+      expect(history.shouldResumeClassicBluetooth(isAndroid: true), true);
+    });
+
+    test('a Wi-Fi call does not arm a stood-down resume', () async {
+      await history.standDownBluetoothResume();
+      await history.remember('wifi');
+      expect(history.bluetoothResumeStoodDown, true);
+    });
+  });
 }

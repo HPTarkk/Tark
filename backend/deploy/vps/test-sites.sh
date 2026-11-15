@@ -49,6 +49,12 @@ expect_same() { cmp -s "$work/body" "$2" && ok "$1 is $(basename "$2")" || bad "
 echo "website"
 site "$base/";                  expect_status / 200; expect_same / "$repo/website/index.html"
                                 expect_header / Cache-Control "public, max-age=0, must-revalidate"
+                                expect_header / X-Content-Type-Options nosniff
+                                expect_header / X-Frame-Options SAMEORIGIN
+                                expect_header / Content-Security-Policy "frame-ancestors 'self'"
+                                expect_header / Referrer-Policy strict-origin-when-cross-origin
+                                expect_header / Strict-Transport-Security "max-age=31536000"
+                                [ -z "$(header Server)" ] && ok "/: no Server header" || bad "/: Server header is '$(header Server)'"
 site "$base/fa/";               expect_status /fa/ 200; expect_same /fa/ "$repo/website/fa/index.html"
 site "$base/fa";                expect_status /fa 308; expect_header /fa Location /fa/
 site "$base/privacy";           expect_status /privacy 200; expect_same /privacy "$repo/website/privacy.html"
@@ -80,12 +86,18 @@ for p in /v/register /v/reset /v/email /v/register/ /v/ ; do
                                 expect_header "$p" X-Robots-Tag "noindex, nofollow"
                                 expect_header "$p" Referrer-Policy no-referrer
                                 expect_header "$p" Cache-Control no-cache
+                                expect_header "$p" X-Content-Type-Options nosniff
   case "$(header Content-Security-Policy)" in "default-src 'none';"*"frame-ancestors 'none'") ok "$p: Content-Security-Policy" ;; *) bad "$p: Content-Security-Policy is '$(header Content-Security-Policy)'" ;; esac
 done
 
 echo "guest app"
 guest "$base/";                 expect_status / 200; expect_same / "$work/sites/guest/index.html"
                                 expect_header / Cache-Control "public, max-age=0, must-revalidate"
+                                expect_header / X-Content-Type-Options nosniff
+                                expect_header / X-Frame-Options SAMEORIGIN
+                                expect_header / Content-Security-Policy "frame-ancestors 'self'"
+                                expect_header / Referrer-Policy strict-origin-when-cross-origin
+                                [ -z "$(header Server)" ] && ok "/: no Server header" || bad "/: Server header is '$(header Server)'"
 guest "$base/main.dart.js";     expect_status /main.dart.js 200; expect_same /main.dart.js "$work/sites/guest/main.dart.js"
 guest "$base/room/ABC123";      expect_status "/room/ABC123 (in-app route)" 200; expect_same /room/ABC123 "$work/sites/guest/index.html"
 
