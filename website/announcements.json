@@ -1,3 +1,23 @@
 {
-  "announcements": []
+  "announcements": [
+    {
+      "id": "accounts-launch-2026-11",
+      "category": "feature",
+      "priority": 5,
+      "audience": "signedOut",
+      "platforms": ["android"],
+      "title": {
+        "fa": "حالا می‌تونی حساب تَرک بسازی",
+        "en": "You can now create a Tarkk account"
+      },
+      "body": {
+        "fa": "با یه حساب رایگان، اشتراکت با هر گوشی‌ای همراهت میاد. بدون حساب هم همه‌چی مثل قبل کار می‌کنه. هر وقت خواستی، از پروفایل توی بخش «حساب» پیداش می‌کنی.",
+        "en": "A free account keeps your subscription with you on any phone. Everything else still works without one. You can find it any time in Profile, under Account."
+      },
+      "action": {
+        "type": "signIn",
+        "label": { "fa": "ثبت‌نام یا ورود", "en": "Sign up or sign in" }
+      }
+    }
+  ]
 }

@@ -83,6 +83,7 @@ class _SignedOut extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: _Spotlight(
         tapKey: const ValueKey('account-sign-in'),
+        heroTag: AuthHero.flowTag,
         icon: Icons.login_rounded,
         title: s.account_sign_in_row,
         body: s.account_signed_out_body,
@@ -109,6 +110,7 @@ class _SubscriptionSpotlight extends StatelessWidget {
           padding: const EdgeInsets.only(top: 10, bottom: 4),
           child: _Spotlight(
             tapKey: const ValueKey('account-subscription'),
+            heroTag: AuthHero.subscriptionTag,
             icon: active
                 ? Icons.workspace_premium_rounded
                 : Icons.star_outline_rounded,
@@ -127,10 +129,14 @@ class _SubscriptionSpotlight extends StatelessWidget {
   }
 }
 
-/// A warm, tappable card: icon, title, one line of why, and an arrow.
+/// A warm, tappable card: icon, title, one line of why, and an arrow that
+/// leans towards where it leads. Its icon is the screen's glyph in
+/// miniature: tapping grows it into the large one on the screen it opens
+/// (see [AuthHero]).
 class _Spotlight extends StatelessWidget {
   const _Spotlight({
     required this.tapKey,
+    required this.heroTag,
     required this.icon,
     required this.title,
     required this.body,
@@ -139,6 +145,7 @@ class _Spotlight extends StatelessWidget {
   });
 
   final Key tapKey;
+  final Object heroTag;
   final IconData icon;
   final String title;
   final String body;
@@ -169,14 +176,20 @@ class _Spotlight extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: amber.withValues(alpha: 0.16),
+            AuthHero(
+              tag: heroTag,
+              icon: icon,
+              color: amber,
+              look: AuthHeroLook.badge(amber),
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: amber.withValues(alpha: 0.16),
+                ),
+                child: Icon(icon, color: amber, size: 20),
               ),
-              child: Icon(icon, color: amber, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -205,16 +218,7 @@ class _Spotlight extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: amber),
-              child: Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.background,
-                size: 20,
-              ),
-            ),
+            NudgingChevron(color: AppColors.background, background: amber),
           ],
         ),
       ),

@@ -5,9 +5,11 @@ import 'package:get_it/get_it.dart';
 import '../../../../core/account/auth_repository.dart';
 import '../../../../core/account/auth_result.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../manager/account_form_cubit.dart';
 import '../widget/auth_error_text.dart';
+import '../widget/auth_motion.dart';
 import '../widget/auth_widgets.dart';
 import 'forgot_password_page.dart';
 import 'google_steps_page.dart';
@@ -133,6 +135,11 @@ class _SignInPageState extends State<SignInPage> {
         final error = state.error;
         final message = error == null ? null : authErrorText(context, error);
         final locked = state.busy || _signedIn;
+        final flagged = authErrorField(error, [
+          (AuthField.email, _email.text),
+          (AuthField.password, _password.text),
+        ]);
+        Object? nudge(AuthField field) => flagged == field ? error : null;
         return AuthScaffold(
           icon: Icons.person_rounded,
           title: s.signin_title,
@@ -151,6 +158,7 @@ class _SignInPageState extends State<SignInPage> {
               keyboardType: TextInputType.emailAddress,
               autofillHints: const [AutofillHints.email],
               enabled: !locked,
+              nudge: nudge(AuthField.email),
             ),
             AuthTextField(
               fieldKey: const ValueKey('signin-password'),
@@ -163,6 +171,7 @@ class _SignInPageState extends State<SignInPage> {
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _signIn(),
               enabled: !locked,
+              nudge: nudge(AuthField.password),
             ),
             Align(
               alignment: AlignmentDirectional.centerEnd,
@@ -202,8 +211,10 @@ class _SignInPageState extends State<SignInPage> {
   }
 }
 
-/// The way to a new account, set apart in its own quiet card at the foot of
-/// the screen.
+/// The way to a new account, set apart in its own card at the foot of the
+/// screen: the whole card is the button, its mark is the next screen's
+/// glyph, and its arrow leans towards it once the screen has settled, so it
+/// reads as somewhere to go rather than a line of small print.
 class _CreateAccount extends StatelessWidget {
   const _CreateAccount({required this.prompt, required this.onTap});
 
@@ -212,25 +223,75 @@ class _CreateAccount extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.person_add_alt_rounded, size: 18, color: AppColors.amber),
-          Flexible(
-            child: AuthTextLink(
-              linkKey: const ValueKey('signin-register'),
-              label: prompt,
-              onTap: onTap,
+    final amber = AppColors.amber;
+    final radius = BorderRadius.circular(18);
+    return AnimatedOpacity(
+      duration: AppMotion.card,
+      curve: AppMotion.easeOut,
+      opacity: onTap == null ? 0.5 : 1,
+      child: Semantics(
+        button: true,
+        enabled: onTap != null,
+        label: prompt,
+        excludeSemantics: true,
+        child: PressableScale(
+          key: const ValueKey('signin-register'),
+          onTap: onTap,
+          borderRadius: radius,
+          child: Container(
+            padding: const EdgeInsetsDirectional.fromSTEB(12, 12, 12, 12),
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              gradient: LinearGradient(
+                begin: AlignmentDirectional.topStart,
+                end: AlignmentDirectional.bottomEnd,
+                colors: [
+                  Color.alphaBlend(
+                    amber.withValues(alpha: 0.1),
+                    AppColors.surface,
+                  ),
+                  AppColors.surface.withValues(alpha: 0.6),
+                ],
+              ),
+              border: Border.all(color: amber.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: amber.withValues(alpha: 0.16),
+                  ),
+                  child: Icon(
+                    Icons.person_add_alt_rounded,
+                    size: 19,
+                    color: amber,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    prompt,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      height: 1.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                NudgingChevron(
+                  color: AppColors.background,
+                  background: amber,
+                  size: 28,
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
