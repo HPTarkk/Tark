@@ -8,6 +8,7 @@ import '../../core/beta/beta_intro.dart';
 import '../../core/diagnostics/screen_log.dart';
 import '../../core/motion/backward_route.dart';
 import '../../core/motion/continuity_route.dart';
+import '../../core/motion/screen_calm.dart';
 import '../../core/widget/journey_carry_over.dart';
 import '../../core/entitlement/feature_access_guard.dart';
 import '../../core/entitlement/premium_feature.dart';
@@ -99,7 +100,9 @@ class AppRouter {
   static GoRouter _buildRoute() => GoRouter(
     initialLocation: startLocation,
     // Every page, sheet and dialog the user opens goes into the .tarklog.
-    observers: [ScreenLog()],
+    // RouteCalm tells what rises on its own (announcements) when the screen
+    // has stopped moving.
+    observers: [ScreenLog(), RouteCalm.instance],
     // Belt-and-braces for widget launch URIs. They are meant to be consumed
     // from the platform intent by HomeWidgetService, never routed — Android
     // disables Flutter's automatic deep linking for exactly that reason (see

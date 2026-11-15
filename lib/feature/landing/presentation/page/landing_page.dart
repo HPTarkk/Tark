@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/motion/route_arrival.dart';
+import '../../../../core/motion/screen_calm.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/mesh_background.dart';
@@ -49,6 +50,15 @@ class _LandingPageState extends State<LandingPage>
     curve: const Interval(0.32, 0.64, curve: AppMotion.easeInOut),
   );
 
+  /// Keeps announcements down until Home has finished arriving and asked
+  /// its own question, if it has one.
+  VoidCallback? _releaseEntrance = EntranceHold.hold();
+
+  void _entranceDone() {
+    _releaseEntrance?.call();
+    _releaseEntrance = null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -89,16 +99,21 @@ class _LandingPageState extends State<LandingPage>
       if (mounted && (ModalRoute.of(context)?.isCurrent ?? true)) {
         await RoomRejoinPrompt.maybeAsk(context);
       }
+      // Home has arrived and said what it had to: announcements may follow.
+      _entranceDone();
       // Back home from a good ride: now and then, a rating ask. It checks
       // for itself that nothing else (an update, the rejoin question) is up.
       if (mounted) await maybeAskForRating(context);
     } on TickerCanceled {
       // Leaving Home retires the remaining entrance and its optional prompt.
+    } finally {
+      _entranceDone();
     }
   }
 
   @override
   void dispose() {
+    _entranceDone();
     _logoReveal.dispose();
     _logoDock.dispose();
     for (final section in _sections) {
