@@ -1712,11 +1712,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lobby_heading => 'Ready to start';
 
   @override
-  String get lobby_alone_heading => 'Your room is ready';
+  String get lobby_alone_heading => 'Just you so far';
 
   @override
-  String get lobby_nothing_started =>
-      'Your mic stays off until you press Start ride.';
+  String lobby_nothing_started(String button) {
+    return 'Your mic stays off until you press $button.';
+  }
+
+  @override
+  String get lobby_alone_hint => 'Invite someone to start talking.';
+
+  @override
+  String get lobby_alone_hint_no_invite =>
+      'Your mic stays off until the phones connect.';
 
   @override
   String get lobby_connecting_hint =>

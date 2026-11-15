@@ -1703,11 +1703,19 @@ class AppLocalizationsFa extends AppLocalizations {
   String get lobby_heading => 'آماده شروع ارتباط';
 
   @override
-  String get lobby_alone_heading => 'اتاق ساخته شد';
+  String get lobby_alone_heading => 'فعلاً فقط خودتی';
 
   @override
-  String get lobby_nothing_started =>
-      'تا «شروع ارتباط» رو نزنی، میکروفون خاموش می‌مونه.';
+  String lobby_nothing_started(String button) {
+    return 'تا «$button» رو نزنی، میکروفون خاموش می‌مونه.';
+  }
+
+  @override
+  String get lobby_alone_hint => 'یکی رو دعوت کن تا با هم حرف بزنید.';
+
+  @override
+  String get lobby_alone_hint_no_invite =>
+      'تا گوشی‌ها وصل نشن، میکروفون خاموشه.';
 
   @override
   String get lobby_connecting_hint =>

@@ -3161,14 +3161,26 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_alone_heading.
   ///
   /// In fa, this message translates to:
-  /// **'اتاق ساخته شد'**
+  /// **'فعلاً فقط خودتی'**
   String get lobby_alone_heading;
 
   /// No description provided for @lobby_nothing_started.
   ///
   /// In fa, this message translates to:
-  /// **'تا «شروع ارتباط» رو نزنی، میکروفون خاموش می‌مونه.'**
-  String get lobby_nothing_started;
+  /// **'تا «{button}» رو نزنی، میکروفون خاموش می‌مونه.'**
+  String lobby_nothing_started(String button);
+
+  /// No description provided for @lobby_alone_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'یکی رو دعوت کن تا با هم حرف بزنید.'**
+  String get lobby_alone_hint;
+
+  /// No description provided for @lobby_alone_hint_no_invite.
+  ///
+  /// In fa, this message translates to:
+  /// **'تا گوشی‌ها وصل نشن، میکروفون خاموشه.'**
+  String get lobby_alone_hint_no_invite;
 
   /// No description provided for @lobby_connecting_hint.
   ///
