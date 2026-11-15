@@ -2728,6 +2728,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_close => 'CLOSE';
 
   @override
+  String get auth_busy => 'ONE MOMENT';
+
+  @override
+  String get signin_busy => 'SIGNING IN';
+
+  @override
+  String get register_busy => 'CREATING YOUR ACCOUNT';
+
+  @override
+  String get forgot_busy => 'SENDING THE CODE';
+
+  @override
+  String get auth_saving_busy => 'SAVING';
+
+  @override
+  String get delete_busy => 'DELETING';
+
+  @override
   String get signin_action => 'SIGN IN';
 
   @override

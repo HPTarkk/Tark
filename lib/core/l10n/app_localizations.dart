@@ -4862,6 +4862,42 @@ abstract class AppLocalizations {
   /// **'بستن'**
   String get auth_close;
 
+  /// No description provided for @auth_busy.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه لحظه صبر کن'**
+  String get auth_busy;
+
+  /// No description provided for @signin_busy.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال ورود'**
+  String get signin_busy;
+
+  /// No description provided for @register_busy.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال ساخت حساب'**
+  String get register_busy;
+
+  /// No description provided for @forgot_busy.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال فرستادن کد'**
+  String get forgot_busy;
+
+  /// No description provided for @auth_saving_busy.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال ذخیره'**
+  String get auth_saving_busy;
+
+  /// No description provided for @delete_busy.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال پاک کردن حساب'**
+  String get delete_busy;
+
   /// No description provided for @signin_action.
   ///
   /// In fa, this message translates to:

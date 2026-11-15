@@ -91,6 +91,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             AuthPrimaryButton(
               buttonKey: const ValueKey('forgot-submit'),
               label: s.forgot_action,
+              busyLabel: s.forgot_busy,
               busy: state.busy,
               onTap: _submit,
             ),
@@ -189,6 +190,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             AuthPrimaryButton(
               buttonKey: const ValueKey('reset-submit'),
               label: s.reset_action,
+              busyLabel: s.auth_saving_busy,
               busy: state.busy,
               done: _saved,
               onTap: _submit,

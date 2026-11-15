@@ -2704,6 +2704,24 @@ class AppLocalizationsFa extends AppLocalizations {
   String get auth_close => 'بستن';
 
   @override
+  String get auth_busy => 'یه لحظه صبر کن';
+
+  @override
+  String get signin_busy => 'در حال ورود';
+
+  @override
+  String get register_busy => 'در حال ساخت حساب';
+
+  @override
+  String get forgot_busy => 'در حال فرستادن کد';
+
+  @override
+  String get auth_saving_busy => 'در حال ذخیره';
+
+  @override
+  String get delete_busy => 'در حال پاک کردن حساب';
+
+  @override
   String get signin_action => 'ورود';
 
   @override
