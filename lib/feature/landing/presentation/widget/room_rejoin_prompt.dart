@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
@@ -53,9 +52,12 @@ abstract final class RoomRejoinPrompt {
       await store.clear();
       return;
     }
-    if (ticket.mode == TransferMode.bluetooth && await _bluetoothResumed()) {
+    if (ticket.mode == TransferMode.bluetooth &&
+        ConnectionHistory.resumeShownThisRun) {
       // The cold start already opened the Bluetooth resume screen for this
-      // very call; a second question would be asking twice.
+      // very call; a second question would be asking twice. And when that
+      // screen was turned down, the answer stands on later starts too.
+      if (await _bluetoothResumeStoodDown()) await store.clear();
       return;
     }
     if (!context.mounted) return;
@@ -103,14 +105,10 @@ abstract final class RoomRejoinPrompt {
     );
   }
 
-  /// Mirrors the cold-start rule that opens the Bluetooth resume screen.
-  static Future<bool> _bluetoothResumed() async {
-    if (!Platform.isAndroid) return false;
+  static Future<bool> _bluetoothResumeStoodDown() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return ConnectionHistory(
-        prefs,
-      ).shouldResumeClassicBluetooth(isAndroid: Platform.isAndroid);
+      return ConnectionHistory(prefs).bluetoothResumeStoodDown;
     } catch (_) {
       return false;
     }

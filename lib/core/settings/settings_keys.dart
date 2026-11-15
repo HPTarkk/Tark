@@ -70,6 +70,13 @@ abstract final class SettingsKeys {
   static const btLastRole = 'bt_last_role';
   static const lastConnectedTransport = 'last_connected_transport';
   static const btLastConnectedEngine = 'bt_last_connected_engine';
+
+  /// The cold-start Bluetooth resume has been called off (the user cancelled
+  /// it, or it went unanswered too often) until Bluetooth next connects.
+  static const btResumeStoodDown = 'bt_resume_stood_down';
+
+  /// Cold-start Bluetooth resumes in a row that nobody answered.
+  static const btResumeMisses = 'bt_resume_misses';
   static const musicCastNotifHintDismissed = 'music_cast_notif_hint_dismissed';
   static const sfxEnabled = 'sfx_enabled';
 
