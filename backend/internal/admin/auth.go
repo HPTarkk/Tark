@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/jackc/pgx/v5"
 
@@ -213,11 +214,13 @@ func CreateAdmin(ctx context.Context, d Deps, email, name string, role Role, cre
 	if !role.Valid() {
 		return "", errBadRole
 	}
-	if strings.Count(email, "@") != 1 || len(email) > 254 || strings.ContainsAny(email, " <>\r\n") {
+	if strings.Count(email, "@") != 1 || len(email) > 254 || strings.ContainsAny(email, " <>") || hasControl(email) {
 		return "", errBadEmail
 	}
+	// The name goes into email subjects (the sign-in notice), where a line
+	// break is refused: a name with one would silence those notices.
 	name = strings.TrimSpace(name)
-	if name == "" || len([]rune(name)) > 64 {
+	if name == "" || len([]rune(name)) > 64 || hasControl(name) {
 		return "", errBadName
 	}
 	temp := secure.RandomToken(12)
@@ -238,4 +241,9 @@ func CreateAdmin(ctx context.Context, d Deps, email, name string, role Role, cre
 		return "", err
 	}
 	return temp, nil
+}
+
+// hasControl reports a control character (a line break, a NUL, an escape).
+func hasControl(v string) bool {
+	return strings.ContainsFunc(v, unicode.IsControl)
 }

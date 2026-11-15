@@ -52,6 +52,7 @@ var eventKinds = map[string]eventKind{
 	"admin.password_changed":          {"key", "good"},
 	"admin.sessions_ended":            {"devices", ""},
 	"admin.password_change_failed":    {"key", "bad"},
+	"admin.password_change_throttled": {"lock", "bad"},
 
 	// Security events (audit_events, the audit package's kinds).
 	"register.started":                 {"plus", "info"},
@@ -128,6 +129,7 @@ var eventTexts = map[string][2]string{
 	"ev.admin.password_changed":          {"Changed password", "تغییر رمز"},
 	"ev.admin.sessions_ended":            {"Signed out other browsers", "خروج مرورگرهای دیگه"},
 	"ev.admin.password_change_failed":    {"Password change failed", "تغییر رمز ناموفق"},
+	"ev.admin.password_change_throttled": {"Too many password changes", "تغییر رمز بیش از حد"},
 
 	"ev.register.started":                 {"Sign-up started", "شروع ثبت‌نام"},
 	"ev.register.existing_email":          {"Sign-up with a taken email", "ثبت‌نام با ایمیل تکراری"},

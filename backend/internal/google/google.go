@@ -76,7 +76,12 @@ func NewVerifier(clientIDs []string, jwksURL string, client *http.Client) *Verif
 		ids[id] = struct{}{}
 	}
 	if client == nil {
-		client = &http.Client{Timeout: 8 * time.Second}
+		client = &http.Client{
+			Timeout: 8 * time.Second,
+			// Google's key and tokeninfo addresses answer directly. A
+			// redirect would send a person's ID token on to another address.
+			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		}
 	}
 	return &Verifier{clientIDs: ids, jwksURL: jwksURL, http: client, now: time.Now}
 }

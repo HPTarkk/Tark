@@ -455,6 +455,11 @@ func (s *Server) createAdmin(w http.ResponseWriter, r *http.Request) {
 	a := adminFrom(ctx)
 	email, name, role := r.PostFormValue("email"), r.PostFormValue("name"), Role(r.PostFormValue("role"))
 	temp, err := CreateAdmin(ctx, s.Deps, email, name, role, a.ID)
+	if err != nil && createAdminField(err) == "" {
+		// Not something the form got wrong: logged, never shown.
+		s.fail(w, r, err)
+		return
+	}
 	if err != nil {
 		// The drawer opens again with what was typed, so only the field at
 		// fault needs fixing.
@@ -493,7 +498,7 @@ func createAdminProblem(ctx context.Context, err error) string {
 			return T(ctx, key)
 		}
 	}
-	return err.Error()
+	return T(ctx, "msg.fail")
 }
 
 func (s *Server) setAdminDisabled(disable bool) http.HandlerFunc {

@@ -260,3 +260,32 @@ func TestProductionNeedsTheBazaarPaymentAPIToken(t *testing.T) {
 		t.Fatalf("the token alone must be enough: %v", err)
 	}
 }
+
+// Addresses the server sends a secret or a sign-in token to, or whose answer
+// it trusts, must be https outside development.
+func TestProductionRefusesPlainHTTPOutbound(t *testing.T) {
+	prod := func(extra map[string]string) map[string]string {
+		m := map[string]string{
+			"TARK_ENV": "production", "TARK_MAIL_DRIVER": "smtp", "TARK_BAZAAR_FAKE": "false",
+			"TARK_SMTP_HOST": "smtp.example.com", "TARK_MAIL_FROM": "a@example.com",
+			"TARK_BAZAAR_PAYMENT_API_TOKEN": "t",
+		}
+		for k, v := range extra {
+			m[k] = v
+		}
+		return m
+	}
+	if _, err := loadWith(t, prod(nil)); err != nil {
+		t.Fatalf("the defaults must be valid: %v", err)
+	}
+	for _, name := range []string{"TARK_BAZAAR_BASE_URL", "TARK_GOOGLE_JWKS_URL", "TARK_GOOGLE_TOKENINFO_URL"} {
+		_, err := loadWith(t, prod(map[string]string{name: "http://example.com/x"}))
+		if err == nil || !strings.Contains(err.Error(), name+" must be https") {
+			t.Errorf("%s over plain http: %v", name, err)
+		}
+	}
+	// Development may point them at a local stand-in.
+	if _, err := loadWith(t, map[string]string{"TARK_GOOGLE_JWKS_URL": "http://127.0.0.1:9/certs"}); err != nil {
+		t.Fatalf("development: %v", err)
+	}
+}
