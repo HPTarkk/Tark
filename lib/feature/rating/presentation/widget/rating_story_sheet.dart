@@ -14,6 +14,7 @@ import '../../../../core/profile/local_profile.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/copy_chip.dart';
 import '../../../../core/widget/sheet_shell.dart';
+import '../../../announcement/api/announcement_api.dart';
 import '../../../report/presentation/widget/avatar_images.dart';
 import '../../../update/api/update_api.dart';
 import '../../data/bazaar_review_launcher.dart';
@@ -50,12 +51,13 @@ Future<void> maybeAskForRating(
 }) async {
   final rules = prompt ?? RatingPrompt.registered;
   if (rules == null || !rules.takeAskMoment()) return;
-  if (UpdateGate.promptShowing) return;
+  // One launch interrupts once: an update or new announcements take it.
+  if (UpdateGate.promptShowing || AnnouncementGate.claimed) return;
   // A breath after Home settles, so the ask reads as its own moment.
   await Future<void>.delayed(settle);
   if (!context.mounted) return;
   if (!(ModalRoute.of(context)?.isCurrent ?? true)) return;
-  if (UpdateGate.promptShowing) return;
+  if (UpdateGate.promptShowing || AnnouncementGate.claimed) return;
   await rules.recordAsked();
   if (!context.mounted) return;
   await showRatingStory(context, prompt: rules, launcher: launcher);

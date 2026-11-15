@@ -14,6 +14,7 @@ import '../core/l10n/app_localizations.dart';
 import '../core/l10n/extension.dart';
 import '../core/locale/locale_service.dart';
 import '../core/motion/backward_route.dart';
+import '../core/motion/screen_calm.dart';
 import '../core/permission/permission_primer.dart';
 import '../core/router/routes.dart';
 import '../core/theme/app_theme.dart';
@@ -186,6 +187,8 @@ class _MyAppState extends State<MyApp> {
             location: _location,
             locationChanges: AppRouter.router.routerDelegate,
             updateOffered: _updateOffered,
+            routesCalm: RouteCalm.instance.calm,
+            entrances: EntranceHold.held,
             navigate: (name) => AppRouter.router.pushNamed(name),
             child: KeyedSubtree(
               key: ValueKey(ThemeService.currentMode),

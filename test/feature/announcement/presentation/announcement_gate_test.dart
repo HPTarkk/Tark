@@ -15,6 +15,7 @@ import 'package:tark/core/router/routes.dart';
 import 'package:tark/feature/announcement/data/announcement_checker.dart';
 import 'package:tark/feature/announcement/domain/entity/announcement.dart';
 import 'package:tark/feature/announcement/presentation/widget/announcement_gate.dart';
+import 'package:tark/feature/announcement/presentation/widget/announcement_sheet.dart';
 
 class _No implements ApiClient, AccountSession, LicenseGate {
   @override
@@ -126,8 +127,12 @@ void main() {
   late ValueNotifier<String> location;
   late ValueNotifier<bool?> updateOffered;
   late List<String> pushed;
+  late ValueNotifier<bool> calm;
+  late ValueNotifier<int> entrances;
 
   setUp(() async {
+    calm = ValueNotifier(true);
+    entrances = ValueNotifier(0);
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
     location = ValueNotifier(AppRoutes.landingPath);
@@ -142,6 +147,7 @@ void main() {
     List<Announcement> found, {
     String lang = 'en',
     bool reduced = false,
+    bool realTiming = false,
   }) async {
     final checker = _FakeChecker(found, prefs);
     GetIt.instance.registerSingleton<AnnouncementChecker>(checker);
@@ -160,6 +166,14 @@ void main() {
               location: () => location.value,
               locationChanges: location,
               updateOffered: updateOffered,
+              routesCalm: calm,
+              entrances: entrances,
+              // The arrival beat has its own tests below; the rest are
+              // about the sheet itself.
+              settle: realTiming
+                  ? const Duration(milliseconds: 1200)
+                  : Duration.zero,
+              earliest: realTiming ? const Duration(seconds: 3) : Duration.zero,
               navigate: pushed.add,
               child: child!,
             ),
@@ -295,6 +309,138 @@ void main() {
     await settle(tester);
     expect(action, findsNothing);
     expect(checker.marked, ['gift', 'feature', 'news']);
+  });
+
+  group('arriving', () {
+    // The sheet coming up; its own entrance plays out from there.
+    final sheet = find.byType(AnnouncementSheet);
+
+    Future<void> wait(WidgetTester tester, int ms) async {
+      for (var t = 0; t < ms; t += 100) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    testWidgets('never right at launch: a few seconds in, not before', (
+      tester,
+    ) async {
+      final checker = await pumpGate(tester, [_gift], realTiming: true);
+      await wait(tester, 2800);
+      expect(sheet, findsNothing, reason: 'the app is still opening');
+      expect(checker.marked, isEmpty, reason: 'unseen is not seen');
+      await wait(tester, 400);
+      expect(sheet, findsOneWidget);
+      await settle(tester);
+      expect(checker.marked, ['gift']);
+    });
+
+    testWidgets('waits for the page transition and Home entrance', (
+      tester,
+    ) async {
+      calm.value = false;
+      await pumpGate(tester, [_gift], realTiming: true);
+      await wait(tester, 4000);
+      expect(sheet, findsNothing, reason: 'the route is still moving');
+
+      // The page has arrived; Home starts its entrance.
+      calm.value = true;
+      entrances.value = 1;
+      await wait(tester, 2000);
+      expect(sheet, findsNothing, reason: 'Home is still arriving');
+
+      entrances.value = 0;
+      await wait(tester, 1000);
+      expect(sheet, findsNothing, reason: 'a beat after it settles');
+      await wait(tester, 300);
+      expect(sheet, findsOneWidget);
+      await settle(tester);
+    });
+
+    testWidgets('never over a sheet; the beat starts over once it closes', (
+      tester,
+    ) async {
+      await pumpGate(tester, [_gift], realTiming: true);
+      await wait(tester, 2500);
+      calm.value = false; // A sheet opened over Home.
+      await wait(tester, 4000);
+      expect(sheet, findsNothing);
+      calm.value = true;
+      await wait(tester, 1000);
+      expect(sheet, findsNothing);
+      await wait(tester, 300);
+      expect(sheet, findsOneWidget);
+      await settle(tester);
+    });
+
+    testWidgets('leaving Home before it rises: it waits to be back', (
+      tester,
+    ) async {
+      final checker = await pumpGate(tester, [_gift], realTiming: true);
+      await wait(tester, 2500);
+      location.value = AppRoutes.settingsPath;
+      await wait(tester, 4000);
+      expect(sheet, findsNothing);
+      expect(checker.marked, isEmpty);
+      location.value = AppRoutes.landingPath;
+      await wait(tester, 1000);
+      expect(sheet, findsNothing, reason: 'the beat starts over');
+      await wait(tester, 300);
+      expect(sheet, findsOneWidget);
+      await settle(tester);
+    });
+
+    testWidgets('in the background it waits for the app to come back', (
+      tester,
+    ) async {
+      final checker = await pumpGate(tester, [_gift], realTiming: true);
+      await wait(tester, 2500);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await wait(tester, 5000);
+      expect(sheet, findsNothing);
+      expect(checker.marked, isEmpty);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await wait(tester, 1000);
+      expect(sheet, findsNothing, reason: 'a beat after coming back');
+      await wait(tester, 300);
+      expect(sheet, findsOneWidget);
+      await settle(tester);
+    });
+
+    testWidgets('an entrance that never lets go only holds it so long', (
+      tester,
+    ) async {
+      entrances.value = 1;
+      await pumpGate(tester, [_gift], realTiming: true);
+      await wait(tester, 4500);
+      expect(sheet, findsNothing);
+      await wait(tester, 2000);
+      expect(sheet, findsOneWidget);
+      await settle(tester);
+    });
+
+    testWidgets('claims the launch so the rating ask stands aside', (
+      tester,
+    ) async {
+      expect(AnnouncementGate.claimed, isFalse);
+      await pumpGate(tester, [_gift], realTiming: true);
+      await tester.pump();
+      expect(AnnouncementGate.claimed, isTrue);
+      await wait(tester, 4500);
+      await settle(tester);
+      await tester.tap(secondary);
+      await settle(tester);
+      expect(AnnouncementGate.claimed, isFalse);
+    });
+
+    testWidgets('nothing new claims nothing', (tester) async {
+      await pumpGate(tester, const [], realTiming: true);
+      await wait(tester, 4500);
+      expect(AnnouncementGate.claimed, isFalse);
+    });
   });
 
   testWidgets('swiping turns pages, both ways, and resists past the end', (
