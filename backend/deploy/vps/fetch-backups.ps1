@@ -5,7 +5,7 @@
 .DESCRIPTION
   The server makes an encrypted backup every night and keeps the last 14 days.
   A copy that only lives on the server is lost with the server, so run this
-  script regularly (by hand, or daily from Windows Task Scheduler). It
+  script regularly (by hand, or daily with schedule-backup-fetch.ps1). It
   downloads every backup not already in -Destination and checks its size.
   Nothing on the server is changed.
 
@@ -16,9 +16,9 @@
   deploy.ps1 uses.
 
   Example:     .\fetch-backups.ps1 -Server deploy@203.0.113.10
-  Scheduled:   Task Scheduler > Create Basic Task > Daily > Start a program:
-               powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<path>\fetch-backups.ps1" -Server deploy@203.0.113.10
-               (use an SSH key without a passphrase prompt, e.g. -SshKey, so it runs unattended)
+  Every day:   .\schedule-backup-fetch.ps1 -Server deploy@203.0.113.10
+               (a Windows scheduled task that runs this script; the SSH key must
+               work without a passphrase prompt)
 
 .PARAMETER Server
   user@host of the server.
@@ -35,8 +35,13 @@
 .PARAMETER Destination
   Local folder for the backups (default: TarkBackups in your user folder).
 
+.PARAMETER KeepDays
+  After a successful run, delete local backups older than this many days
+  (by the date in their name). Default 0: keep everything. A backup that is
+  still on the server, and the newest local one, are never deleted.
+
 .PARAMETER DryRun
-  List what would be downloaded, download nothing.
+  List what would be downloaded (and deleted), change nothing.
 #>
 #Requires -Version 5.1
 [CmdletBinding()]
@@ -46,6 +51,7 @@ param(
     [string]$SshKey = '',
     [string]$RemotePath = '/opt/tark',
     [string]$Destination = (Join-Path $HOME 'TarkBackups'),
+    [int]$KeepDays = 0,
     [switch]$DryRun
 )
 
@@ -86,12 +92,15 @@ try {
     $listing = & ssh @sshArgs $Server "cd '$RemotePath' && bash remote.sh backups"
     if ($LASTEXITCODE -ne 0) { throw "Could not list the backups (ssh exit code $LASTEXITCODE)." }
 
+    if ($KeepDays -lt 0) { throw '-KeepDays cannot be negative.' }
     $new = 0
+    $onServer = @{}
     foreach ($line in @($listing)) {
         $parts = "$line".Split("`t")
         # Only names the server itself writes; anything else is ignored.
         if ($parts.Count -lt 2 -or $parts[0] -notmatch '^tark-[0-9]{8}-[0-9]{6}\.tbk$') { continue }
         $name = $parts[0]
+        $onServer[$name] = $true
         $size = [int64]$parts[1]
         $target = Join-Path $Destination $name
         if ((Test-Path $target) -and ((Get-Item $target).Length -eq $size)) { continue }
@@ -113,6 +122,23 @@ try {
         Write-Host "Up to date: every backup on the server is already in $Destination." -ForegroundColor Green
     } else {
         Write-Host "Fetched $new backup(s) into $Destination." -ForegroundColor Green
+    }
+
+    # Old local copies go only after everything above worked, only files with
+    # the server's own naming, never one the server still has, and never the
+    # newest one here (so a stalled download cannot empty the folder).
+    if ($KeepDays -gt 0) {
+        $local = @(Get-ChildItem -LiteralPath $Destination -File | Where-Object { $_.Name -match '^tark-[0-9]{8}-[0-9]{6}\.tbk$' } | Sort-Object Name)
+        $cutoff = (Get-Date).ToUniversalTime().AddDays(-$KeepDays).ToString('yyyyMMdd-HHmmss')
+        $gone = 0
+        for ($i = 0; $i -lt $local.Count - 1; $i++) {
+            $file = $local[$i]
+            if ($onServer.ContainsKey($file.Name)) { continue }
+            if ($file.Name.Substring(5, 15) -ge $cutoff) { continue }
+            if ($DryRun) { Write-Host "  would delete $($file.Name)" } else { Remove-Item -LiteralPath $file.FullName -Force }
+            $gone++
+        }
+        if ($gone -gt 0 -and -not $DryRun) { Write-Host "Deleted $gone local backup(s) older than $KeepDays days." }
     }
 } catch {
     Write-Host ''
