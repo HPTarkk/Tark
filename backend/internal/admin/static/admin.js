@@ -90,8 +90,7 @@ if (confirmBox) {
     // submit() skips the submit event.
     if (form.hasAttribute("data-sending")) form.classList.add("sending");
     const button = form.querySelector("button:not([type=button])");
-    button?.classList.add("busy");
-    button?.setAttribute("aria-busy", "true");
+    markBusy(button);
     document.documentElement.classList.add("leaving");
     form.submit();
   });
@@ -219,6 +218,18 @@ for (const rules of document.querySelectorAll(".pw-rules")) {
 // Feedback while the next page is on its way: the button that sent a form
 // shows it is working (and cannot send twice), and a thin bar runs along
 // the top for anything slower than a blink.
+// A button whose form is on its way: it says so (data-busy holds the
+// words, data-idle keeps the old ones for the Back button).
+function markBusy(button) {
+  if (!button) return;
+  button.classList.add("busy");
+  button.setAttribute("aria-busy", "true");
+  const label = button.querySelector(":scope > span");
+  if (label && button.dataset.busy) {
+    button.dataset.idle = label.textContent;
+    label.textContent = button.dataset.busy;
+  }
+}
 const root = document.documentElement;
 document.addEventListener("submit", (event) => {
   // Other handlers (the confirm dialog, the reviews page) may take the
@@ -227,8 +238,7 @@ document.addEventListener("submit", (event) => {
     if (event.defaultPrevented) return;
     const form = event.target;
     const button = event.submitter || form.querySelector("button:not([type=button])");
-    button?.classList.add("busy");
-    button?.setAttribute("aria-busy", "true");
+    markBusy(button);
     form.classList.add("sending");
     root.classList.add("leaving");
   });
@@ -248,6 +258,8 @@ window.addEventListener("pageshow", (event) => {
   for (const el of document.querySelectorAll(".busy, .going")) {
     el.classList.remove("busy", "going");
     el.removeAttribute("aria-busy");
+    const label = el.querySelector(":scope > span");
+    if (label && el.dataset.idle) label.textContent = el.dataset.idle;
   }
   for (const form of document.querySelectorAll("form.sending:not([data-autosave])")) form.classList.remove("sending");
 });

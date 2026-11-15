@@ -13,7 +13,7 @@
     <span class="control">{{icon "mail"}}<input id="login-email" type="email" name="email" autocomplete="username" required maxlength="254" autofocus dir="ltr" placeholder="name@example.com" spellcheck="false" autocapitalize="off"></span>
   </div>
   {{template "password-field" (dict "ID" "login-password" "Name" "password" "Auto" "current-password" "Max" 1024 "Label" (t "label.password") "Placeholder" (t "ph.password"))}}
-  <button class="go"><span>{{t "btn.continue"}}</span>{{icon "arrow"}}</button>
+  <button class="go" data-busy="{{t "busy.checking"}}"><span>{{t "btn.continue"}}</span>{{icon "arrow"}}</button>
 </form>
 </div>
 </section>

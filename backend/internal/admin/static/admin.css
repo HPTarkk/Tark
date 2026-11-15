@@ -910,10 +910,8 @@ body.posted .nil-tile, body.posted .drawn > *, body.posted .nil-title, body.post
 .auth { min-height: calc(100vh - 32px); display: grid; grid-template-columns: minmax(0, 420px); justify-content: center; align-content: center; padding: 24px 0; }
 body:has(.auth) { background: var(--bg); }
 .auth-card { min-width: 0; overflow-wrap: anywhere; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 28px 24px 22px; box-shadow: none; animation: auth-rise .48s cubic-bezier(.23, 1, .32, 1) both; }
-.auth-card > * { animation: auth-rise .42s cubic-bezier(.23, 1, .32, 1) both; }
-.auth-card > :nth-child(2) { animation-delay: .05s; } .auth-card > :nth-child(3) { animation-delay: .1s; }
-.auth-card > :nth-child(4) { animation-delay: .15s; } .auth-card > :nth-child(5) { animation-delay: .2s; }
-.auth-card > :nth-child(n+6) { animation-delay: .25s; }
+/* The card arrives as one piece: its insides do not stagger in after it,
+   which read as a second, slower load. */
 .auth-mark { width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); box-shadow: none; animation: auth-pop .6s cubic-bezier(.23, 1, .32, 1) both; }
 .auth h1 { text-align: center; margin: 0 0 .4rem; font-size: 1.45rem; }
 .auth-lead, .auth-who { text-align: center; color: var(--muted); margin: 0 0 1.2rem; }
@@ -941,7 +939,7 @@ body:has(.auth) { background: var(--bg); }
 @keyframes auth-pop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
 @keyframes auth-shake { 0%, 100% { transform: none; } 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
 @media (prefers-reduced-motion: reduce) {
-  .auth-card, .auth-card > *, .auth-mark, .auth .error { animation-name: auth-fade; }
+  .auth-card, .auth-mark, .auth .error { animation-name: auth-fade; }
   .auth button:not(.link):active { transform: none; }
 }
 @keyframes auth-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -1007,27 +1005,41 @@ input:-webkit-autofill:focus { box-shadow: 0 0 0 40px color-mix(in srgb, var(--a
 @media (max-width: 480px) { .auth-card { padding: 28px 20px 22px; border-radius: 10px; } }
 
 /* ---- buttons that answer ------------------------------------------------ */
-/* "Go" buttons carry an arrow that leans forward on hover and keeps
-   travelling while the next page loads. */
+/* "Go" buttons carry an arrow that leans forward on hover. */
 button.go .i { transition: translate .35s var(--spring); }
 [dir="rtl"] button.go .i { scale: -1 1; }
 button.go:hover .i { translate: 3px 0; }
 [dir="rtl"] button.go:hover .i { translate: -3px 0; }
-button.go.busy .i { animation: go-on .9s var(--ease) infinite; }
-[dir="rtl"] button.go.busy .i { animation-name: go-on-rtl; }
-@keyframes go-on { 0% { translate: 0 0; opacity: 1; } 45% { translate: 14px 0; opacity: 0; } 46% { translate: -14px 0; opacity: 0; } 100% { translate: 0 0; opacity: 1; } }
-@keyframes go-on-rtl { 0% { translate: 0 0; opacity: 1; } 45% { translate: -14px 0; opacity: 0; } 46% { translate: 14px 0; opacity: 0; } 100% { translate: 0 0; opacity: 1; } }
-/* Any button that sent its form: a light sweeps across it until the next
-   page arrives, and it cannot be pressed twice. */
-button.busy { position: relative; overflow: hidden; cursor: progress; pointer-events: none; }
-button.busy::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 25%, rgba(255, 255, 255, .38) 50%, transparent 75%); translate: -100% 0; animation: sweep 1.15s ease-in-out .15s infinite; }
-button.ghost.busy::after, button.link.busy::after { background: linear-gradient(100deg, transparent 25%, color-mix(in srgb, var(--accent) 16%, transparent) 50%, transparent 75%); }
-form.sending > button.busy, form.sending .busy { opacity: 1; }
-@keyframes sweep { to { translate: 100% 0; } }
+/* A button that sent its form keeps its size and colour and cannot be
+   pressed twice. Its words say what is happening ("Checking…", from
+   data-busy) and, on go buttons, the arrow gives way to three small
+   square lights that step along, like the panel's status LEDs. */
+button.busy { position: relative; cursor: progress; pointer-events: none; }
+button.busy > span { transition: opacity .15s ease; }
+button.go.busy .i { display: none; }
+button.go.busy::after { content: ""; width: 5px; height: 5px; flex-shrink: 0; margin-inline-end: 16px; border-radius: 1px;
+  --dim: color-mix(in srgb, currentColor 30%, transparent); --lit: var(--accent-2);
+  background: var(--lit); box-shadow: 8px 0 0 var(--dim), 16px 0 0 var(--dim); animation: leds .9s steps(1) infinite; }
+[dir="rtl"] button.go.busy::after { animation-name: leds-rtl; box-shadow: -8px 0 0 var(--dim), -16px 0 0 var(--dim); }
+@keyframes leds {
+  0% { background: var(--lit); box-shadow: 8px 0 0 var(--dim), 16px 0 0 var(--dim); }
+  33% { background: var(--dim); box-shadow: 8px 0 0 var(--lit), 16px 0 0 var(--dim); }
+  66% { background: var(--dim); box-shadow: 8px 0 0 var(--dim), 16px 0 0 var(--lit); } }
+@keyframes leds-rtl {
+  0% { background: var(--lit); box-shadow: -8px 0 0 var(--dim), -16px 0 0 var(--dim); }
+  33% { background: var(--dim); box-shadow: -8px 0 0 var(--lit), -16px 0 0 var(--dim); }
+  66% { background: var(--dim); box-shadow: -8px 0 0 var(--dim), -16px 0 0 var(--lit); } }
+/* Other buttons only dim a touch while their page is on its way. */
+button.busy:not(.go) { opacity: .7; }
+form.sending > button.go.busy, form.sending .go.busy { opacity: 1; }
+/* While a sign-in step is checked, what was typed stays in view but reads
+   as handed over. */
+.auth form.sending .field { opacity: .55; transition: opacity .2s ease; }
+.auth form.sending .reveal { visibility: hidden; }
 /* A thin bar along the top while the next page is on its way; it only
    shows for anything slower than a blink. */
-html.leaving body::before { content: ""; position: fixed; z-index: 90; top: 0; left: 0; right: 0; height: 3px; pointer-events: none; transform-origin: left; background: var(--accent); box-shadow: none; animation: leave-bar 9s cubic-bezier(.08, .82, .17, 1) .14s both; }
-html[dir="rtl"].leaving body::before { transform-origin: right; background: var(--accent); }
+html.leaving body.app::before { content: ""; position: fixed; z-index: 90; top: 0; left: 0; right: 0; height: 3px; pointer-events: none; transform-origin: left; background: var(--accent); box-shadow: none; animation: leave-bar 9s cubic-bezier(.08, .82, .17, 1) .14s both; }
+html[dir="rtl"].leaving body.app::before { transform-origin: right; background: var(--accent); }
 @keyframes leave-bar { from { transform: scaleX(0); } to { transform: scaleX(.92); } }
 .nav a.going .i { animation: pop .35s var(--spring) both; }
 
@@ -1075,8 +1087,10 @@ html.theme-shift *, html.theme-shift *::before { view-transition-name: none !imp
 ::view-transition-group(auth-card) { animation-duration: .5s; }
 ::view-transition-old(auth-card), ::view-transition-new(auth-card) { height: 100%; object-fit: cover; object-position: top; }
 ::view-transition-old(auth-card) { animation: vt-out .18s ease both; }
-::view-transition-new(auth-card) { animation: vt-fade .3s ease both; }
-.vt-in .auth-card, .vt-in .auth-mark { animation: none; }
+/* One step leaves before the next arrives: no double exposure. */
+::view-transition-new(auth-card) { animation: vt-fade .24s .12s ease both; }
+.vt-in .auth-card, .vt-in .auth-mark, .vt-in .lang-corner { animation: none; }
+.vt-in .auth .error { animation: auth-shake .42s .3s ease both; }
 @keyframes drop { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
 @keyframes vt-out { to { opacity: 0; } }
 @keyframes vt-out-up { to { opacity: 0; transform: translateY(-10px); } }
@@ -1093,8 +1107,8 @@ html.theme-shift *, html.theme-shift *::before { view-transition-name: none !imp
   .control:focus-within > .i, button.go:hover .i, [dir="rtl"] button.go:hover .i { scale: none; translate: none; }
   [dir="rtl"] button.go .i { scale: -1 1; }
   button.go.busy .i, .nav a.going .i, .control .reveal .i { animation: none !important; }
-  button.busy::after { animation: none; background: color-mix(in srgb, var(--fg) 8%, transparent); }
-  html.leaving body::before { animation: auth-fade .3s .14s both; transform: none; opacity: .9; }
+  button.go.busy::after { animation: none; }
+  html.leaving body.app::before { animation: auth-fade .3s .14s both; transform: none; opacity: .9; }
   .hint.caps { animation-name: auth-fade; }
 }
 
@@ -1190,7 +1204,7 @@ th { background: transparent; border-bottom-color: var(--line-2); }
 .settings-jump a:hover { transform: none; border-color: var(--fg); color: var(--fg); }
 .settings-jump a:hover .i { color: var(--fg); }
 .lang:hover { border-color: var(--fg); color: var(--fg); }
-html.leaving body::before { height: 2px; }
+html.leaving body.app::before { height: 2px; }
 .search > .i { color: var(--muted); }
 .search:focus-within > .i { color: var(--fg); }
 
