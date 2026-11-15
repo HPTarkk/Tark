@@ -9,8 +9,10 @@ package config
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -414,6 +416,22 @@ func (c *Config) validate() []error {
 			msg += "; it replaces TARK_BAZAAR_CLIENT_ID, TARK_BAZAAR_CLIENT_SECRET and TARK_BAZAAR_REFRESH_TOKEN, which are no longer read"
 		}
 		errs = append(errs, errors.New(msg))
+	}
+	// Addresses the server calls with a secret or a person's sign-in token,
+	// or whose answer it trusts (Google's signing keys): never in the clear.
+	if !c.Development() {
+		outbound := map[string]string{
+			"TARK_GOOGLE_JWKS_URL":      c.Google.JWKSURL,
+			"TARK_GOOGLE_TOKENINFO_URL": c.Google.TokenInfoURL,
+		}
+		if !c.Bazaar.Fake {
+			outbound["TARK_BAZAAR_BASE_URL"] = c.Bazaar.BaseURL
+		}
+		for _, name := range slices.Sorted(maps.Keys(outbound)) {
+			if v := outbound[name]; v != "" && !strings.HasPrefix(v, "https://") {
+				errs = append(errs, fmt.Errorf("%s must be https", name))
+			}
+		}
 	}
 	errs = append(errs, c.Reviews.validate(c.Development())...)
 	p := c.Policy

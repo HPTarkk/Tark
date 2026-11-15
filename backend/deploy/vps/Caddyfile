@@ -1,7 +1,33 @@
+# Headers every host name answers with, whatever is behind it. They are applied
+# as the answer is written, so they replace the same header from the API or
+# the admin panel instead of doubling it.
+(hardened) {
+	header {
+		# Browsers that have been here once never try plain HTTP again.
+		Strict-Transport-Security "max-age=31536000"
+		# A file is what its Content-Type says, never what it looks like.
+		X-Content-Type-Options nosniff
+		# No need to say what serves the site.
+		-Server
+	}
+}
+
+# For the two sites of static pages: no other site may put them in a frame
+# (clickjacking), and a link out tells the next site only where it came from,
+# not which page. "?" keeps a stricter value a page sets for itself (/v/*).
+(pages) {
+	header {
+		?X-Frame-Options SAMEORIGIN
+		?Content-Security-Policy "frame-ancestors 'self'"
+		?Referrer-Policy strict-origin-when-cross-origin
+	}
+}
+
 # Caddy terminates TLS (certificates from Let's Encrypt, renewed automatically)
 # and forwards to the API. Point your domain's DNS A/AAAA record at this server
 # before the first start: Caddy needs it to obtain the certificate.
 {$TARK_DOMAIN} {
+	import hardened
 	encode zstd gzip
 
 	reverse_proxy api:8080 {
@@ -27,6 +53,7 @@
 # server too. The panel has its own sign-in (password + authenticator code);
 # this block only adds HTTPS.
 {$TARK_ADMIN_DOMAIN} {
+	import hardened
 	encode zstd gzip
 	reverse_proxy api:8081
 }
@@ -49,6 +76,8 @@
 # whenever the country was unknown, and a remembered choice still wins.
 {$TARK_SITE_ADDRESS:http://site.localhost} {
 	root * {$TARK_SITES_ROOT:/srv/sites}/website
+	import hardened
+	import pages
 	encode zstd gzip
 
 	# A page lives at its clean address: /privacy.html answers at /privacy and
@@ -110,6 +139,8 @@
 # inside the browser, so an address that is not a file gets index.html.
 {$TARK_GUEST_ADDRESS:http://guest.localhost} {
 	root * {$TARK_SITES_ROOT:/srv/sites}/guest
+	import hardened
+	import pages
 	encode zstd gzip
 	header Cache-Control "public, max-age=0, must-revalidate"
 	try_files {path} /index.html

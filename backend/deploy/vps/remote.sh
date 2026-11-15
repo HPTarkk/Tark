@@ -104,6 +104,21 @@ need_docker() {
   docker compose version >/dev/null 2>&1 || die "The Docker Compose plugin is missing (docker compose version failed)."
 }
 
+# To Docker a changed Caddyfile is the same container, so "up" leaves Caddy
+# running the old one. reload swaps the configuration in without dropping a
+# connection, and a file Caddy refuses leaves the old one serving. When the
+# container still sees the old file (it was replaced, not rewritten), only a
+# restart of Caddy picks the new one up. Never a reason to fail a deploy.
+reload_caddy() {
+  if "${COMPOSE[@]}" exec -T caddy cat /etc/caddy/Caddyfile 2>/dev/null | cmp -s - Caddyfile; then
+    "${COMPOSE[@]}" exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 ||
+      echo "Caddy did not take the Caddyfile; it keeps serving the previous one. Look at: ${COMPOSE[*]} logs --tail 30 caddy" >&2
+  else
+    "${COMPOSE[@]}" restart caddy >/dev/null 2>&1 ||
+      echo "Caddy could not be restarted to read the new Caddyfile. Look at: ${COMPOSE[*]} logs --tail 30 caddy" >&2
+  fi
+}
+
 wait_healthy() {
   local cid status
   for _ in $(seq 1 60); do
@@ -196,6 +211,7 @@ case "$cmd" in
     set_kv TARK_IMAGE "$image"
     "${COMPOSE[@]}" up -d --remove-orphans
     wait_healthy || die "Deploy of $image failed. 'bash remote.sh rollback' returns to the previous image." 4
+    reload_caddy
     echo "Deployed $image and it is healthy."
     ;;
   rollback)
