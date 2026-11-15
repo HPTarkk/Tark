@@ -36,8 +36,9 @@ void main() {
             body: Center(
               child: TextButton(
                 onPressed: () async => results.add(
-                  await Navigator.of(context)
-                      .push<bool>(MaterialPageRoute(builder: page)),
+                  await Navigator.of(
+                    context,
+                  ).push<bool>(MaterialPageRoute(builder: page)),
                 ),
                 child: const Text('open'),
               ),
