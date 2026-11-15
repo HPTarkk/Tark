@@ -1,6 +1,11 @@
-# Version and publish the static marketing site (independent of the Android app).
+# Version and publish the static marketing site (independent of the Android app)
+# to the Tarkk server, which serves it at tarkk.ir (backend/deploy/vps).
 [CmdletBinding()]
 param(
+    # user@host of the server. Default: $env:TARK_SERVER, else root@94.184.25.235.
+    [string]$Server = $(if ($env:TARK_SERVER) { $env:TARK_SERVER } else { 'root@94.184.25.235' }),
+    [int]$SshPort = 22,
+    [string]$SshKey = '',
     [ValidateSet('patch', 'minor', 'major')]
     [string]$Bump = 'patch',
     [ValidatePattern('^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$')]
@@ -15,7 +20,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $packagePath = Join-Path $repoRoot 'website/package.json'
 $manifestPath = Join-Path $repoRoot 'website/site-version.json'
-$configPath = Join-Path $repoRoot 'wrangler.website.jsonc'
+$publishScript = Join-Path $repoRoot 'backend/deploy/vps/publish-sites.ps1'
 $utf8 = [Text.UTF8Encoding]::new($false)
 $originalPackage = [IO.File]::ReadAllBytes($packagePath)
 $hadManifest = Test-Path -LiteralPath $manifestPath
@@ -32,7 +37,7 @@ function Invoke-CheckedCommand {
 Push-Location -LiteralPath $repoRoot
 try {
     $nodeCommand = (Get-Command node -ErrorAction Stop).Source
-    $wranglerCommand = (Get-Command wrangler -ErrorAction Stop).Source
+    if (-not (Test-Path -LiteralPath $publishScript -PathType Leaf)) { throw "$publishScript was not found." }
     $packageText = [IO.File]::ReadAllText($packagePath)
     $package = $packageText | ConvertFrom-Json
     $currentVersion = [version]$package.version
@@ -50,7 +55,7 @@ try {
     if (-not $Message) { $Message = "Website $Version" }
     $commit = & git rev-parse HEAD
     if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the source commit.' }
-    $workingChanges = & git status --porcelain -- website website-worker scripts wrangler.website.jsonc
+    $workingChanges = & git status --porcelain -- website scripts
     if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect the source working tree.' }
     Write-Host "Website $currentVersion -> $Version ($tag)"
 
@@ -71,14 +76,18 @@ try {
     $staged = $true
     [IO.File]::WriteAllText($packagePath, $nextPackage, $utf8)
     [IO.File]::WriteAllText($manifestPath, (($manifest | ConvertTo-Json) + "`n"), $utf8)
-    $deployArgs = @('deploy', '--config', $configPath, '--tag', $tag, '--message', $Message)
-    if ($DryRun) { $deployArgs += '--dry-run' }
-    Invoke-CheckedCommand $wranglerCommand $deployArgs
+    $publishArgs = @{ Server = $Server; Site = 'website'; WebsiteDir = (Join-Path $repoRoot 'website'); SshPort = $SshPort }
+    if ($SshKey) { $publishArgs.SshKey = $SshKey }
+    if ($DryRun) { $publishArgs.DryRun = $true }
+    Write-Host "Publishing $tag to $Server$(if ($DryRun) { ' (dry run)' })"
+    $global:LASTEXITCODE = 0
+    & $publishScript @publishArgs
+    if ($LASTEXITCODE -ne 0) { throw "Publishing to $Server failed (exit $LASTEXITCODE)." }
     if ($DryRun) {
         Write-Host 'Dry run passed. No upload or saved version change.'
     } else {
         $published = $true
-        # An assets-only Worker deploy includes every file in website/.
+        # The whole website/ folder was switched in at once on the server.
         # Verify the public marker rather than treating a successful upload as live proof.
         $verified = $false
         for ($attempt = 0; $attempt -lt 6; $attempt++) {
@@ -94,7 +103,7 @@ try {
             if ($attempt -lt 5) { Start-Sleep -Seconds 3 }
         }
         if (-not $verified) {
-            throw "Wrangler published $tag, but live verification failed. Version files were retained; check tarkk.ir/site-version.json before retrying."
+            throw "Published $tag to $Server, but live verification failed. Version files were retained; check tarkk.ir/site-version.json before retrying."
         }
         Write-Host "Live: https://tarkk.ir/ ($tag)."
 

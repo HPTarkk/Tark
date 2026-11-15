@@ -293,8 +293,8 @@
         {
           "type": "p",
           "text": {
-            "en": "The server is written in Go with a PostgreSQL database, and is hosted by ArvanCloud in data centres inside Iran. Account emails are sent through Gmail’s SMTP service.",
-            "fa": "سرور با Go و پایگاه داده‌ی PostgreSQL نوشته شده و میزبانش آروان‌کلاده، توی مراکز داده‌ی داخل ایران. ایمیل‌های حساب از طریق سرویس SMTP جیمیل فرستاده می‌شن."
+            "en": "The server is written in Go with a PostgreSQL database, and is hosted by ParsPack in data centres inside Iran. Account emails are sent from noreply@tarkk.ir through ParsPack’s mail service.",
+            "fa": "سرور با Go و پایگاه داده‌ی PostgreSQL نوشته شده و میزبانش پارس‌پکه، توی مراکز داده‌ی داخل ایران. ایمیل‌های حساب از noreply@tarkk.ir با سرویس ایمیل پارس‌پک فرستاده می‌شن."
           }
         },
         {
@@ -603,12 +603,12 @@
           "type": "rows",
           "items": [
             {
-              "name": "Cloudflare",
-              "href": "https://www.cloudflare.com/privacypolicy/",
+              "name": "ParsPack",
+              "href": "https://parspack.com",
               "external": true,
               "text": {
-                "en": "Hosts tarkk.ir, including the files the app checks for updates and the page account-email links fall back to. Sees each request the way any web host does.",
-                "fa": "میزبان tarkk.ir، از جمله فایل‌هایی که برنامه برای به‌روزرسانی چک می‌کنه و صفحه‌ای که لینک‌های ایمیل حساب در صورت نیاز روش باز می‌شن. مثل هر میزبان وبی، هر درخواست رو می‌بینه."
+                "en": "Hosts tarkk.ir and app.tarkk.ir, including the files the app checks for updates and the page account-email links fall back to, and the Tarkk account server and its database, inside Iran. Account emails are sent from noreply@tarkk.ir through its mail service. Sees the requests made to them, as any host does, and stores the account data described above.",
+                "fa": "میزبان tarkk.ir و app.tarkk.ir، از جمله فایل‌هایی که برنامه برای به‌روزرسانی چک می‌کنه و صفحه‌ای که لینک‌های ایمیل حساب در صورت نیاز روش باز می‌شن، و سرور حساب تَرک و پایگاه داده‌ش، داخل ایران. ایمیل‌های حساب از noreply@tarkk.ir با سرویس ایمیلش فرستاده می‌شن. مثل هر میزبانی، درخواست‌هایی که بهشون می‌رسه رو می‌بینه و داده‌های حسابی که بالاتر گفتیم رو نگه می‌داره."
               }
             },
             {
@@ -621,12 +621,12 @@
               "external": true
             },
             {
-              "name": "Google (Gmail, Google sign-in)",
+              "name": "Google (Google sign-in)",
               "href": "https://policies.google.com/privacy",
               "external": true,
               "text": {
-                "en": "Delivers account emails, which are sent through Gmail. If you choose Google sign-in, Google confirms your account to us and shares your Google account id and email address; it does not share your password.",
-                "fa": "ایمیل‌های حساب رو، که از طریق جیمیل فرستاده می‌شن، می‌رسونه. اگه ورود با گوگل رو انتخاب کنی، گوگل حسابت رو برای ما تأیید می‌کنه و شناسه‌ی حساب گوگل و نشانی ایمیلت رو در اختیارمون می‌ذاره؛ رمز عبورت رو نه."
+                "en": "If you choose Google sign-in, Google confirms your account to us and shares your Google account id and email address; it does not share your password.",
+                "fa": "اگه ورود با گوگل رو انتخاب کنی، گوگل حسابت رو برای ما تأیید می‌کنه و شناسه‌ی حساب گوگل و نشانی ایمیلت رو در اختیارمون می‌ذاره؛ رمز عبورت رو نه."
               }
             },
             {
@@ -649,8 +649,8 @@
             },
             {
               "text": {
-                "en": "Hosts the Android download, and the Tarkk account server and its database, inside Iran. Sees the requests made to them, as any host does, and stores the account data described above.",
-                "fa": "میزبان فایل دانلود اندروید، و سرور حساب تَرک و پایگاه داده‌ش، داخل ایران. مثل هر میزبانی، درخواست‌هایی که بهشون می‌رسه رو می‌بینه و داده‌های حسابی که بالاتر گفتیم رو نگه می‌داره."
+                "en": "Hosts the Android download. Sees the requests made to it, as any host does.",
+                "fa": "میزبان فایل دانلود اندروید. مثل هر میزبانی، درخواست‌هایی که بهش می‌رسه رو می‌بینه."
               },
               "name": "ArvanCloud",
               "href": "https://www.arvancloud.ir",

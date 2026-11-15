@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Checks that the Caddyfile serves the website and the guest app the way the
-# previous host did (website/_headers, website/_redirects, clean addresses,
-# the guest app's single-page fallback). Runs a real Caddy on a local port
+# Checks that the Caddyfile serves the website and the guest app as intended
+# (headers, the /v/* email links, clean addresses, the guest app's
+# single-page fallback). Runs a real Caddy on a local port
 # against the repository's own website/ folder and a stand-in guest build.
 #
 #   bash backend/deploy/vps/test-sites.sh          (needs caddy and curl)

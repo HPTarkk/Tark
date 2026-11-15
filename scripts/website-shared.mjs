@@ -22,10 +22,9 @@ export function startup(lang, faPath) {
       // Only an explicit remembered Persian choice can redirect English URLs,
       // with one exception: the bare home page "/" is the default entry, and a
       // visitor with no choice of their own yet who is in Iran starts in
-      // Persian. The edge Worker (website-worker/) tags this page with the
-      // visitor's IP country; if that is missing (local preview, unknown
-      // country) or masked by a VPN — common in Iran — the device's Iran time
-      // zone says the same. A remembered choice or ?lang= always wins.
+      // Persian. The device's Iran time zone says so (a data-country="IR"
+      // attribute on <html>, if a host ever adds one, says the same). A
+      // remembered choice or ?lang= always wins.
       let inIran = false;
       if (root.lang === 'en' && !preference && location.pathname === '/') {
         let zone = '';

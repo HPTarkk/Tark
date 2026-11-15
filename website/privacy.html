@@ -53,10 +53,9 @@
       // Only an explicit remembered Persian choice can redirect English URLs,
       // with one exception: the bare home page "/" is the default entry, and a
       // visitor with no choice of their own yet who is in Iran starts in
-      // Persian. The edge Worker (website-worker/) tags this page with the
-      // visitor's IP country; if that is missing (local preview, unknown
-      // country) or masked by a VPN — common in Iran — the device's Iran time
-      // zone says the same. A remembered choice or ?lang= always wins.
+      // Persian. The device's Iran time zone says so (a data-country="IR"
+      // attribute on <html>, if a host ever adds one, says the same). A
+      // remembered choice or ?lang= always wins.
       let inIran = false;
       if (root.lang === 'en' && !preference && location.pathname === '/') {
         let zone = '';
@@ -316,7 +315,7 @@
             <p>Like any web server, ours sees the IP address each request comes from, as part of answering it.</p>
           </div>
         </div>
-        <p>The server is written in Go with a PostgreSQL database, and is hosted by ArvanCloud in data centres inside Iran. Account emails are sent through Gmail’s SMTP service.</p>
+        <p>The server is written in Go with a PostgreSQL database, and is hosted by ParsPack in data centres inside Iran. Account emails are sent from noreply@tarkk.ir through ParsPack’s mail service.</p>
         <p>Account data is used to run your account, send its emails and keep your subscription working.</p>
       </section>
 
@@ -435,16 +434,16 @@
         <p>The complete list of third parties any part of Tarkk touches. Each has its own privacy policy, which governs what it does with what it sees.</p>
         <div class="legal-rows">
           <div class="legal-row">
-            <a class="legal-row-name" href="https://www.cloudflare.com/privacypolicy/" rel="noopener" target="_blank">Cloudflare</a>
-            <p>Hosts tarkk.ir, including the files the app checks for updates and the page account-email links fall back to. Sees each request the way any web host does.</p>
+            <a class="legal-row-name" href="https://parspack.com" rel="noopener" target="_blank">ParsPack</a>
+            <p>Hosts tarkk.ir and app.tarkk.ir, including the files the app checks for updates and the page account-email links fall back to, and the Tarkk account server and its database, inside Iran. Account emails are sent from noreply@tarkk.ir through its mail service. Sees the requests made to them, as any host does, and stores the account data described above.</p>
           </div>
           <div class="legal-row">
             <a class="legal-row-name" href="https://policies.google.com/privacy" rel="noopener" target="_blank">Google STUN</a>
             <p>Sees the IP address of a browser guest while a connection is being set up. Never carries audio.</p>
           </div>
           <div class="legal-row">
-            <a class="legal-row-name" href="https://policies.google.com/privacy" rel="noopener" target="_blank">Google (Gmail, Google sign-in)</a>
-            <p>Delivers account emails, which are sent through Gmail. If you choose Google sign-in, Google confirms your account to us and shares your Google account id and email address; it does not share your password.</p>
+            <a class="legal-row-name" href="https://policies.google.com/privacy" rel="noopener" target="_blank">Google (Google sign-in)</a>
+            <p>If you choose Google sign-in, Google confirms your account to us and shares your Google account id and email address; it does not share your password.</p>
           </div>
           <div class="legal-row">
             <a class="legal-row-name" href="https://www.jsdelivr.com/terms/privacy-policy-jsdelivr-net" rel="noopener" target="_blank">jsDelivr</a>
@@ -456,7 +455,7 @@
           </div>
           <div class="legal-row">
             <a class="legal-row-name" href="https://www.arvancloud.ir" rel="noopener" target="_blank">ArvanCloud</a>
-            <p>Hosts the Android download, and the Tarkk account server and its database, inside Iran. Sees the requests made to them, as any host does, and stores the account data described above.</p>
+            <p>Hosts the Android download. Sees the requests made to it, as any host does.</p>
           </div>
           <div class="legal-row">
             <a class="legal-row-name" href="https://reymit.ir/tark" rel="noopener" target="_blank">Reymit</a>

@@ -2,10 +2,10 @@ name: Backend
 
 on:
   pull_request:
-    paths: ["backend/**", "website/_headers", "website/_redirects", ".github/workflows/backend.yml"]
+    paths: ["backend/**", "website/**", ".github/workflows/backend.yml"]
   push:
     branches: [main]
-    paths: ["backend/**", "website/_headers", "website/_redirects", ".github/workflows/backend.yml"]
+    paths: ["backend/**", "website/**", ".github/workflows/backend.yml"]
 
 permissions:
   contents: read

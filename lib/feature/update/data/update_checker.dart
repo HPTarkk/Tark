@@ -43,7 +43,7 @@ class UpdateChecker {
     if (!isSupported) return null;
     final base = Uri.tryParse(feedUrl);
     if (base == null) return null;
-    // Cloudflare and any proxy on the way may cache the file; a query no one
+    // A CDN or any proxy on the way may cache the file; a query no one
     // has asked for before is always a miss, so a release is seen at once.
     final url = base.replace(
       queryParameters: {

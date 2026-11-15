@@ -149,6 +149,10 @@ jobs:
         shell: pwsh
         run: ./scripts/test-build-web-release.ps1
 
+      - name: Test website release script
+        shell: pwsh
+        run: ./scripts/test-release-website.ps1
+
       - name: Protocol compatibility tests
         shell: bash
         run: |
