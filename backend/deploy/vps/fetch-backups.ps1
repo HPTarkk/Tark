@@ -5,7 +5,7 @@
 .DESCRIPTION
   The server makes an encrypted backup every night and keeps the last 14 days.
   A copy that only lives on the server is lost with the server, so run this
-  script regularly (by hand, or daily from Windows Task Scheduler). It
+  script regularly (by hand, or daily with schedule-backup-fetch.ps1). It
   downloads every backup not already in -Destination and checks its size.
   Nothing on the server is changed.
 
@@ -16,9 +16,9 @@
   deploy.ps1 uses.
 
   Example:     .\fetch-backups.ps1 -Server deploy@203.0.113.10
-  Scheduled:   Task Scheduler > Create Basic Task > Daily > Start a program:
-               powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<path>\fetch-backups.ps1" -Server deploy@203.0.113.10
-               (use an SSH key without a passphrase prompt, e.g. -SshKey, so it runs unattended)
+  Every day:   .\schedule-backup-fetch.ps1 -Server deploy@203.0.113.10
+               (a Windows scheduled task that runs this script; the SSH key must
+               work without a passphrase prompt)
 
 .PARAMETER Server
   user@host of the server.
