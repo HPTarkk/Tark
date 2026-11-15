@@ -222,31 +222,27 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('the lights glow along in one smooth wave', (tester) async {
+    testWidgets('one light glides quickly back and forth, never jumping', (
+      tester,
+    ) async {
       await tester.pumpWidget(app(button(busy: true)));
       await tester.pump(const Duration(milliseconds: 400));
-      List<double> lit() => tester
-          .widgetList<Opacity>(
-            find.descendant(
-              of: find.byType(AuthWaveLights),
-              matching: find.byType(Opacity),
-            ),
-          )
-          .map((o) => o.opacity)
-          .toList();
-      // Sample the loop finely: no light ever jumps between two frames.
-      var before = lit();
-      for (var i = 0; i < 80; i++) {
+      final glider = find.byKey(const ValueKey('auth-glider'));
+      double x() => tester.getCenter(glider).dx;
+      final seen = <double>[];
+      var before = x();
+      // Two full sweeps, sampled at 60fps.
+      for (var i = 0; i < 78; i++) {
         await tester.pump(const Duration(milliseconds: 16));
-        final now = lit();
-        for (var j = 0; j < 3; j++) {
-          expect((now[j] - before[j]).abs(), lessThan(0.1));
-        }
+        final now = x();
+        expect((now - before).abs(), lessThan(3.5), reason: 'no jumps');
+        seen.add(now);
         before = now;
       }
-      // And they are not all lit alike: a crest travels along them.
-      final spread = before.reduce(math.max) - before.reduce(math.min);
-      expect(spread, greaterThan(0.2));
+      // It crosses the whole row within one sweep, both ways.
+      final span = seen.reduce(math.max) - seen.reduce(math.min);
+      expect(span, greaterThan(15));
+      expect(AuthWaveLights.sweep, lessThan(const Duration(milliseconds: 700)));
     });
 
     testWidgets('reduced motion: words still change, lights hold still', (

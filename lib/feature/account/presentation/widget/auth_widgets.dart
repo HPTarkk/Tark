@@ -556,7 +556,7 @@ class _LengthMeter extends StatelessWidget {
 ///
 /// Sending, its label lifts away upward as the busy line rises in from
 /// below: what the app is doing now ([busyLabel], "Signing in"), followed by
-/// three small lights that glow along it in one continuous wave. Done, the
+/// a light that glides quickly back and forth over three dim ones. Done, the
 /// busy line lifts away the same way for a check mark on green. One
 /// vertical hand-over for every change, so the button reads as one surface
 /// whose words change, never as a spinner dropped into it.
@@ -677,10 +677,11 @@ class AuthPrimaryButton extends StatelessWidget {
             ),
             alignment: Alignment.center,
             child: AnimatedSwitcher(
-              duration: AppMotion.entrance,
-              // The old words are mostly gone before the new ones are
-              // half-way in, so the two never sit on top of each other.
-              switchInCurve: const Interval(0.25, 1, curve: AppMotion.easeOut),
+              // The same beat as the admin panel's sign-in: the old words
+              // are gone in 140ms while the new ones take 260ms to settle.
+              duration: const Duration(milliseconds: 260),
+              reverseDuration: const Duration(milliseconds: 140),
+              switchInCurve: AppMotion.easeOut,
               switchOutCurve: AppMotion.leaving,
               layoutBuilder: (current, previous) => Stack(
                 alignment: Alignment.center,
@@ -699,16 +700,20 @@ class AuthPrimaryButton extends StatelessWidget {
   }
 }
 
-/// Three small lights after a busy label, glowing in one wave that travels
-/// along them in the reading direction and never stops between steps: each
-/// light brightens and lifts a little as the crest passes and eases back
-/// after it. One controller; the wave is a cosine, so there is no jump at
-/// any point of the loop. Under reduced motion they hold still, evenly lit.
+/// Three small dim squares after a busy label, and one bright square that
+/// glides quickly back and forth over them: a single moving thing, not
+/// three that take turns. The same lights as the admin panel's sign-in.
+/// It travels in reading order (right to left in Persian), eased at the
+/// turns so it never jerks. Under reduced motion it rests on the first.
 class AuthWaveLights extends StatefulWidget {
-  const AuthWaveLights({required this.color, this.size = 5, super.key});
+  const AuthWaveLights({required this.color, super.key});
 
   final Color color;
-  final double size;
+
+  /// One pass across the three squares; it then comes straight back.
+  static const sweep = Duration(milliseconds: 620);
+  static const double square = 6;
+  static const double gap = 4;
 
   @override
   State<AuthWaveLights> createState() => _AuthWaveLightsState();
@@ -716,62 +721,53 @@ class AuthWaveLights extends StatefulWidget {
 
 class _AuthWaveLightsState extends State<AuthWaveLights>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _wave = AnimationController(
+  late final AnimationController _glide = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1250),
+    duration: AuthWaveLights.sweep,
   );
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _wave.loopUnlessReduced(context);
+    _glide.loopUnlessReduced(context, reverse: true);
   }
 
   @override
   void dispose() {
-    _wave.dispose();
+    _glide.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final still = AppMotion.reduced(context);
-    final size = widget.size;
-    return ExcludeSemantics(
-      child: SizedBox(
-        height: size * 2.6,
-        child: AnimatedBuilder(
-          animation: _wave,
-          builder: (context, _) => Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [for (var i = 0; i < 3; i++) _light(i, still, size)],
-          ),
-        ),
+    const size = AuthWaveLights.square;
+    const step = size + AuthWaveLights.gap;
+    Widget square(double alpha, {Key? key}) => Container(
+      key: key,
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: widget.color.withValues(alpha: alpha),
+        borderRadius: BorderRadius.circular(1.5),
       ),
     );
-  }
-
-  Widget _light(int i, bool still, double size) {
-    // 0 at the trough, 1 at the crest; each light a third of a turn behind
-    // the one before it, so the crest travels along the row.
-    final glow = still
-        ? 0.6
-        : 0.5 - 0.5 * math.cos(2 * math.pi * (_wave.value - i / 3));
-    final eased = Curves.easeInOut.transform(glow);
-    return Padding(
-      padding: EdgeInsetsDirectional.only(start: i == 0 ? 0 : size * 0.8),
-      child: Transform.translate(
-        offset: Offset(0, -size * 0.55 * eased),
-        child: Opacity(
-          opacity: 0.35 + 0.65 * eased,
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              color: widget.color,
-              shape: BoxShape.circle,
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: size * 3 + AuthWaveLights.gap * 2,
+        height: size,
+        child: Stack(
+          children: [
+            for (var i = 0; i < 3; i++)
+              PositionedDirectional(start: i * step, child: square(0.28)),
+            AnimatedBuilder(
+              animation: _glide,
+              builder: (context, child) => PositionedDirectional(
+                start: Curves.easeInOutCubic.transform(_glide.value) * 2 * step,
+                child: child!,
+              ),
+              child: square(1, key: const ValueKey('auth-glider')),
             ),
-          ),
+          ],
         ),
       ),
     );
