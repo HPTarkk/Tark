@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/HPTarkk/Tark/backend/internal/billing"
+	"github.com/HPTarkk/Tark/backend/internal/buildinfo"
 	"github.com/HPTarkk/Tark/backend/internal/metrics"
 )
 
@@ -133,6 +134,8 @@ func funcsFor(lang string) template.FuncMap {
 	m["lang"] = func() string { return lang }
 	m["dir"] = func() string { return dir }
 	m["t"] = func(key string, args ...any) string { return tr(lang, key, args...) }
+	// version names the running build (buildinfo), shown before and after sign-in.
+	m["version"] = buildinfo.String
 	// planTitle names a Bazaar product for people ("Tarkk Premium, 3 months").
 	m["planTitle"] = func(sku string) string {
 		if p, ok := billing.ParsePlan(sku); ok {

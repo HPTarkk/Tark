@@ -1252,3 +1252,9 @@ html[data-way="same"]::view-transition-new(content) { animation: vt-fade .16s ea
 /* The root now holds only the background: no fade, so nothing flickers. */
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 ::view-transition-old(root) { display: none; }
+
+/* The running build, small and quiet: in the menu's foot after sign-in,
+   in the bottom corner before it. */
+.ver { margin: 10px 0 0; color: var(--muted); font-size: .72rem; display: flex; gap: 6px; align-items: baseline; }
+.ver code { font-size: 1em; color: var(--muted); background: none; padding: 0; direction: ltr; unicode-bidi: isolate; }
+.ver-corner { position: fixed; inset-block-end: 14px; inset-inline-start: 18px; margin: 0; z-index: 1; }
