@@ -186,6 +186,7 @@ class _SignInPageState extends State<SignInPage> {
             AuthPrimaryButton(
               buttonKey: const ValueKey('signin-submit'),
               label: s.signin_action,
+              busyLabel: s.signin_busy,
               busy: state.busy,
               done: _signedIn,
               onTap: _signIn,

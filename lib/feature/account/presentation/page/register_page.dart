@@ -142,6 +142,7 @@ class _RegisterPageState extends State<RegisterPage> {
             AuthPrimaryButton(
               buttonKey: const ValueKey('register-submit'),
               label: s.register_action,
+              busyLabel: s.register_busy,
               busy: state.busy,
               onTap: _submit,
             ),

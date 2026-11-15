@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -178,7 +180,8 @@ void main() {
           width: 300,
           child: AuthPrimaryButton(
             buttonKey: const ValueKey('b'),
-            label: 'Sign in',
+            label: 'SIGN IN',
+            busyLabel: 'SIGNING IN',
             busy: busy,
             done: done,
             onTap: () {},
@@ -190,28 +193,64 @@ void main() {
     double width(WidgetTester tester) =>
         tester.getSize(find.byKey(const ValueKey('b'))).width;
 
-    testWidgets('gathers into a disc while busy, opens out when done', (
+    testWidgets('hands its label over vertically to what it is doing', (
       tester,
     ) async {
       await tester.pumpWidget(app(button(busy: false)));
-      expect(width(tester), 300);
+      final rest = tester.getCenter(find.text('SIGN IN')).dy;
       await tester.pumpWidget(app(button(busy: true)));
-      await tester.pump(const Duration(milliseconds: 120));
-      final midway = width(tester);
-      expect(midway, lessThan(300));
-      expect(midway, greaterThan(56));
+      await tester.pump(const Duration(milliseconds: 90));
+      // Mid hand-over: the label is lifting away, the busy line rising in
+      // from below. No sideways travel, no change of shape.
+      expect(tester.getCenter(find.text('SIGN IN')).dy, lessThan(rest));
+      expect(
+        tester.getCenter(find.text('SIGNING IN')).dy,
+        greaterThan(rest - 1),
+      );
+      expect(width(tester), 300);
       await tester.pump(const Duration(milliseconds: 400));
-      expect(width(tester), 56);
+      expect(find.text('SIGN IN'), findsNothing);
+      expect(find.text('SIGNING IN'), findsOneWidget);
+      expect(find.text('SIGNING IN...'), findsNothing);
+      expect(find.byType(AuthWaveLights), findsOneWidget);
+      expect(width(tester), 300);
+
       await tester.pumpWidget(app(button(busy: false, done: true)));
       await tester.pumpAndSettle();
-      expect(width(tester), 300);
+      expect(find.byType(AuthWaveLights), findsNothing);
       expect(find.byIcon(Icons.check_rounded), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('reduced motion keeps its shape', (tester) async {
+    testWidgets('one light glides quickly back and forth, never jumping', (
+      tester,
+    ) async {
+      await tester.pumpWidget(app(button(busy: true)));
+      await tester.pump(const Duration(milliseconds: 400));
+      final glider = find.byKey(const ValueKey('auth-glider'));
+      double x() => tester.getCenter(glider).dx;
+      final seen = <double>[];
+      var before = x();
+      // Two full sweeps, sampled at 60fps.
+      for (var i = 0; i < 78; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        final now = x();
+        expect((now - before).abs(), lessThan(3.5), reason: 'no jumps');
+        seen.add(now);
+        before = now;
+      }
+      // It crosses the whole row within one sweep, both ways.
+      final span = seen.reduce(math.max) - seen.reduce(math.min);
+      expect(span, greaterThan(15));
+      expect(AuthWaveLights.sweep, lessThan(const Duration(milliseconds: 700)));
+    });
+
+    testWidgets('reduced motion: words still change, lights hold still', (
+      tester,
+    ) async {
       await tester.pumpWidget(app(button(busy: true), reduced: true));
-      await tester.pumpAndSettle(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
+      expect(find.text('SIGNING IN'), findsOneWidget);
       expect(width(tester), 300);
     });
   });

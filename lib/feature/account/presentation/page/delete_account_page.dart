@@ -139,6 +139,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
             AuthPrimaryButton(
               buttonKey: const ValueKey('delete-submit'),
               label: _withGoogle ? s.delete_action_google : s.delete_action,
+              busyLabel: s.delete_busy,
               destructive: true,
               busy: state.busy,
               onTap: blocked ? null : _submit,

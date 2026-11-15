@@ -112,6 +112,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             AuthPrimaryButton(
               buttonKey: const ValueKey('change-submit'),
               label: s.change_password_action,
+              busyLabel: s.auth_saving_busy,
               busy: state.busy,
               done: _saved,
               onTap: _submit,

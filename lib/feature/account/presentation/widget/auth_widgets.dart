@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show OverflowBoxFit;
 import 'package:flutter/services.dart';
 
 import '../../../../core/l10n/extension.dart';
@@ -10,7 +9,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/status_hero.dart';
 import '../../../../core/utils/localized_digits_formatter.dart';
 import '../../../../core/widget/status_note.dart';
-import '../../../../core/widget/beacon_pulse.dart';
 import 'auth_motion.dart';
 
 /// The frame every account screen shares: a back arrow, the [StatusHero], a
@@ -553,14 +551,20 @@ class _LengthMeter extends StatelessWidget {
   }
 }
 
-/// The one strong action on an account screen: a warm gradient that, while
-/// its request is out, gathers itself into a pulsing disc, then opens back
-/// out green with a check mark once done — the button *is* the progress,
-/// rather than a spinner dropped into it.
+/// The one strong action on an account screen: a warm gradient that keeps
+/// its shape and colour throughout and says what is happening.
+///
+/// Sending, its label lifts away upward as the busy line rises in from
+/// below: what the app is doing now ([busyLabel], "Signing in"), followed by
+/// a light that glides quickly back and forth over three dim ones. Done, the
+/// busy line lifts away the same way for a check mark on green. One
+/// vertical hand-over for every change, so the button reads as one surface
+/// whose words change, never as a spinner dropped into it.
 class AuthPrimaryButton extends StatelessWidget {
   const AuthPrimaryButton({
     required this.label,
     required this.onTap,
+    this.busyLabel,
     this.busy = false,
     this.done = false,
     this.destructive = false,
@@ -570,6 +574,10 @@ class AuthPrimaryButton extends StatelessWidget {
 
   final String label;
   final VoidCallback? onTap;
+
+  /// What the button says while its request is out. Defaults to a plain
+  /// "one moment".
+  final String? busyLabel;
   final bool busy;
   final bool done;
   final bool destructive;
@@ -577,21 +585,22 @@ class AuthPrimaryButton extends StatelessWidget {
 
   static final _radius = BorderRadius.circular(18);
 
-  static const double _height = 56;
-
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null && !busy && !done;
-    final reduced = AppMotion.reduced(context);
-    // Reduced motion keeps the swap of label for pulse, without the change
-    // of shape.
-    final gathered = busy && !reduced;
     final base = done
         ? AppColors.green
         : destructive
         ? AppColors.red
         : AppColors.amber;
     final ink = AppColors.background;
+    final style = TextStyle(
+      color: ink,
+      fontSize: 14.5,
+      fontWeight: FontWeight.w900,
+      letterSpacing: authLabelSpacing(context, 1.2),
+    );
+    final busyText = busyLabel ?? context.getString.auth_busy;
     final Widget content;
     if (done) {
       content = Icon(
@@ -601,119 +610,164 @@ class AuthPrimaryButton extends StatelessWidget {
         size: 26,
       );
     } else if (busy) {
-      content = BeaconPulse(key: const ValueKey('busy'), size: 20, color: ink);
+      content = Row(
+        key: const ValueKey('busy'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              busyText,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              style: style,
+            ),
+          ),
+          const SizedBox(width: 10),
+          AuthWaveLights(color: ink),
+        ],
+      );
     } else {
       content = Text(
         label,
         key: const ValueKey('label'),
         textAlign: TextAlign.center,
         maxLines: 2,
-        style: TextStyle(
-          color: ink,
-          fontSize: 14.5,
-          fontWeight: FontWeight.w900,
-          letterSpacing: authLabelSpacing(context, 1.2),
-        ),
+        style: style,
       );
     }
-    final radius = gathered
-        ? BorderRadius.circular(_height / 2)
-        : AuthPrimaryButton._radius;
     return Semantics(
       button: true,
       enabled: enabled,
-      label: label,
+      label: busy ? busyText : label,
       excludeSemantics: true,
       child: AnimatedOpacity(
         duration: AppMotion.card,
         curve: AppMotion.easeOut,
         opacity: enabled || busy || done ? 1 : 0.45,
-        child: LayoutBuilder(
-          builder: (context, box) {
-            final full = box.maxWidth.isFinite ? box.maxWidth : 320.0;
-            return Align(
-              child: PressableScale(
-                key: buttonKey,
-                onTap: enabled ? onTap : null,
-                borderRadius: radius,
-                child: _body(
-                  context,
-                  full: full,
-                  gathered: gathered,
-                  radius: radius,
-                  base: base,
-                  enabled: enabled,
-                  content: content,
-                ),
+        child: PressableScale(
+          key: buttonKey,
+          onTap: enabled ? onTap : null,
+          borderRadius: _radius,
+          child: AnimatedContainer(
+            duration: AppMotion.card,
+            curve: AppMotion.easeOut,
+            constraints: const BoxConstraints(minHeight: 56),
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+            decoration: BoxDecoration(
+              borderRadius: _radius,
+              gradient: LinearGradient(
+                begin: AlignmentDirectional.centerStart,
+                end: AlignmentDirectional.centerEnd,
+                colors: [
+                  base,
+                  Color.lerp(
+                    base,
+                    done ? Colors.teal : Colors.deepOrange,
+                    destructive && !done ? 0.2 : 0.35,
+                  )!,
+                ],
               ),
-            );
-          },
+              boxShadow: [
+                BoxShadow(
+                  color: base.withValues(alpha: enabled || done ? 0.24 : 0),
+                  blurRadius: 18,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            alignment: Alignment.center,
+            child: AnimatedSwitcher(
+              // The same beat as the admin panel's sign-in: the old words
+              // are gone in 140ms while the new ones take 260ms to settle.
+              duration: const Duration(milliseconds: 260),
+              reverseDuration: const Duration(milliseconds: 140),
+              switchInCurve: AppMotion.easeOut,
+              switchOutCurve: AppMotion.leaving,
+              layoutBuilder: (current, previous) => Stack(
+                alignment: Alignment.center,
+                children: [...previous, ?current],
+              ),
+              // The old words lift away as the new ones rise into their
+              // place: a vertical hand-over, travelling most of a line so it
+              // reads as movement, not a flicker.
+              transitionBuilder: HandOver.transition(rise: 0.8, lift: 0.8),
+              child: content,
+            ),
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _body(
-    BuildContext context, {
-    required double full,
-    required bool gathered,
-    required BorderRadius radius,
-    required Color base,
-    required bool enabled,
-    required Widget content,
-  }) {
-    return AnimatedContainer(
-      duration: AppMotion.sheet,
-      curve: gathered ? AppMotion.easeOut : Curves.easeOutBack,
-      width: gathered ? _height : full,
-      constraints: const BoxConstraints(minHeight: _height),
-      padding: EdgeInsets.symmetric(
-        vertical: 14,
-        horizontal: gathered ? 0 : 16,
-      ),
+/// Three small dim squares after a busy label, and one bright square that
+/// glides quickly back and forth over them: a single moving thing, not
+/// three that take turns. The same lights as the admin panel's sign-in.
+/// It travels in reading order (right to left in Persian), eased at the
+/// turns so it never jerks. Under reduced motion it rests on the first.
+class AuthWaveLights extends StatefulWidget {
+  const AuthWaveLights({required this.color, super.key});
+
+  final Color color;
+
+  /// One pass across the three squares; it then comes straight back.
+  static const sweep = Duration(milliseconds: 620);
+  static const double square = 6;
+  static const double gap = 4;
+
+  @override
+  State<AuthWaveLights> createState() => _AuthWaveLightsState();
+}
+
+class _AuthWaveLightsState extends State<AuthWaveLights>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _glide = AnimationController(
+    vsync: this,
+    duration: AuthWaveLights.sweep,
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _glide.loopUnlessReduced(context, reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _glide.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const size = AuthWaveLights.square;
+    const step = size + AuthWaveLights.gap;
+    Widget square(double alpha, {Key? key}) => Container(
+      key: key,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
-        borderRadius: radius,
-        gradient: LinearGradient(
-          begin: AlignmentDirectional.centerStart,
-          end: AlignmentDirectional.centerEnd,
-          colors: [
-            base,
-            Color.lerp(
-              base,
-              done ? Colors.teal : Colors.deepOrange,
-              destructive && !done ? 0.2 : 0.35,
-            )!,
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: base.withValues(alpha: enabled || done ? 0.24 : 0),
-            blurRadius: 18,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: widget.color.withValues(alpha: alpha),
+        borderRadius: BorderRadius.circular(1.5),
       ),
-      alignment: Alignment.center,
-      child: AnimatedSwitcher(
-        duration: AppMotion.card,
-        switchInCurve: AppMotion.easeOut,
-        switchOutCurve: AppMotion.leaving,
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.8, end: 1).animate(animation),
-            child: child,
-          ),
-        ),
-        // The label keeps the full width while the button gathers
-        // round it and fades, rather than re-wrapping line by line
-        // as the space closes in.
-        child: OverflowBox(
-          key: content.key,
-          minWidth: 0,
-          maxWidth: math.max(0, full - 32),
-          fit: OverflowBoxFit.deferToChild,
-          child: content,
+    );
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: size * 3 + AuthWaveLights.gap * 2,
+        height: size,
+        child: Stack(
+          children: [
+            for (var i = 0; i < 3; i++)
+              PositionedDirectional(start: i * step, child: square(0.28)),
+            AnimatedBuilder(
+              animation: _glide,
+              builder: (context, child) => PositionedDirectional(
+                start: Curves.easeInOutCubic.transform(_glide.value) * 2 * step,
+                child: child!,
+              ),
+              child: square(1, key: const ValueKey('auth-glider')),
+            ),
+          ],
         ),
       ),
     );
