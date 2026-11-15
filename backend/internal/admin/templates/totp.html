@@ -21,8 +21,12 @@
 {{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
 <form method="post" action="/login/totp" class="stack">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
-  <label>{{t "label.code"}} <input class="otp" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" placeholder="000000" required autofocus dir="ltr"></label>
-  <button>{{t "totp.signin"}}</button>
+  <div class="field">
+    <label for="totp-code">{{t "label.code"}}</label>
+    <input id="totp-code" class="otp" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" placeholder="000000" required autofocus dir="ltr" aria-describedby="totp-hint">
+    <small class="hint" id="totp-hint">{{t "totp.hint"}}</small>
+  </div>
+  <button class="go"><span>{{t "totp.signin"}}</span>{{icon "arrow"}}</button>
 </form>
 <form method="post" action="/logout" class="auth-alt"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="link">{{t "btn.cancel"}}</button></form>
 </div>

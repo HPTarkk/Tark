@@ -62,9 +62,10 @@
     <input type="hidden" name="csrf" value="{{.CSRF}}">
     <input type="hidden" name="username" value="{{.Admin.Email}}" autocomplete="username">
     <div class="form-grid fields">
-      <div class="field"><label for="pw-current">{{t "pw.current"}}</label><input id="pw-current" type="password" name="current" autocomplete="current-password" required dir="ltr"></div>
-      <div class="field"><label for="pw-new">{{t "pw.new"}}</label><input id="pw-new" type="password" name="new" autocomplete="new-password" minlength="{{.MinPassword}}" required dir="ltr"></div>
-      <div class="field"><label for="pw-again">{{t "pw.again"}}</label><input id="pw-again" type="password" name="again" autocomplete="new-password" minlength="{{.MinPassword}}" required dir="ltr"></div>
+      {{template "password-field" (dict "ID" "pw-current" "Name" "current" "Auto" "current-password" "Label" (t "pw.current") "Placeholder" (t "ph.pwCurrent"))}}
+      {{template "password-field" (dict "ID" "pw-new" "Name" "new" "Auto" "new-password" "Min" .MinPassword "Describe" "pw-rules" "Label" (t "pw.new") "Placeholder" (t "ph.pwNew"))}}
+      {{template "password-field" (dict "ID" "pw-again" "Name" "again" "Auto" "new-password" "Min" .MinPassword "Describe" "pw-rules" "Label" (t "pw.again") "Placeholder" (t "ph.pwAgain"))}}
+      {{template "password-rules" (dict "ID" "pw-rules" "Min" .MinPassword)}}
     </div>
     <div class="form-end"><button>{{icon "check"}}<span>{{t "btn.save"}}</span></button></div>
   </form>

@@ -34,8 +34,8 @@
   {{with .AddError}}<div class="flash bad drawer-error" role="alert">{{icon "alert"}}<p>{{.}}</p></div>{{end}}
   <form method="post" action="/admins" class="stack drawer-form">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
-    <label>{{t "label.name"}} <input name="name" required maxlength="64" autocomplete="off" autofocus{{with $add}} value="{{.Name}}"{{end}}{{if eq .AddField "name"}} aria-invalid="true"{{end}}></label>
-    <label>{{t "label.email"}} <input type="email" name="email" required maxlength="254" dir="ltr" autocomplete="off"{{with $add}} value="{{.Email}}"{{end}}{{if eq .AddField "email"}} aria-invalid="true"{{end}}></label>
+    <label>{{t "label.name"}} <span class="control">{{icon "user"}}<input name="name" required maxlength="64" autocomplete="off" autofocus placeholder="{{t "ph.name"}}"{{with $add}} value="{{.Name}}"{{end}}{{if eq .AddField "name"}} aria-invalid="true"{{end}}></span></label>
+    <label>{{t "label.email"}} <span class="control">{{icon "mail"}}<input type="email" name="email" required maxlength="254" dir="ltr" autocomplete="off" spellcheck="false" placeholder="name@example.com"{{with $add}} value="{{.Email}}"{{end}}{{if eq .AddField "email"}} aria-invalid="true"{{end}}></span></label>
     <label>{{t "label.role"}} <select name="role"{{if eq .AddField "role"}} aria-invalid="true"{{end}}>
       <option value="viewer"{{with $add}}{{if eq .Role "viewer"}} selected{{end}}{{end}}>{{t "admins.optViewer"}}</option>
       <option value="support"{{with $add}}{{if eq .Role "support"}} selected{{end}}{{end}}>{{t "admins.optSupport"}}</option>

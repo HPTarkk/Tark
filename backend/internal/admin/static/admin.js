@@ -89,6 +89,10 @@ if (confirmBox) {
     // A form that shows its own sending state (data-sending) gets it now:
     // submit() skips the submit event.
     if (form.hasAttribute("data-sending")) form.classList.add("sending");
+    const button = form.querySelector("button:not([type=button])");
+    button?.classList.add("busy");
+    button?.setAttribute("aria-busy", "true");
+    document.documentElement.classList.add("leaving");
     form.submit();
   });
   // Coming back with the browser's Back button shows the page as it was.
@@ -162,4 +166,88 @@ for (const form of document.querySelectorAll("form[data-autosave]")) {
 window.addEventListener("pageshow", (event) => {
   if (!event.persisted) return;
   for (const form of document.querySelectorAll("form[data-autosave]")) form.classList.remove("sending");
+});
+
+// Password fields: the eye shows what was typed (and hides it again), and
+// a note appears while Caps Lock is on.
+for (const button of document.querySelectorAll(".control .reveal")) {
+  const input = button.parentElement.querySelector("input");
+  button.hidden = false;
+  button.addEventListener("click", () => {
+    const show = input.type === "password";
+    input.type = show ? "text" : "password";
+    button.setAttribute("aria-pressed", String(show));
+    button.setAttribute("aria-label", show ? button.dataset.hide : button.dataset.show);
+    // Keep typing where it was.
+    const at = input.selectionStart;
+    input.focus({ preventScroll: true });
+    if (at !== null) input.setSelectionRange(at, at);
+  });
+  // A form on its way never sends a shown password back into the page's
+  // history as plain text.
+  input.form?.addEventListener("submit", () => {
+    input.type = "password";
+  });
+  const caps = button.closest(".field")?.querySelector(".caps");
+  if (caps) {
+    const check = (event) => {
+      if (event.getModifierState) caps.hidden = !event.getModifierState("CapsLock");
+    };
+    input.addEventListener("keydown", check);
+    input.addEventListener("keyup", check);
+    input.addEventListener("blur", () => { caps.hidden = true; });
+  }
+}
+
+// A new password's rules tick off while it is typed.
+for (const rules of document.querySelectorAll(".pw-rules")) {
+  const form = rules.closest("form");
+  const next = form?.querySelector('input[name="new"]');
+  const again = form?.querySelector('input[name="again"]');
+  if (!next || !again) continue;
+  const min = Number(rules.dataset.min) || 12;
+  const len = rules.querySelector('[data-rule="len"]');
+  const match = rules.querySelector('[data-rule="match"]');
+  const update = () => {
+    len.classList.toggle("ok", [...next.value.normalize("NFC")].length >= min);
+    match.classList.toggle("ok", again.value !== "" && again.value === next.value);
+  };
+  next.addEventListener("input", update);
+  again.addEventListener("input", update);
+}
+
+// Feedback while the next page is on its way: the button that sent a form
+// shows it is working (and cannot send twice), and a thin bar runs along
+// the top for anything slower than a blink.
+const root = document.documentElement;
+document.addEventListener("submit", (event) => {
+  // Other handlers (the confirm dialog, the reviews page) may take the
+  // submit over; look once they have all run.
+  setTimeout(() => {
+    if (event.defaultPrevented) return;
+    const form = event.target;
+    const button = event.submitter || form.querySelector("button:not([type=button])");
+    button?.classList.add("busy");
+    button?.setAttribute("aria-busy", "true");
+    form.classList.add("sending");
+    root.classList.add("leaving");
+  });
+});
+document.addEventListener("click", (event) => {
+  const link = event.target.closest?.("a[href]");
+  if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  if (link.target || link.hasAttribute("download") || link.origin !== location.origin) return;
+  if (link.pathname === location.pathname && link.search === location.search && link.hash) return;
+  root.classList.add("leaving");
+  link.classList.add("going");
+});
+// Back to a page from the browser's cache: nothing is on its way any more.
+window.addEventListener("pageshow", (event) => {
+  if (!event.persisted) return;
+  root.classList.remove("leaving");
+  for (const el of document.querySelectorAll(".busy, .going")) {
+    el.classList.remove("busy", "going");
+    el.removeAttribute("aria-busy");
+  }
+  for (const form of document.querySelectorAll("form.sending:not([data-autosave])")) form.classList.remove("sending");
 });

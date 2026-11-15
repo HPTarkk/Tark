@@ -8,9 +8,12 @@
 {{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
 <form method="post" action="/login" class="stack">
   <input type="hidden" name="pre" value="{{.Pre}}">
-  <label>{{t "label.email"}} <input type="email" name="email" autocomplete="username" required maxlength="254" autofocus dir="ltr"></label>
-  <label>{{t "label.password"}} <input type="password" name="password" autocomplete="current-password" required maxlength="1024" dir="ltr"></label>
-  <button>{{t "btn.continue"}}</button>
+  <div class="field">
+    <label for="login-email">{{t "label.email"}}</label>
+    <span class="control">{{icon "mail"}}<input id="login-email" type="email" name="email" autocomplete="username" required maxlength="254" autofocus dir="ltr" placeholder="name@example.com" spellcheck="false" autocapitalize="off"></span>
+  </div>
+  {{template "password-field" (dict "ID" "login-password" "Name" "password" "Auto" "current-password" "Max" 1024 "Label" (t "label.password") "Placeholder" (t "ph.password"))}}
+  <button class="go"><span>{{t "btn.continue"}}</span>{{icon "arrow"}}</button>
 </form>
 </div>
 </section>
