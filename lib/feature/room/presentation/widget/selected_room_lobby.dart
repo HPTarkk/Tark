@@ -23,6 +23,7 @@ import '../room_member_display_name.dart';
 import 'one_scan_room_invite_sheet.dart';
 import 'room_connection_status_chip.dart';
 import 'room_connection_status_scope.dart';
+import 'room_topic_icon.dart';
 import 'room_visuals.dart';
 
 /// The durable Room lobby.
@@ -325,9 +326,8 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                           label: Text(s.lobby_free_bluetooth),
                           style: TextButton.styleFrom(
                             foregroundColor: AppColors.textSecondary,
-                            textStyle: Theme.of(
-                              context,
-                            ).textTheme.labelLarge?.copyWith(fontSize: 12),
+                            textStyle: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(fontSize: 12),
                             minimumSize: const Size(48, 48),
                           ),
                         ),
@@ -484,6 +484,12 @@ class _LobbyTopBar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 4),
+        RoomTopicGlyph(
+          name: title,
+          color: AppColors.textSecondary,
+          size: 16,
+          gap: 6,
+        ),
         Expanded(
           child: Text(
             title,

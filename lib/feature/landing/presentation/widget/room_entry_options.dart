@@ -10,6 +10,7 @@ import '../../../../core/router/routes.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../room/domain/entity/room.dart';
 import '../../../room/domain/repository/room_repository.dart';
+import '../../../room/presentation/widget/room_topic_icon.dart';
 import 'room_entry_actions.dart';
 
 /// Landing's way into a Room, in whatever shape this phone's storage says.
@@ -158,6 +159,7 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
         key: const Key('landing-resume-room'),
         icon: Icons.meeting_room_rounded,
         monogram: resume.room.name,
+        monogramIcon: roomIconFor(resume.room.name),
         label: resume.room.name,
         hint: t.entry_resume_hint,
         showHint: false,
