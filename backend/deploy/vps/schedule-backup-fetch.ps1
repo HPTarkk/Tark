@@ -34,6 +34,11 @@
 .PARAMETER Destination
   Local folder for the backups (default: TarkBackups in your user folder).
 
+.PARAMETER KeepDays
+  Delete downloaded backups older than this many days after each successful
+  run (default 14, like the server; 0 keeps everything). The newest one and
+  any the server still has are never deleted.
+
 .PARAMETER SshPort
   SSH port (default 22).
 
@@ -61,6 +66,7 @@ param(
     [string]$Server = '',
     [string]$At = '09:00',
     [string]$Destination = (Join-Path $HOME 'TarkBackups'),
+    [int]$KeepDays = 14,
     [int]$SshPort = 22,
     [string]$SshKey = '',
     [string]$RemotePath = '/opt/tark',
@@ -119,6 +125,7 @@ try {
     if ($Server -eq '') { throw 'Give -Server user@host.' }
     if ($Server -notmatch '^[A-Za-z0-9._-]+@[A-Za-z0-9.:_-]+$') { throw "-Server does not look like user@host: $Server" }
     if ($RemotePath -notmatch '^/[A-Za-z0-9._/-]+$') { throw "-RemotePath has characters that are not allowed: $RemotePath" }
+    if ($KeepDays -lt 0) { throw '-KeepDays cannot be negative.' }
     $time = [datetime]::MinValue
     if (-not [datetime]::TryParseExact($At, 'HH:mm', [cultureinfo]::InvariantCulture, 'None', [ref]$time)) { throw "-At must be a time like 09:00, got: $At" }
 
@@ -136,7 +143,7 @@ try {
         if ($p -match "['`"``$]") { throw "This path has a quote, backtick or dollar sign in it, which the task cannot carry: $p" }
     }
 
-    $call = "& '$fetch' -Server '$Server' -SshPort $SshPort -RemotePath '$RemotePath' -Destination '$Destination'"
+    $call = "& '$fetch' -Server '$Server' -SshPort $SshPort -RemotePath '$RemotePath' -Destination '$Destination' -KeepDays $KeepDays"
     if ($SshKey -ne '') { $call += " -SshKey '$SshKey'" }
     # One dated line per run, then everything the run printed; the task's result
     # is the script's own exit code.
@@ -153,6 +160,7 @@ try {
 
     Write-Host "Done. Every day at $At this computer downloads new backups from $Server into $Destination" -ForegroundColor Green
     Write-Host '(or as soon as it is on again, when it was off at that time).'
+    if ($KeepDays -gt 0) { Write-Host "Copies older than $KeepDays days are deleted; the newest one always stays." }
     Write-Host "Try it once now:  .\schedule-backup-fetch.ps1 -RunNow"
 } catch {
     Write-Host ''

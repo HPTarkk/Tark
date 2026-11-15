@@ -234,7 +234,8 @@ your computer regularly:
 ```
 
 To have Windows do that every day by itself (it catches up when the computer
-was off at that hour; `-Status`, `-RunNow` and `-Remove` manage the task):
+was off at that hour, and deletes local copies older than 14 days, never the
+newest; `-Status`, `-RunNow` and `-Remove` manage the task):
 
 ```powershell
 .\backend\deploy\vps\schedule-backup-fetch.ps1 -Server deploy@203.0.113.10
