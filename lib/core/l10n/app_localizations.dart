@@ -2528,6 +2528,60 @@ abstract class AppLocalizations {
   /// **'خریدی پیدا نشد'**
   String get paywall_restore_none;
 
+  /// No description provided for @paywall_none_sold_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'فعلاً اشتراکی فروخته نمی‌شه'**
+  String get paywall_none_sold_title;
+
+  /// No description provided for @paywall_none_sold_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'این نسخه از تَرک اشتراک نمی‌فروشه، برای همین همه‌ی قابلیت‌ها رایگانه. وقتی فروش اشتراک شروع بشه، اشتراک‌ها همین‌جا نشون داده می‌شن.'**
+  String get paywall_none_sold_body;
+
+  /// No description provided for @paywall_none_catalog_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'نتونستیم اشتراک‌ها رو بیاریم'**
+  String get paywall_none_catalog_title;
+
+  /// No description provided for @paywall_none_catalog_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'الان فهرست اشتراک‌ها از تَرک نرسید. اتصال اینترنتت رو بررسی کن و دوباره امتحان کن.'**
+  String get paywall_none_catalog_body;
+
+  /// No description provided for @paywall_none_store_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'بازار جواب نمی‌ده'**
+  String get paywall_none_store_title;
+
+  /// No description provided for @paywall_none_store_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'اشتراک از طریق بازار خریده می‌شه. مطمئن شو برنامه‌ی بازار نصبه و توش وارد حسابت شدی، بعد دوباره امتحان کن.'**
+  String get paywall_none_store_body;
+
+  /// No description provided for @paywall_none_prices_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'قیمت‌ها هنوز آماده نیست'**
+  String get paywall_none_prices_title;
+
+  /// No description provided for @paywall_none_prices_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'بازار هنوز قیمت این اشتراک‌ها رو نداره. لطفاً کمی بعد دوباره امتحان کن.'**
+  String get paywall_none_prices_body;
+
+  /// No description provided for @paywall_none_retrying.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال بررسی'**
+  String get paywall_none_retrying;
+
   /// No description provided for @paywall_close.
   ///
   /// In fa, this message translates to:

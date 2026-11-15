@@ -1356,6 +1356,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywall_restore_none => 'Nothing to restore';
 
   @override
+  String get paywall_none_sold_title => 'Plans aren\'t on sale yet';
+
+  @override
+  String get paywall_none_sold_body =>
+      'This version of Tarkk doesn\'t sell subscriptions, so every feature is free to use. Plans will show up here once they open.';
+
+  @override
+  String get paywall_none_catalog_title => 'Couldn\'t load the plans';
+
+  @override
+  String get paywall_none_catalog_body =>
+      'Tarkk didn\'t send the list of plans just now. Check your connection and try again.';
+
+  @override
+  String get paywall_none_store_title => 'Cafe Bazaar isn\'t answering';
+
+  @override
+  String get paywall_none_store_body =>
+      'Plans are sold through Cafe Bazaar. Make sure the Bazaar app is installed and you\'re signed in to it, then try again.';
+
+  @override
+  String get paywall_none_prices_title => 'Prices aren\'t ready yet';
+
+  @override
+  String get paywall_none_prices_body =>
+      'Cafe Bazaar doesn\'t have prices for these plans yet. Please try again in a little while.';
+
+  @override
+  String get paywall_none_retrying => 'CHECKING';
+
+  @override
   String get paywall_close => 'NOT NOW';
 
   @override

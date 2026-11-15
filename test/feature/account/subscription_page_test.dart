@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tark/core/entitlement/install_identity.dart';
+import 'package:tark/core/entitlement/license_gate.dart';
+import 'package:tark/core/entitlement/premium_feature.dart';
 import 'package:tark/core/entitlement/signed_entitlement.dart';
 import 'package:tark/core/entitlement/subscription_remote.dart';
 import 'package:tark/core/entitlement/subscription_service.dart';
@@ -27,6 +29,19 @@ class _Remote implements SubscriptionRemote {
     required String sku,
     required String purchaseToken,
   }) async => answer();
+}
+
+class _FreeBuild implements LicenseGate {
+  const _FreeBuild();
+
+  @override
+  bool get canPurchase => false;
+
+  @override
+  bool allows(PremiumFeature feature) => true;
+
+  @override
+  Stream<void> get changes => const Stream.empty();
 }
 
 void main() {
@@ -189,5 +204,17 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('a build that sells nothing says so, not "offline"', (
+    tester,
+  ) async {
+    await tester.runAsync(() => serve(answer: const FetchUnreachable()));
+    GetIt.instance.registerSingleton<LicenseGate>(const _FreeBuild());
+    await pumpPage(tester);
+
+    expect(find.text("Plans aren't on sale yet"), findsOneWidget);
+    expect(find.text('SEE PLANS'), findsNothing);
+    expect(find.textContaining("Couldn't reach Tarkk"), findsNothing);
   });
 }

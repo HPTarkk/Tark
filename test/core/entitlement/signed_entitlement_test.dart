@@ -41,9 +41,9 @@ void main() {
       TokenFactory.payload(issuedAt: issued, until: until),
     );
     final parts = raw.split('.');
-    final payload =
-        jsonDecode(utf8.decode(base64Url.decode(base64Url.normalize(parts[2]))))
-            as Map<String, dynamic>;
+    final payload = jsonDecode(
+      utf8.decode(base64Url.decode(base64Url.normalize(parts[2]))),
+    ) as Map<String, dynamic>;
     payload['until'] = DateTime.utc(2099).millisecondsSinceEpoch;
     parts[2] = base64Url
         .encode(utf8.encode(jsonEncode(payload)))

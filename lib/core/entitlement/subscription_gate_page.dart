@@ -103,6 +103,24 @@ class _Resolved extends _View {
   final GateOutcome outcome;
 }
 
+/// Why the paywall has no plan to offer. Each one has its own cause and its
+/// own fix, so each says something different instead of one vague line.
+enum PlansProblem {
+  /// This build sells nothing (monetization is parked), so there is no
+  /// checkout to put a plan in. Nothing to retry: everything is unlocked.
+  notSold,
+
+  /// Tarkk's server did not send the list of plans.
+  catalog,
+
+  /// Cafe Bazaar is missing, signed out, frozen or refused to bind.
+  store,
+
+  /// Bazaar answered but has no price for any plan the server lists (the
+  /// products are missing or unpublished in the Bazaar panel).
+  prices,
+}
+
 class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
   final SubscriptionService _subscription =
       GetIt.instance<SubscriptionService>();
@@ -111,8 +129,19 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
 
   _View _view = const _Checking();
   List<PlanPricing> _plansOnSale = const [];
+  PlansProblem? _plansProblem;
   String? _selected;
   bool _busy = false;
+
+  /// A retry of the plan list is running; the screen stays as it is and the
+  /// hero and the retry button show the wait.
+  bool _loadingPlans = false;
+
+  /// Whether this build has a checkout at all. DI always registers the gate;
+  /// a test that does not is a build that sells.
+  static bool get _sells =>
+      !GetIt.instance.isRegistered<LicenseGate>() ||
+      GetIt.instance<LicenseGate>().canPurchase;
 
   /// Long enough that "checking" is read rather than flashed; a check that
   /// answers in 40 ms and cuts straight to a result looks like a glitch.
@@ -136,16 +165,57 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
 
   Future<void> _resolve(GateOutcome outcome) async {
     if (outcome is GateSubscribe) {
-      final offers = await _billing.offers(await _plans.load());
+      await _loadPlans();
       if (!mounted) return;
-      _plansOnSale = PlanPricing.of(offers);
-      if (!_plansOnSale.any((p) => p.sku == _selected)) {
-        _selected = PlanPricing.preselect(_plansOnSale);
-      }
     }
     // A granted outcome leaves on its own once the hero's check mark has
     // landed (see [_heroFor]).
     setState(() => _view = _Resolved(outcome));
+  }
+
+  /// The plans on sale with Bazaar's prices: the server says which plans
+  /// exist, Bazaar says what each costs. When that ends empty, works out
+  /// which of the two came back empty, so the screen can say why.
+  Future<void> _loadPlans() async => _applyPlans(await _fetchPlans());
+
+  Future<(List<BillingPlanOffer>, PlansProblem?)> _fetchPlans() async {
+    if (!_sells) return (const <BillingPlanOffer>[], PlansProblem.notSold);
+    final catalog = await _plans.load();
+    if (catalog.isEmpty) {
+      return (const <BillingPlanOffer>[], PlansProblem.catalog);
+    }
+    final offers = await _billing.offers(catalog);
+    if (offers.isNotEmpty) return (offers, null);
+    final store = await _billing.isAvailable();
+    return (offers, store ? PlansProblem.prices : PlansProblem.store);
+  }
+
+  void _applyPlans((List<BillingPlanOffer>, PlansProblem?) result) {
+    final (offers, problem) = result;
+    if (problem != null) Logger.log('Subscription: no plans (${problem.name})');
+    _plansProblem = problem;
+    _plansOnSale = PlanPricing.of(offers);
+    if (!_plansOnSale.any((p) => p.sku == _selected)) {
+      _selected = PlanPricing.preselect(_plansOnSale);
+    }
+  }
+
+  /// Tries the plan list again in place. Held for [_minimumCheck] like the
+  /// first check, so a fast answer still reads as an answer, and applied
+  /// only once the wait is over, so the card never changes under the beacon.
+  Future<void> _retryPlans() async {
+    if (_loadingPlans || _busy) return;
+    unawaited(HapticFeedback.selectionClick());
+    setState(() => _loadingPlans = true);
+    final results = await Future.wait<Object?>([
+      _fetchPlans(),
+      Future<void>.delayed(_minimumCheck),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _applyPlans(results.first! as (List<BillingPlanOffer>, PlansProblem?));
+      _loadingPlans = false;
+    });
   }
 
   PlanPricing? get _selectedPlan {
@@ -276,7 +346,7 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
     return StatusHero(
       icon: icon,
       color: AppColors.amber,
-      busy: view is _Checking || _busy,
+      busy: view is _Checking || _busy || _loadingPlans,
       success: outcome is GateGranted,
       onSuccessShown: () {
         if (mounted) Navigator.of(context).pop(true);
@@ -430,6 +500,9 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
         feature: widget.feature,
         endedAt: endedAt,
         plans: _plansOnSale,
+        problem: _plansProblem,
+        retrying: _loadingPlans,
+        onRetry: _retryPlans,
         selected: _selected,
         busy: _busy,
         onSelect: _select,
@@ -545,6 +618,9 @@ class _SubscribeState extends StatelessWidget {
     required this.feature,
     required this.endedAt,
     required this.plans,
+    required this.problem,
+    required this.retrying,
+    required this.onRetry,
     required this.selected,
     required this.busy,
     required this.onSelect,
@@ -553,6 +629,9 @@ class _SubscribeState extends StatelessWidget {
   final PremiumFeature? feature;
   final DateTime? endedAt;
   final List<PlanPricing> plans;
+  final PlansProblem? problem;
+  final bool retrying;
+  final VoidCallback onRetry;
   final String? selected;
   final bool busy;
   final ValueChanged<String> onSelect;
@@ -583,30 +662,45 @@ class _SubscribeState extends StatelessWidget {
         // button buys.
         // The best value leads, preselected, so the plan the button buys is
         // in view on any phone; the rest keep the server's order.
-        for (final plan in [
-          ...plans.where((p) => p.bestValue),
-          ...plans.where((p) => !p.bestValue),
-        ]) ...[
-          _PlanOption(
-            pricing: plan,
-            selected: plan.sku == selected,
-            enabled: !busy,
-            onTap: () => onSelect(plan.sku),
+        // With nothing to offer, a card in the plans' place says why and
+        // offers the fix; plans that arrive on a retry replace it in place.
+        AnimatedSize(
+          duration: AppMotion.reduced(context)
+              ? Duration.zero
+              : AppMotion.entrance,
+          curve: AppMotion.easeOut,
+          alignment: Alignment.topCenter,
+          child: PhaseSwitcher(
+            child: plans.isEmpty
+                ? Padding(
+                    key: ValueKey('plans-problem-${problem?.name}'),
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: PlansUnavailableCard(
+                      problem: problem ?? PlansProblem.catalog,
+                      retrying: retrying,
+                      onRetry: onRetry,
+                    ),
+                  )
+                : Column(
+                    key: const ValueKey('plans'),
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final plan in [
+                        ...plans.where((p) => p.bestValue),
+                        ...plans.where((p) => !p.bestValue),
+                      ]) ...[
+                        _PlanOption(
+                          pricing: plan,
+                          selected: plan.sku == selected,
+                          enabled: !busy,
+                          onTap: () => onSelect(plan.sku),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                    ],
+                  ),
           ),
-          const SizedBox(height: 12),
-        ],
-        if (plans.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 12),
-            child: Text(
-              s.paywall_unavailable,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.textSecondary.withValues(alpha: 0.75),
-                fontSize: 12,
-              ),
-            ),
-          ),
+        ),
         const SizedBox(height: 6),
         _FreeNote(text: s.paywall_free_note),
       ],
@@ -1361,6 +1455,198 @@ class _CheckoutBar extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Stands where the plans would be when there are none to offer: a glyph
+/// for the cause, what happened in one line, and the one fix. A retry keeps
+/// the card in place and swaps its button label for the app's beacon, so
+/// the wait reads as this card working rather than the page reloading.
+class PlansUnavailableCard extends StatelessWidget {
+  const PlansUnavailableCard({
+    required this.problem,
+    required this.retrying,
+    required this.onRetry,
+    super.key,
+  });
+
+  final PlansProblem problem;
+  final bool retrying;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    final amber = AppColors.amber;
+    final (icon, title, body) = switch (problem) {
+      PlansProblem.notSold => (
+        Icons.lock_open_rounded,
+        s.paywall_none_sold_title,
+        s.paywall_none_sold_body,
+      ),
+      PlansProblem.catalog => (
+        Icons.cloud_off_rounded,
+        s.paywall_none_catalog_title,
+        s.paywall_none_catalog_body,
+      ),
+      PlansProblem.store => (
+        Icons.storefront_rounded,
+        s.paywall_none_store_title,
+        s.paywall_none_store_body,
+      ),
+      PlansProblem.prices => (
+        Icons.sell_outlined,
+        s.paywall_none_prices_title,
+        s.paywall_none_prices_body,
+      ),
+    };
+    final canRetry = problem != PlansProblem.notSold;
+    final radius = BorderRadius.circular(20);
+    return Container(
+      key: const ValueKey('paywall-plans-unavailable'),
+      padding: const EdgeInsetsDirectional.fromSTEB(18, 18, 18, 18),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: radius,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: amber.withValues(alpha: 0.14),
+                ),
+                child: Icon(icon, size: 20, color: amber),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      body,
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                        height: 1.65,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (canRetry) ...[
+            const SizedBox(height: 16),
+            _RetryPill(retrying: retrying, onTap: onRetry),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The card's quiet retry: outlined in amber, never glowing, since the
+/// pinned buy button is what this screen is for once plans arrive.
+class _RetryPill extends StatelessWidget {
+  const _RetryPill({required this.retrying, required this.onTap});
+
+  final bool retrying;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    final amber = AppColors.amber;
+    final radius = BorderRadius.circular(14);
+    final label = retrying ? s.paywall_none_retrying : s.sub_try_again;
+    return Semantics(
+      button: true,
+      enabled: !retrying,
+      liveRegion: retrying,
+      child: PressableScale(
+        key: const ValueKey('paywall-plans-retry'),
+        onTap: retrying ? null : onTap,
+        borderRadius: radius,
+        child: AnimatedContainer(
+          duration: AppMotion.reduced(context) ? Duration.zero : AppMotion.chip,
+          curve: AppMotion.easeOut,
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            color: amber.withValues(alpha: retrying ? 0.1 : 0.04),
+            border: Border.all(
+              color: amber.withValues(alpha: retrying ? 0.35 : 0.6),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedSwitcher(
+                duration: AppMotion.reduced(context)
+                    ? Duration.zero
+                    : AppMotion.chip,
+                switchInCurve: AppMotion.easeOut,
+                switchOutCurve: AppMotion.leaving,
+                transitionBuilder: (child, animation) => ScaleTransition(
+                  scale: Tween<double>(begin: 0.6, end: 1).animate(animation),
+                  child: FadeTransition(opacity: animation, child: child),
+                ),
+                child: retrying
+                    ? BeaconPulse(
+                        key: const ValueKey('retrying'),
+                        size: 18,
+                        color: amber,
+                      )
+                    : Icon(
+                        Icons.refresh_rounded,
+                        key: const ValueKey('retry'),
+                        size: 18,
+                        color: amber,
+                      ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: AnimatedSwitcher(
+                  duration: AppMotion.reduced(context)
+                      ? Duration.zero
+                      : AppMotion.chip,
+                  child: Text(
+                    label,
+                    key: ValueKey(label),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: amber,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: _labelSpacing(context, 1.2),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
