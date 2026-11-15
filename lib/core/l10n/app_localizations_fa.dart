@@ -1348,6 +1348,37 @@ class AppLocalizationsFa extends AppLocalizations {
   String get paywall_restore_none => 'خریدی پیدا نشد';
 
   @override
+  String get paywall_none_sold_title => 'فعلاً اشتراکی فروخته نمی‌شه';
+
+  @override
+  String get paywall_none_sold_body =>
+      'این نسخه از تَرک اشتراک نمی‌فروشه، برای همین همه‌ی قابلیت‌ها رایگانه. وقتی فروش اشتراک شروع بشه، اشتراک‌ها همین‌جا نشون داده می‌شن.';
+
+  @override
+  String get paywall_none_catalog_title => 'نتونستیم اشتراک‌ها رو بیاریم';
+
+  @override
+  String get paywall_none_catalog_body =>
+      'الان فهرست اشتراک‌ها از تَرک نرسید. اتصال اینترنتت رو بررسی کن و دوباره امتحان کن.';
+
+  @override
+  String get paywall_none_store_title => 'بازار جواب نمی‌ده';
+
+  @override
+  String get paywall_none_store_body =>
+      'اشتراک از طریق بازار خریده می‌شه. مطمئن شو برنامه‌ی بازار نصبه و توش وارد حسابت شدی، بعد دوباره امتحان کن.';
+
+  @override
+  String get paywall_none_prices_title => 'قیمت‌ها هنوز آماده نیست';
+
+  @override
+  String get paywall_none_prices_body =>
+      'بازار هنوز قیمت این اشتراک‌ها رو نداره. لطفاً کمی بعد دوباره امتحان کن.';
+
+  @override
+  String get paywall_none_retrying => 'در حال بررسی';
+
+  @override
   String get paywall_close => 'بعداً';
 
   @override

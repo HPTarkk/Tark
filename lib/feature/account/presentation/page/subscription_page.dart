@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../core/entitlement/billing_service.dart';
+import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/signed_entitlement.dart';
 import '../../../../core/entitlement/subscription_gate_page.dart';
 import '../../../../core/entitlement/subscription_service.dart';
@@ -43,6 +44,14 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       GetIt.instance<SubscriptionService>();
   StreamSubscription<void>? _changes;
 
+  /// Whether this build sells subscriptions. A build with sign-in but no
+  /// checkout (monetization parked, `TARK_ACCOUNTS=true` for testing) has
+  /// nothing to refresh and no plans to show, so it says that plainly
+  /// instead of "couldn't reach Tarkk" and an empty plan list.
+  final bool _sells =
+      !GetIt.instance.isRegistered<LicenseGate>() ||
+      GetIt.instance<LicenseGate>().canPurchase;
+
   /// Null while the refresh is running, then whether the server answered.
   bool? _reached;
 
@@ -52,7 +61,11 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     _changes = _subscription.changes.listen((_) {
       if (mounted) setState(() {});
     });
-    unawaited(_refresh());
+    if (_sells) {
+      unawaited(_refresh());
+    } else {
+      _reached = true;
+    }
   }
 
   @override
@@ -95,7 +108,9 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     final gift = token?.sku == 'comp';
 
     final Widget actions;
-    if (active && !gift) {
+    if (!_sells && !hasHistory) {
+      actions = const SizedBox(key: ValueKey('free'), width: double.infinity);
+    } else if (active && !gift) {
       actions = Column(
         key: const ValueKey('manage'),
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -132,8 +147,16 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     return AuthScaffold(
       heroTag: AuthHero.subscriptionTag,
       icon: Icons.workspace_premium_rounded,
-      title: hasHistory ? s.mysub_title : s.mysub_none_title,
-      body: hasHistory ? null : s.mysub_none_body,
+      title: hasHistory
+          ? s.mysub_title
+          : _sells
+          ? s.mysub_none_title
+          : s.paywall_none_sold_title,
+      body: hasHistory
+          ? null
+          : _sells
+          ? s.mysub_none_body
+          : s.paywall_none_sold_body,
       busy: _reached == null,
       children: [
         AuthReveal(

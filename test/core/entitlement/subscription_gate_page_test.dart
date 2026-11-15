@@ -5,6 +5,7 @@ import 'package:tark/core/account/account_session.dart';
 import 'package:tark/core/config/support_config.dart';
 import 'package:tark/core/entitlement/billing_service.dart';
 import 'package:tark/core/entitlement/install_identity.dart';
+import 'package:tark/core/entitlement/license_gate.dart';
 import 'package:tark/core/entitlement/plan_catalog.dart';
 import 'package:tark/core/entitlement/premium_feature.dart';
 import 'package:tark/core/entitlement/signed_entitlement.dart';
@@ -53,6 +54,51 @@ class _Billing extends UnavailableBillingService {
       if (plan.months == 1) BillingPlanOffer(plan: plan, price: '50,000 Rial'),
   ];
 }
+
+/// A plan list that can come back empty, then full on the next try.
+class _ScriptedPlans implements PlanCatalog {
+  _ScriptedPlans(this.answers);
+  final List<List<BillingPlan>> answers;
+  int calls = 0;
+
+  @override
+  Future<List<BillingPlan>> load() async =>
+      answers[(calls++).clamp(0, answers.length - 1)];
+}
+
+/// Bazaar that can be missing, or connected but without prices.
+class _ScriptedBilling extends UnavailableBillingService {
+  _ScriptedBilling({required this.available, this.priced = false});
+  bool available;
+  bool priced;
+
+  @override
+  Future<bool> isAvailable() async => available;
+
+  @override
+  Future<List<BillingPlanOffer>> offers(List<BillingPlan> plans) async => [
+    if (available && priced)
+      for (final plan in plans)
+        BillingPlanOffer(plan: plan, price: '50,000 Rial'),
+  ];
+}
+
+class _Gate implements LicenseGate {
+  const _Gate({required this.canPurchase});
+
+  @override
+  final bool canPurchase;
+
+  @override
+  bool allows(PremiumFeature feature) => true;
+
+  @override
+  Stream<void> get changes => const Stream.empty();
+}
+
+const _onePlan = [
+  BillingPlan(sku: 'tark_premium_1m', months: 1, title: '1 month'),
+];
 
 void main() {
   final issued = DateTime.utc(2026, 10, 1, 12);
@@ -238,5 +284,116 @@ void main() {
 
     expect(find.text('Sign in to subscribe'), findsOneWidget);
     expect(find.text('SIGN IN'), findsNothing);
+  });
+
+  group('no plans to offer says why', () {
+    /// Signed in, online, never subscribed: the plain paywall.
+    Future<void> online() async {
+      final raw = await factory.sign(
+        TokenFactory.payload(
+          installKey: installKey,
+          issuedAt: issued,
+          status: 'none',
+        ),
+      );
+      final service = SubscriptionService(
+        storage: storage,
+        identity: InstallIdentity(storage),
+        verifier: EntitlementVerifier(factory.keys),
+        remote: _Remote(() => FetchedEntitlement(raw, bazaarChecked: true)),
+        monetized: true,
+        clock: () => issued,
+      );
+      await service.initialize();
+      GetIt.instance.registerSingleton<SubscriptionService>(service);
+    }
+
+    void use({PlanCatalog? plans, BillingService? billing, LicenseGate? gate}) {
+      if (plans != null) {
+        GetIt.instance.unregister<PlanCatalog>();
+        GetIt.instance.registerSingleton<PlanCatalog>(plans);
+      }
+      if (billing != null) {
+        GetIt.instance.unregister<BillingService>();
+        GetIt.instance.registerSingleton<BillingService>(billing);
+      }
+      if (gate != null) GetIt.instance.registerSingleton<LicenseGate>(gate);
+    }
+
+    Future<void> settle(WidgetTester tester) async {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 700)),
+      );
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    testWidgets('a build that sells nothing: free, no retry, no buy', (
+      tester,
+    ) async {
+      await tester.runAsync(online);
+      use(gate: const _Gate(canPurchase: false));
+      await pumpGate(tester);
+
+      expect(find.text("Plans aren't on sale yet"), findsOneWidget);
+      expect(find.byKey(const ValueKey('paywall-plans-retry')), findsNothing);
+      expect(find.byKey(const ValueKey('paywall-buy')), findsNothing);
+    });
+
+    testWidgets('the server sent no plans, and a retry brings them', (
+      tester,
+    ) async {
+      await tester.runAsync(online);
+      final plans = _ScriptedPlans([const [], _onePlan]);
+      use(
+        plans: plans,
+        billing: _ScriptedBilling(available: true, priced: true),
+        gate: const _Gate(canPurchase: true),
+      );
+      await pumpGate(tester);
+
+      expect(find.text("Couldn't load the plans"), findsOneWidget);
+      expect(find.byKey(const ValueKey('paywall-buy')), findsNothing);
+
+      final retry = find.byKey(const ValueKey('paywall-plans-retry'));
+      await tester.ensureVisible(retry);
+      await tester.pump();
+      await tester.tap(retry);
+      await tester.pump();
+      expect(find.text('CHECKING'), findsOneWidget);
+      await settle(tester);
+
+      expect(plans.calls, 2);
+      expect(find.text("Couldn't load the plans"), findsNothing);
+      expect(find.text('50,000 Rial'), findsOneWidget);
+      expect(find.byKey(const ValueKey('paywall-buy')), findsOneWidget);
+    });
+
+    testWidgets('Bazaar missing or signed out', (tester) async {
+      await tester.runAsync(online);
+      use(
+        plans: _ScriptedPlans([_onePlan]),
+        billing: _ScriptedBilling(available: false),
+      );
+      await pumpGate(tester);
+
+      expect(find.text("Cafe Bazaar isn't answering"), findsOneWidget);
+      expect(find.text('TRY AGAIN'), findsOneWidget);
+    });
+
+    testWidgets('Bazaar has no prices for the plans, in Persian', (
+      tester,
+    ) async {
+      await tester.runAsync(online);
+      use(
+        plans: _ScriptedPlans([_onePlan]),
+        billing: _ScriptedBilling(available: true),
+      );
+      await pumpGate(tester, locale: const Locale('fa'));
+
+      expect(find.text('قیمت‌ها هنوز آماده نیست'), findsOneWidget);
+      expect(find.text('دوباره امتحان کن'), findsOneWidget);
+    });
   });
 }
