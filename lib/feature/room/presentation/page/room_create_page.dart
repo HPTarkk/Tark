@@ -1,9 +1,11 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/entitlement/room_access_policy.dart';
@@ -21,6 +23,7 @@ import '../../domain/entity/room.dart';
 import '../../domain/service/room_name_suggester.dart';
 import '../manager/room_list_cubit.dart';
 import '../widget/room_formation.dart';
+import '../widget/room_topic_icon.dart';
 import '../widget/room_visuals.dart';
 import '../../../../core/utils/localized_digits_formatter.dart';
 
@@ -393,9 +396,8 @@ class _RoomCreatePageState extends State<RoomCreatePage>
                               ? null
                               : widget.onExit ??
                                     () => Navigator.of(context).pop(),
-                          tooltip: MaterialLocalizations.of(
-                            context,
-                          ).backButtonTooltip,
+                          tooltip: MaterialLocalizations.of(context)
+                              .backButtonTooltip,
                           icon: const Icon(Icons.arrow_back_rounded),
                         ),
                         const SizedBox(width: 8),
@@ -512,6 +514,28 @@ class _RoomCreatePageState extends State<RoomCreatePage>
                               decoration: InputDecoration(
                                 labelText: s.rooms_name_hint,
                                 hintText: s.room_create_name_example,
+                                // The Room's icon, picked from the name as it
+                                // is typed: «کوه» turns the channel mark into
+                                // a hiker before the Room even exists.
+                                prefixIcon: Padding(
+                                  padding: const EdgeInsetsDirectional.only(
+                                    start: 14,
+                                    end: 4,
+                                  ),
+                                  child: ValueListenableBuilder(
+                                    valueListenable: _name,
+                                    builder: (context, value, _) =>
+                                        RoomTopicGlyph(
+                                          key: const Key(
+                                            'room-name-topic-icon',
+                                          ),
+                                          name: value.text,
+                                          color: AppColors.amber,
+                                          size: 22,
+                                          fallback: roomFallbackIcon,
+                                        ),
+                                  ),
+                                ),
                                 suffixIcon: Padding(
                                   padding: const EdgeInsetsDirectional.only(
                                     end: 6,
@@ -670,7 +694,12 @@ class _ChannelTag extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.cell_tower_rounded, size: 16, color: amber),
+          RoomTopicGlyph(
+            name: name,
+            color: amber,
+            size: 16,
+            fallback: roomFallbackIcon,
+          ),
           const SizedBox(width: 8),
           Flexible(
             child: Text(

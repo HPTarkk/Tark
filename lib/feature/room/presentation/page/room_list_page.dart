@@ -22,6 +22,7 @@ import '../manager/room_list_cubit.dart';
 import '../widget/room_archive_sheet.dart';
 import '../widget/room_actions_sheet.dart';
 import '../widget/room_dissolve.dart';
+import '../widget/room_topic_icon.dart';
 import '../widget/room_visuals.dart';
 import 'room_create_page.dart';
 import '../../../../core/utils/localized_digits_formatter.dart';
@@ -474,17 +475,33 @@ class _RoomCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          saved.room.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: archived
-                                ? AppColors.textSecondary
-                                : AppColors.textPrimary,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                          ),
+                        Row(
+                          children: [
+                            // Faces take the mark's place, so the topic
+                            // rides beside the name instead. A Room with
+                            // nobody to draw already wears it as its mark.
+                            if (confirmed.isNotEmpty && !archived)
+                              RoomTopicGlyph(
+                                name: saved.room.name,
+                                color: accent,
+                                size: 17,
+                                gap: 6,
+                              ),
+                            Flexible(
+                              child: Text(
+                                saved.room.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: archived
+                                      ? AppColors.textSecondary
+                                      : AppColors.textPrimary,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 5),
                         _MetaLine(
@@ -549,6 +566,7 @@ class _RoomFacesMark extends StatelessWidget {
         name: name,
         accent: accent,
         strong: lit,
+        icon: roomIconFor(name),
         child: archived
             ? Icon(Icons.archive_rounded, size: 19, color: accent)
             : null,

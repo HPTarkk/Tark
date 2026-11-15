@@ -8,6 +8,7 @@ import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/monogram_mark.dart';
 import '../../../../core/widget/sheet_shell.dart';
+import 'room_topic_icon.dart';
 
 /// What a saved Room's menu offers: rename it, or delete it from this phone.
 ///
@@ -82,6 +83,7 @@ class _RoomActions extends StatelessWidget {
                     child: MonogramMark(
                       name: roomName,
                       accent: AppColors.amber,
+                      icon: roomIconFor(roomName),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -112,9 +114,8 @@ class _RoomActions extends StatelessWidget {
                   ),
                   IconButton(
                     key: const Key('room-actions-close'),
-                    tooltip: MaterialLocalizations.of(
-                      context,
-                    ).closeButtonTooltip,
+                    tooltip: MaterialLocalizations.of(context)
+                        .closeButtonTooltip,
                     onPressed: () => Navigator.of(context).pop(),
                     icon: Icon(
                       Icons.close_rounded,
