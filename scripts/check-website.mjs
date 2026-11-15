@@ -2,6 +2,7 @@
 // script-free account links. Run after both website generators.
 import assert from 'node:assert/strict';
 import { readFile, readdir, stat } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { resolve, dirname, extname, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
@@ -25,7 +26,7 @@ async function verifyRef(ref, file) {
   let target = path.startsWith('/') ? resolve(site, '.' + path) : resolve(dirname(file), path);
   assert(target === site || target.startsWith(site + sep), `Path escapes website: ${ref} in ${file}`);
   if (/\/v\/(?:register|reset|email)\/?$/.test(path)) target = resolve(site, 'v/index.html');
-  if (/(?:^|\/)(?:privacy|terms|delete-account)$/.test(path)) target += '.html';
+  if (/(?:^|\/)(?:privacy|terms|delete-account|confirm-delete)$/.test(path)) target += '.html';
   let info; try { info = await stat(target); } catch { assert.fail(`Missing asset/page: ${ref} in ${file}`); }
   if (info.isDirectory()) await stat(resolve(target, 'index.html'));
   references++;
@@ -55,6 +56,9 @@ for (const file of files) {
     for (const m of source.matchAll(/\bfrom\s+["']([^"']+)["']/g)) await verifyRef(m[1], file);
   }
 }
+const sitemapHas = path => readFileSyncSitemap().includes(`https://tarkk.ir/${path}<`);
+let sitemapCache;
+function readFileSyncSitemap() { return sitemapCache ??= readFileSync(resolve(site, 'sitemap.xml'), 'utf8'); }
 const navOrder = ['handshake', 'features', 'music', 'tech'];
 async function verifySocialImage(html, lang) {
   const filename = lang === 'fa' ? 'og-image.png' : 'og-image-en.png';
@@ -96,6 +100,16 @@ const email = await readFile(resolve(site, 'v/index.html'), 'utf8');
 assert(!/<script\b/i.test(email), 'Email-token fallback must never run a script');
 assert(!/https?:\/\/[^" ]+\.(?:js|css|woff2)/i.test(email), 'Email-token fallback must not request third parties');
 assert(email.includes("default-src 'none'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'"));
+// The page an account-deletion email opens reads a token from the fragment:
+// it may run only its own script and talk only to its own host.
+for (const prefix of ['', 'fa/']) {
+  const page = await readFile(resolve(site, prefix, 'confirm-delete.html'), 'utf8');
+  assert(page.includes("default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'"), `confirm-delete CSP: ${prefix}`);
+  assert(page.includes('<meta name="robots" content="noindex, nofollow">') && page.includes('<meta name="referrer" content="no-referrer">'));
+  assert(!/<script(?![^>]*\bsrc="\/confirm-delete\.js)/.test(page), 'confirm-delete may load only its own script');
+  assert(!/https?:\/\/[^" ]+\.(?:js|css|woff2)/i.test(page), 'confirm-delete must not request third parties');
+  assert(!sitemapHas(prefix + 'confirm-delete'), 'confirm-delete stays out of the sitemap');
+}
 for (const name of ['privacy.json', 'terms.json', 'index.json']) {
   assert.equal(await readFile(resolve(site, 'legal', name), 'utf8'), await readFile(resolve(root, 'assets/legal', name), 'utf8'), `Bundled legal source drift: ${name}`);
 }

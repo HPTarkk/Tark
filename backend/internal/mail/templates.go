@@ -22,6 +22,7 @@ const (
 	KindPasswordChanged  = "password_changed"
 	KindGoogleLinked     = "google_linked"
 	KindAccountDeleted   = "account_deleted"
+	KindDeleteLink       = "account_delete_link"
 )
 
 // CodeMail carries a verification code and its matching app link.
@@ -293,6 +294,40 @@ func AccountDeleted(locale, to string) Message {
 			"A Cafe Bazaar subscription is managed in Bazaar. If you haven't cancelled it, cancel it there. If you create a new account, you can restore your purchase in it.",
 		}
 		c.Footer = "If this wasn't you, let us know right away."
+	}
+	return c.message(to)
+}
+
+// DeleteLink carries the website link that deletes an account, asked for on
+// tarkk.ir/delete-account by someone who can't use the app.
+func DeleteLink(locale, to, link string, minutes int) Message {
+	c := content{Locale: locale, ButtonURL: link}
+	if locale == "fa" {
+		c.Subject = "پیوند حذف حساب ترک"
+		c.Preheader = "برای حذف حساب ترک، روی این پیوند بزنید و تأیید کنید."
+		c.Heading = "حذف حساب ترک"
+		c.Intro = []string{
+			"کسی (احتمالاً خود شما) در وب‌سایت ترک خواست حسابی را که با این ایمیل ساخته شده حذف کند.",
+			"این پیوند صفحه‌ای را باز می‌کند که نشان می‌دهد چه چیزهایی پاک می‌شود. حساب فقط وقتی حذف می‌شود که آنجا تأیید کنید.",
+		}
+		c.LinkIntro = "برای ادامه، این پیوند را باز کنید:"
+		c.ButtonLabel = "ادامه‌ی حذف حساب"
+		c.ButtonHint = "این پیوند یک‌بار مصرف است و در هر مرورگری باز می‌شود."
+		c.Expiry = fmt.Sprintf("این پیوند تا %d دقیقه معتبر است.", minutes)
+		c.Footer = "اگر شما این درخواست را نداده‌اید، این ایمیل را نادیده بگیرید؛ بدون باز کردن این پیوند و تأیید شما، حسابتان دست نمی‌خورد."
+	} else {
+		c.Subject = "Your Tarkk account deletion link"
+		c.Preheader = "Open this link and confirm to delete your Tarkk account."
+		c.Heading = "Delete your Tarkk account"
+		c.Intro = []string{
+			"Someone (probably you) asked on the Tarkk website to delete the account that uses this email.",
+			"This link opens a page that shows what will be deleted. The account is only deleted if you confirm there.",
+		}
+		c.LinkIntro = "To continue, open this link:"
+		c.ButtonLabel = "Continue to delete"
+		c.ButtonHint = "The link works once, in any browser."
+		c.Expiry = fmt.Sprintf("The link works for %d minutes.", minutes)
+		c.Footer = "If you didn't ask for this, ignore this email. Nothing happens to your account unless you open the link and confirm."
 	}
 	return c.message(to)
 }

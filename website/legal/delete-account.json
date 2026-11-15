@@ -20,12 +20,12 @@
       "fa": "پاک کردن حساب کاربری — تَرک"
     },
     "description": {
-      "en": "How to delete your Tarkk account: in the app, or by an email request. What is deleted, what may be kept and why, and what happens to a subscription.",
-      "fa": "چطور حساب تَرکت رو پاک کنی: از داخل برنامه، یا با درخواست ایمیلی. چی پاک می‌شه، چی ممکنه نگه داشته بشه و چرا، و اشتراکت چی می‌شه."
+      "en": "How to delete your Tarkk account: in the app, or right here on the website with a link sent to your email. What is deleted, what may be kept and why, and what happens to a subscription.",
+      "fa": "چطور حساب تَرکت رو پاک کنی: از داخل برنامه، یا همین‌جا روی وب‌سایت با لینکی که به ایمیلت می‌فرستیم. چی پاک می‌شه، چی ممکنه نگه داشته بشه و چرا، و اشتراکت چی می‌شه."
     },
     "twitterDescription": {
-      "en": "Delete your Tarkk account in the app, or ask by email. What is deleted, and what may be kept.",
-      "fa": "حساب تَرکت رو از داخل برنامه پاک کن، یا با ایمیل درخواست بده. چی پاک می‌شه و چی ممکنه بمونه."
+      "en": "Delete your Tarkk account in the app, or on the website with a link sent to your email.",
+      "fa": "حساب تَرکت رو از داخل برنامه، یا روی وب‌سایت با لینکی که به ایمیلت می‌فرستیم پاک کن."
     }
   },
   "hero": {
@@ -38,8 +38,8 @@
       "fa": "چطور حساب تَرکت رو پاک کنی."
     },
     "lede": {
-      "en": "The quickest way is inside the app, and it takes effect at once. If you can’t use the app, send us a request by email from the address the account uses. This page doesn’t delete anything by itself — it explains both ways.",
-      "fa": "سریع‌ترین راه از داخل خود برنامه‌ست و همون لحظه انجام می‌شه. اگه به برنامه دسترسی نداری، از همون ایمیلی که حسابت باهاش ساخته شده برامون درخواست بفرست. این صفحه خودش چیزی رو پاک نمی‌کنه — فقط هر دو راه رو توضیح می‌ده."
+      "en": "The quickest way is inside the app. If you can’t use the app, you can do it right here: we email a one-time link to the account’s address, and you confirm on the page it opens. Either way it takes effect at once.",
+      "fa": "سریع‌ترین راه از داخل خود برنامه‌ست. اگه به برنامه دسترسی نداری، همین‌جا می‌تونی: یه لینک یک‌بارمصرف به ایمیل حسابت می‌فرستیم و توی صفحه‌ای که باز می‌کنه تأیید می‌کنی. هر دو راه همون لحظه انجام می‌شن."
     },
     "inEffectSince": {
       "en": "Last updated",
@@ -171,37 +171,85 @@
     {
       "id": "by-email",
       "tocTitle": {
-        "en": "By email",
-        "fa": "با ایمیل"
+        "en": "On the website",
+        "fa": "از وب‌سایت"
       },
       "title": {
-        "en": "Ask us by email",
-        "fa": "درخواست با ایمیل"
+        "en": "Delete it here, on the website",
+        "fa": "پاک کردن همین‌جا، روی وب‌سایت"
       },
       "blocks": [
         {
           "type": "p",
           "text": {
-            "en": "If you no longer have the app, or can’t sign in, you can ask us to delete the account. Please send the request from the email address the account uses, so we can tell it comes from the account’s owner.",
-            "fa": "اگه دیگه برنامه رو نداری یا نمی‌تونی وارد حساب بشی، می‌تونی ازمون بخوای حساب رو پاک کنیم. لطفاً درخواست رو از همون نشانی ایمیلی بفرست که حساب باهاش ساخته شده، تا بدونیم از طرف صاحب حسابه."
+            "en": "No phone, a forgotten password, or a Google account you no longer use? Enter the account’s email below. If it belongs to a Tarkk account, we email it a one-time link that works for 15 minutes. The link opens a page that shows what will be deleted and asks you to confirm.",
+            "fa": "گوشی دستت نیست، رمزت یادت رفته، یا دیگه به حساب گوگلت دسترسی نداری؟ ایمیل حسابت رو این پایین وارد کن. اگه مال یه حساب تَرک باشه، یه لینک یک‌بارمصرف براش می‌فرستیم که ۱۵ دقیقه کار می‌کنه. اون لینک صفحه‌ای رو باز می‌کنه که نشون می‌ده چی پاک می‌شه و ازت تأیید می‌گیره."
           }
         },
         {
-          "type": "button",
-          "href": {
-            "en": "mailto:tarkk.hp@gmail.com?subject=Delete%20my%20Tarkk%20account&body=Please%20delete%20the%20Tarkk%20account%20that%20uses%20this%20email%20address.",
-            "fa": "mailto:tarkk.hp@gmail.com?subject=%D8%AF%D8%B1%D8%AE%D9%88%D8%A7%D8%B3%D8%AA%20%D9%BE%D8%A7%DA%A9%20%DA%A9%D8%B1%D8%AF%D9%86%20%D8%AD%D8%B3%D8%A7%D8%A8%20%D8%AA%D9%8E%D8%B1%DA%A9&body=%D9%84%D8%B7%D9%81%D8%A7%D9%8B%20%D8%AD%D8%B3%D8%A7%D8%A8%20%D8%AA%D9%8E%D8%B1%DA%A9%DB%8C%20%DA%A9%D9%87%20%D8%A8%D8%A7%20%D9%87%D9%85%DB%8C%D9%86%20%D9%86%D8%B4%D8%A7%D9%86%DB%8C%20%D8%A7%DB%8C%D9%85%DB%8C%D9%84%20%D8%B3%D8%A7%D8%AE%D8%AA%D9%87%20%D8%B4%D8%AF%D9%87%20%D8%B1%D9%88%20%D9%BE%D8%A7%DA%A9%20%DA%A9%D9%86%DB%8C%D8%AF."
-          },
+          "type": "webDelete",
           "label": {
-            "en": "Email a deletion request",
-            "fa": "فرستادن درخواست با ایمیل"
+            "en": "The account’s email",
+            "fa": "ایمیل حساب"
+          },
+          "placeholder": {
+            "en": "you@example.com",
+            "fa": "you@example.com"
+          },
+          "button": {
+            "en": "Email me a link",
+            "fa": "لینک رو بفرست"
+          },
+          "hint": {
+            "en": "Only someone who can open this inbox can delete the account. We never say whether an email has an account.",
+            "fa": "فقط کسی که به این ایمیل دسترسی داره می‌تونه حساب رو پاک کنه. ما هیچ‌وقت نمی‌گیم یه ایمیل حساب داره یا نه."
+          },
+          "sentTitle": {
+            "en": "Check your inbox",
+            "fa": "ایمیلت رو نگاه کن"
+          },
+          "sentBody": {
+            "en": "If {email} belongs to a Tarkk account, a link is on its way from noreply@tarkk.ir. It works once, for 15 minutes.",
+            "fa": "اگه {email} مال یه حساب تَرک باشه، یه لینک از noreply@tarkk.ir داره میاد. فقط یه بار و تا ۱۵ دقیقه کار می‌کنه."
+          },
+          "sentNote": {
+            "en": "Nothing yet? Look in your spam folder.",
+            "fa": "هنوز نیومده؟ پوشه‌ی هرزنامه (اسپم) رو هم نگاه کن."
+          },
+          "again": {
+            "en": "Send again in {time}",
+            "fa": "ارسال دوباره تا {time} دیگه"
+          },
+          "againNow": {
+            "en": "Send it again",
+            "fa": "دوباره بفرست"
+          },
+          "other": {
+            "en": "Use a different email",
+            "fa": "یه ایمیل دیگه"
+          },
+          "errInvalid": {
+            "en": "That doesn’t look like an email address.",
+            "fa": "این شبیه نشانی ایمیل نیست."
+          },
+          "errLimited": {
+            "en": "Too many requests for now. Try again in {time}.",
+            "fa": "فعلاً درخواست‌ها زیاد شده. {time} دیگه دوباره امتحان کن."
+          },
+          "errNetwork": {
+            "en": "We couldn’t reach Tarkk. Check your connection and try again.",
+            "fa": "به تَرک دسترسی پیدا نکردیم. اتصال اینترنتت رو بررسی کن و دوباره امتحان کن."
+          },
+          "errGeneric": {
+            "en": "Something went wrong on our side. Please try again in a minute.",
+            "fa": "یه مشکلی سمت ما پیش اومد. لطفاً یه دقیقه دیگه دوباره امتحان کن."
           }
         },
         {
           "type": "p",
           "text": {
-            "en": "If the button doesn’t open your email app, write to tarkk.hp@gmail.com with the subject “Delete my Tarkk account”. We may reply to that address to confirm the request before deleting anything, and we’ll let you know once it’s done.",
-            "fa": "اگه دکمه برنامه‌ی ایمیلت رو باز نکرد، به tarkk.hp@gmail.com با موضوع «درخواست پاک کردن حساب تَرک» ایمیل بزن. ممکنه قبل از پاک کردن، برای تأیید درخواست به همون نشانی جواب بدیم، و وقتی کار انجام شد خبرت می‌کنیم."
+            "en": "If you no longer have access to that inbox either, write to tarkk.hp@gmail.com from any address and tell us what you can about the account. We will ask for proof that it’s yours before deleting anything.",
+            "fa": "اگه به اون ایمیل هم دیگه دسترسی نداری، از هر نشانی‌ای به tarkk.hp@gmail.com بنویس و هر چی درباره‌ی حساب می‌دونی بگو. قبل از پاک کردن، ازت می‌خوایم ثابت کنی حساب مال خودته."
           }
         }
       ]

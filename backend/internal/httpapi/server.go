@@ -124,6 +124,12 @@ func NewHandler(d Deps) http.Handler {
 			})
 		})
 
+		// Public: deleting an account from the website, proven by a link
+		// mailed to the account's address (see auth/webdelete.go).
+		r.Post("/account/web-delete/request", a.webDeleteRequest)
+		r.Post("/account/web-delete/inspect", a.webDeleteInspect)
+		r.Post("/account/web-delete/confirm", a.webDeleteConfirm)
+
 		// Public: the paywall lists plans before anyone signs in.
 		r.Get("/subscription/plans", a.getPlans)
 

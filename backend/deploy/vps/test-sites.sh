@@ -90,6 +90,20 @@ for p in /v/register /v/reset /v/email /v/register/ /v/ ; do
   case "$(header Content-Security-Policy)" in "default-src 'none';"*"frame-ancestors 'none'") ok "$p: Content-Security-Policy" ;; *) bad "$p: Content-Security-Policy is '$(header Content-Security-Policy)'" ;; esac
 done
 
+for p in /confirm-delete /fa/confirm-delete ; do
+  site "$base$p";               expect_status "$p" 200; expect_same "$p" "$repo/website${p}.html"
+                                expect_header "$p" X-Robots-Tag "noindex, nofollow"
+                                expect_header "$p" Referrer-Policy no-referrer
+  case "$(header Content-Security-Policy)" in "default-src 'none'; script-src 'self';"*"connect-src 'self';"*"frame-ancestors 'none'") ok "$p: Content-Security-Policy" ;; *) bad "$p: Content-Security-Policy is '$(header Content-Security-Policy)'" ;; esac
+done
+# The website's three deletion routes reach the API (not running here, so
+# 502); nothing else of the API is reachable through the website's host.
+for p in request inspect confirm ; do
+  site -X POST "$base/api/v1/account/web-delete/$p"; expect_status "POST /api/v1/account/web-delete/$p (proxied)" 502
+done
+site -X POST "$base/api/v1/auth/login";  expect_status "POST /api/v1/auth/login (not proxied)" 404
+site "$base/api/v1/profile";             expect_status "/api/v1/profile (not proxied)" 404
+
 echo "guest app"
 guest "$base/";                 expect_status / 200; expect_same / "$work/sites/guest/index.html"
                                 expect_header / Cache-Control "public, max-age=0, must-revalidate"
