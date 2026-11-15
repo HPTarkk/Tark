@@ -7,6 +7,7 @@ import '../../../../core/account/auth_result.dart';
 import '../../../../core/l10n/extension.dart';
 import '../manager/account_form_cubit.dart';
 import '../widget/auth_error_text.dart';
+import '../widget/auth_motion.dart';
 import '../widget/auth_widgets.dart';
 
 /// Change the password, given the current one. This phone stays signed in;
@@ -67,6 +68,11 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         final message = error == null
             ? null
             : authErrorText(context, error, passwordContext: true);
+        final flagged = authErrorField(error, [
+          (AuthField.password, _current.text),
+          (AuthField.newPassword, _next.text),
+        ]);
+        Object? nudge(AuthField field) => flagged == field ? error : null;
         return AuthScaffold(
           icon: Icons.password_rounded,
           title: s.account_change_password,
@@ -85,6 +91,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               ltr: true,
               autofillHints: const [AutofillHints.password],
               enabled: !state.busy && !_saved,
+              nudge: nudge(AuthField.password),
             ),
             AuthTextField(
               fieldKey: const ValueKey('change-new'),
@@ -98,6 +105,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
               enabled: !state.busy && !_saved,
+              nudge: nudge(AuthField.newPassword),
+              minLength: 8,
             ),
             AuthMessageSlot(message),
             AuthPrimaryButton(

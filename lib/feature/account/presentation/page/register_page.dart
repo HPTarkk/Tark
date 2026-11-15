@@ -10,6 +10,7 @@ import '../../../../core/account/auth_result.dart';
 import '../../../../core/l10n/extension.dart';
 import '../manager/account_form_cubit.dart';
 import '../widget/auth_error_text.dart';
+import '../widget/auth_motion.dart';
 import '../widget/auth_widgets.dart';
 import 'code_entry_page.dart';
 
@@ -88,6 +89,12 @@ class _RegisterPageState extends State<RegisterPage> {
       builder: (context, state) {
         final error = state.error;
         final message = error == null ? null : authErrorText(context, error);
+        final flagged = authErrorField(error, [
+          (AuthField.name, _name.text),
+          (AuthField.email, _email.text),
+          (AuthField.newPassword, _password.text),
+        ]);
+        Object? nudge(AuthField field) => flagged == field ? error : null;
         return AuthScaffold(
           icon: Icons.person_add_alt_rounded,
           title: s.register_title,
@@ -103,6 +110,7 @@ class _RegisterPageState extends State<RegisterPage> {
               maxLength: 50,
               autofillHints: const [AutofillHints.name],
               enabled: !state.busy,
+              nudge: nudge(AuthField.name),
             ),
             AuthTextField(
               fieldKey: const ValueKey('register-email'),
@@ -113,6 +121,7 @@ class _RegisterPageState extends State<RegisterPage> {
               keyboardType: TextInputType.emailAddress,
               autofillHints: const [AutofillHints.email],
               enabled: !state.busy,
+              nudge: nudge(AuthField.email),
             ),
             AuthTextField(
               fieldKey: const ValueKey('register-password'),
@@ -126,6 +135,8 @@ class _RegisterPageState extends State<RegisterPage> {
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
               enabled: !state.busy,
+              nudge: nudge(AuthField.newPassword),
+              minLength: 8,
             ),
             AuthMessageSlot(message),
             AuthPrimaryButton(

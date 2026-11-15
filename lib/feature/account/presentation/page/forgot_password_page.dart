@@ -8,6 +8,7 @@ import '../../../../core/account/auth_result.dart';
 import '../../../../core/l10n/extension.dart';
 import '../manager/account_form_cubit.dart';
 import '../widget/auth_error_text.dart';
+import '../widget/auth_motion.dart';
 import '../widget/auth_widgets.dart';
 import 'code_entry_page.dart';
 
@@ -78,6 +79,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               keyboardType: TextInputType.emailAddress,
               autofillHints: const [AutofillHints.email],
               textInputAction: TextInputAction.done,
+              nudge:
+                  authErrorField(error, [(AuthField.email, _email.text)]) ==
+                      AuthField.email
+                  ? error
+                  : null,
               onSubmitted: (_) => _submit(),
               enabled: !state.busy,
             ),
@@ -170,6 +176,14 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
               enabled: !state.busy && !_saved,
+              nudge:
+                  authErrorField(error, [
+                        (AuthField.newPassword, _password.text),
+                      ]) ==
+                      AuthField.newPassword
+                  ? error
+                  : null,
+              minLength: 8,
             ),
             AuthMessageSlot(message),
             AuthPrimaryButton(

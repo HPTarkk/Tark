@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show OverflowBoxFit;
 import 'package:flutter/services.dart';
 
 import '../../../../core/l10n/extension.dart';
@@ -10,6 +11,7 @@ import '../../../../core/widget/status_hero.dart';
 import '../../../../core/utils/localized_digits_formatter.dart';
 import '../../../../core/widget/status_note.dart';
 import '../../../../core/widget/beacon_pulse.dart';
+import 'auth_motion.dart';
 
 /// The frame every account screen shares: a back arrow, the [StatusHero], a
 /// heading and a line of explanation, then the screen's own fields, all
@@ -35,6 +37,7 @@ class AuthScaffold extends StatelessWidget {
     this.success = false,
     this.onSuccessShown,
     this.contentKey,
+    this.heroTag = AuthHero.flowTag,
     super.key,
   });
 
@@ -48,6 +51,10 @@ class AuthScaffold extends StatelessWidget {
   final bool success;
   final VoidCallback? onSuccessShown;
   final Object? contentKey;
+
+  /// The [AuthHero] tag of this screen's glyph: the sign-in flow's by
+  /// default, so the glyph carries over from the screen before.
+  final Object heroTag;
 
   @override
   Widget build(BuildContext context) {
@@ -110,13 +117,22 @@ class AuthScaffold extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Center(
-                              child: StatusHero(
+                              child: AuthHero(
+                                tag: heroTag,
                                 icon: icon,
                                 color: color,
-                                busy: busy,
-                                error: error,
-                                success: success,
-                                onSuccessShown: onSuccessShown,
+                                look: AuthHeroLook.status(
+                                  StatusHero.core / StatusHero.size,
+                                ),
+                                child: StatusHero(
+                                  icon: icon,
+                                  color: color,
+                                  busy: busy,
+                                  error: error,
+                                  success: success,
+                                  onSuccessShown: onSuccessShown,
+                                  arriveWithRoute: true,
+                                ),
                               ),
                             ),
                             StaggeredEntrance(
@@ -201,6 +217,12 @@ double authLabelSpacing(BuildContext context, double latin) =>
 /// A text field with a floating label, an icon at its start and a soft glow
 /// while focused.
 ///
+/// Small responses keep it feeling alive under the thumb: the icon lifts as
+/// the field takes focus, a refusal about this field ([nudge]) shakes it and
+/// rims it amber until the next keystroke, and a new password ([minLength])
+/// fills a thin meter towards its minimum that turns green with a tick once
+/// it is met.
+///
 /// Addresses and passwords ([ltr]) are identifiers, so what is typed is
 /// always laid out left to right, even in Persian. Only the typed text: the
 /// label, icon and show-password button still follow the page's direction,
@@ -219,6 +241,8 @@ class AuthTextField extends StatefulWidget {
     this.onSubmitted,
     this.enabled = true,
     this.maxLength,
+    this.nudge,
+    this.minLength,
     super.key,
   });
 
@@ -235,6 +259,13 @@ class AuthTextField extends StatefulWidget {
   final bool enabled;
   final int? maxLength;
 
+  /// The refusal this field is the subject of, if any (see
+  /// [authErrorField]). A new value shakes the field.
+  final Object? nudge;
+
+  /// Draws a meter towards this many characters under the field.
+  final int? minLength;
+
   @override
   State<AuthTextField> createState() => _AuthTextFieldState();
 }
@@ -243,14 +274,33 @@ class _AuthTextFieldState extends State<AuthTextField> {
   late bool _hidden = widget.obscure;
   final _focus = FocusNode();
 
+  /// Rimmed amber: refused, and not touched since.
+  late bool _flagged = widget.nudge != null;
+  late String _flaggedText = widget.controller.text;
+
   @override
   void initState() {
     super.initState();
     _focus.addListener(_changed);
+    widget.controller.addListener(_edited);
+  }
+
+  @override
+  void didUpdateWidget(AuthTextField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_edited);
+      widget.controller.addListener(_edited);
+    }
+    if (widget.nudge != oldWidget.nudge) {
+      _flagged = widget.nudge != null;
+      _flaggedText = widget.controller.text;
+    }
   }
 
   @override
   void dispose() {
+    widget.controller.removeListener(_edited);
     _focus.dispose();
     super.dispose();
   }
@@ -259,11 +309,18 @@ class _AuthTextFieldState extends State<AuthTextField> {
     if (mounted) setState(() {});
   }
 
+  void _edited() {
+    if (_flagged && widget.controller.text != _flaggedText && mounted) {
+      setState(() => _flagged = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
     final focused = _focus.hasFocus;
     final amber = AppColors.amber;
+    final reduced = AppMotion.reduced(context);
     OutlineInputBorder border(Color color, [double width = 1]) =>
         OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -306,10 +363,24 @@ class _AuthTextFieldState extends State<AuthTextField> {
         filled: true,
         fillColor: focused ? AppColors.card : AppColors.surface,
         contentPadding: const EdgeInsetsDirectional.fromSTEB(16, 18, 16, 18),
-        prefixIcon: widget.icon == null ? null : Icon(widget.icon, size: 20),
+        prefixIcon: widget.icon == null
+            ? null
+            : AnimatedScale(
+                scale: focused && !reduced ? 1.14 : 1,
+                duration: AppMotion.card,
+                curve: focused ? Curves.easeOutBack : AppMotion.easeOut,
+                child: AnimatedRotation(
+                  turns: focused && !reduced ? -0.02 : 0,
+                  duration: AppMotion.card,
+                  curve: focused ? Curves.easeOutBack : AppMotion.easeOut,
+                  child: Icon(widget.icon, size: 20),
+                ),
+              ),
         prefixIconColor: WidgetStateColor.resolveWith(tint),
         border: border(AppColors.border),
-        enabledBorder: border(AppColors.border),
+        enabledBorder: _flagged
+            ? border(amber.withValues(alpha: 0.75), 1.4)
+            : border(AppColors.border),
         disabledBorder: border(AppColors.border.withValues(alpha: 0.6)),
         focusedBorder: border(amber, 1.6),
         suffixIcon: widget.obscure
@@ -343,28 +414,149 @@ class _AuthTextFieldState extends State<AuthTextField> {
             : null,
       ),
     );
+    final minLength = widget.minLength;
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
-      child: AnimatedContainer(
-        duration: AppMotion.card,
-        curve: AppMotion.easeOut,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: amber.withValues(alpha: focused ? 0.16 : 0),
-              blurRadius: 18,
+      child: AuthShake(
+        trigger: widget.nudge,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AnimatedContainer(
+              duration: AppMotion.card,
+              curve: AppMotion.easeOut,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: amber.withValues(
+                      alpha: focused
+                          ? 0.16
+                          : _flagged
+                          ? 0.1
+                          : 0,
+                    ),
+                    blurRadius: 18,
+                  ),
+                ],
+              ),
+              child: field,
             ),
+            if (minLength != null)
+              _LengthMeter(
+                controller: widget.controller,
+                minLength: minLength,
+                showing: focused,
+              ),
           ],
         ),
-        child: field,
       ),
     );
   }
 }
 
-/// The one strong action on an account screen: a warm gradient that swaps
-/// its label for a spinner while busy and for a check mark once done.
+/// A thin track under a new-password field that fills as the password
+/// grows towards its minimum, then turns green and ticks once it is long
+/// enough. Opens its space while the field is focused or holds text.
+class _LengthMeter extends StatelessWidget {
+  const _LengthMeter({
+    required this.controller,
+    required this.minLength,
+    required this.showing,
+  });
+
+  final TextEditingController controller;
+  final int minLength;
+  final bool showing;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, _) {
+        final length = value.text.characters.length;
+        final met = length >= minLength;
+        final visible = showing || length > 0;
+        final color = met ? AppColors.green : AppColors.amber;
+        return ExcludeSemantics(
+          child: AuthReveal(
+            visible: visible,
+            child: Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(6, 10, 2, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(end: (length / minLength).clamp(0.0, 1.0)),
+                      duration: AppMotion.card,
+                      curve: AppMotion.easeOut,
+                      builder: (context, fill, _) => Container(
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.border.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        alignment: AlignmentDirectional.centerStart,
+                        child: FractionallySizedBox(
+                          widthFactor: fill,
+                          child: AnimatedContainer(
+                            duration: AppMotion.card,
+                            curve: AppMotion.easeOut,
+                            decoration: BoxDecoration(
+                              color: color,
+                              borderRadius: BorderRadius.circular(2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: color.withValues(alpha: 0.4),
+                                  blurRadius: 6,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox.square(
+                    dimension: 18,
+                    child: AnimatedSwitcher(
+                      duration: AppMotion.card,
+                      switchInCurve: Curves.easeOutBack,
+                      switchOutCurve: AppMotion.leaving,
+                      transitionBuilder: (child, animation) => FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(scale: animation, child: child),
+                      ),
+                      child: met
+                          ? Icon(
+                              Icons.check_circle_rounded,
+                              key: const ValueKey('met'),
+                              size: 18,
+                              color: AppColors.green,
+                            )
+                          : Icon(
+                              Icons.circle_outlined,
+                              key: const ValueKey('short'),
+                              size: 14,
+                              color: AppColors.textSecondary,
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The one strong action on an account screen: a warm gradient that, while
+/// its request is out, gathers itself into a pulsing disc, then opens back
+/// out green with a check mark once done — the button *is* the progress,
+/// rather than a spinner dropped into it.
 class AuthPrimaryButton extends StatelessWidget {
   const AuthPrimaryButton({
     required this.label,
@@ -385,9 +577,15 @@ class AuthPrimaryButton extends StatelessWidget {
 
   static final _radius = BorderRadius.circular(18);
 
+  static const double _height = 56;
+
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null && !busy && !done;
+    final reduced = AppMotion.reduced(context);
+    // Reduced motion keeps the swap of label for pulse, without the change
+    // of shape.
+    final gathered = busy && !reduced;
     final base = done
         ? AppColors.green
         : destructive
@@ -418,6 +616,9 @@ class AuthPrimaryButton extends StatelessWidget {
         ),
       );
     }
+    final radius = gathered
+        ? BorderRadius.circular(_height / 2)
+        : AuthPrimaryButton._radius;
     return Semantics(
       button: true,
       enabled: enabled,
@@ -427,52 +628,92 @@ class AuthPrimaryButton extends StatelessWidget {
         duration: AppMotion.card,
         curve: AppMotion.easeOut,
         opacity: enabled || busy || done ? 1 : 0.45,
-        child: PressableScale(
-          key: buttonKey,
-          onTap: enabled ? onTap : null,
-          borderRadius: _radius,
-          child: AnimatedContainer(
-            duration: AppMotion.card,
-            curve: AppMotion.easeOut,
-            constraints: const BoxConstraints(minHeight: 56),
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-            decoration: BoxDecoration(
-              borderRadius: _radius,
-              gradient: LinearGradient(
-                begin: AlignmentDirectional.centerStart,
-                end: AlignmentDirectional.centerEnd,
-                colors: [
-                  base,
-                  Color.lerp(
-                    base,
-                    done ? Colors.teal : Colors.deepOrange,
-                    destructive && !done ? 0.2 : 0.35,
-                  )!,
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: base.withValues(alpha: enabled || done ? 0.24 : 0),
-                  blurRadius: 18,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            alignment: Alignment.center,
-            child: AnimatedSwitcher(
-              duration: AppMotion.card,
-              switchInCurve: AppMotion.easeOut,
-              switchOutCurve: AppMotion.leaving,
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation,
-                child: ScaleTransition(
-                  scale: Tween<double>(begin: 0.8, end: 1).animate(animation),
-                  child: child,
+        child: LayoutBuilder(
+          builder: (context, box) {
+            final full = box.maxWidth.isFinite ? box.maxWidth : 320.0;
+            return Align(
+              child: PressableScale(
+                key: buttonKey,
+                onTap: enabled ? onTap : null,
+                borderRadius: radius,
+                child: _body(
+                  context,
+                  full: full,
+                  gathered: gathered,
+                  radius: radius,
+                  base: base,
+                  enabled: enabled,
+                  content: content,
                 ),
               ),
-              child: content,
-            ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _body(
+    BuildContext context, {
+    required double full,
+    required bool gathered,
+    required BorderRadius radius,
+    required Color base,
+    required bool enabled,
+    required Widget content,
+  }) {
+    return AnimatedContainer(
+      duration: AppMotion.sheet,
+      curve: gathered ? AppMotion.easeOut : Curves.easeOutBack,
+      width: gathered ? _height : full,
+      constraints: const BoxConstraints(minHeight: _height),
+      padding: EdgeInsets.symmetric(
+        vertical: 14,
+        horizontal: gathered ? 0 : 16,
+      ),
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        gradient: LinearGradient(
+          begin: AlignmentDirectional.centerStart,
+          end: AlignmentDirectional.centerEnd,
+          colors: [
+            base,
+            Color.lerp(
+              base,
+              done ? Colors.teal : Colors.deepOrange,
+              destructive && !done ? 0.2 : 0.35,
+            )!,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: base.withValues(alpha: enabled || done ? 0.24 : 0),
+            blurRadius: 18,
+            offset: const Offset(0, 4),
           ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: AnimatedSwitcher(
+        duration: AppMotion.card,
+        switchInCurve: AppMotion.easeOut,
+        switchOutCurve: AppMotion.leaving,
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.8, end: 1).animate(animation),
+            child: child,
+          ),
+        ),
+        // The label keeps the full width while the button gathers
+        // round it and fades, rather than re-wrapping line by line
+        // as the space closes in.
+        child: OverflowBox(
+          key: content.key,
+          minWidth: 0,
+          maxWidth: math.max(0, full - 32),
+          fit: OverflowBoxFit.deferToChild,
+          child: content,
         ),
       ),
     );

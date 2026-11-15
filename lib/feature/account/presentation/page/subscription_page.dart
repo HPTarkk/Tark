@@ -12,6 +12,7 @@ import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/friendly_date.dart';
 import '../../../update/data/store_launcher.dart';
+import '../widget/auth_motion.dart';
 import '../widget/auth_widgets.dart';
 
 /// The signed-in person's own subscription: which plan, whether it renews
@@ -129,6 +130,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     }
 
     return AuthScaffold(
+      heroTag: AuthHero.subscriptionTag,
       icon: Icons.workspace_premium_rounded,
       title: hasHistory ? s.mysub_title : s.mysub_none_title,
       body: hasHistory ? null : s.mysub_none_body,

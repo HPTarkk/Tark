@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../motion/app_motion.dart';
+import '../motion/route_arrival.dart';
 import '../theme/app_colors.dart';
 
 /// The glyph at the top of the account and subscription screens, and the one
@@ -31,6 +32,7 @@ class StatusHero extends StatefulWidget {
     this.error,
     this.success = false,
     this.onSuccessShown,
+    this.arriveWithRoute = false,
     super.key,
   });
 
@@ -43,6 +45,13 @@ class StatusHero extends StatefulWidget {
   final bool success;
   final VoidCallback? onSuccessShown;
 
+  /// For a hero that may have flown in from the screen before (see the
+  /// account flow's AuthHero): the glyph is in place from the first frame,
+  /// and the halo and the arrival rings wait until the screen has landed, so
+  /// they bloom around a glyph that has just settled instead of playing,
+  /// unseen, behind the flight.
+  final bool arriveWithRoute;
+
   static const double size = 136;
   static const double core = 76;
 
@@ -50,11 +59,12 @@ class StatusHero extends StatefulWidget {
   State<StatusHero> createState() => _StatusHeroState();
 }
 
-class _StatusHeroState extends State<StatusHero> with TickerProviderStateMixin {
+class _StatusHeroState extends State<StatusHero>
+    with TickerProviderStateMixin, RouteArrival {
   late final AnimationController _in = AnimationController(
     vsync: this,
     duration: AppMotion.sheet * 2.5,
-  )..forward();
+  );
 
   late final AnimationController _spin = AnimationController(
     vsync: this,
@@ -82,7 +92,13 @@ class _StatusHeroState extends State<StatusHero> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    if (!widget.arriveWithRoute) _in.forward();
     if (widget.success) _success.forward();
+  }
+
+  @override
+  void onRouteArrived() {
+    if (widget.arriveWithRoute) _in.forward();
   }
 
   @override
@@ -139,10 +155,12 @@ class _StatusHeroState extends State<StatusHero> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final reduced = AppMotion.reduced(context);
-    final arrive = CurvedAnimation(
-      parent: _in,
-      curve: const Interval(0, 0.6, curve: AppMotion.easeOut),
-    );
+    final Animation<double> arrive = widget.arriveWithRoute
+        ? kAlwaysCompleteAnimation
+        : CurvedAnimation(
+            parent: _in,
+            curve: const Interval(0, 0.6, curve: AppMotion.easeOut),
+          );
     final done = CurvedAnimation(
       parent: _success,
       curve: const Interval(0, 0.45, curve: AppMotion.easeOut),
