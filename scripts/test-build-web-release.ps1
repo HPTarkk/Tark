@@ -1,9 +1,11 @@
 #requires -Version 7.0
-# Exercise deployment boundaries with fake Flutter/Wrangler commands and HTTP.
+# Exercise deployment boundaries with a fake Flutter, a stand-in for
+# backend/deploy/vps/publish-sites.ps1 and mocked HTTP.
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $fixtureRoot = Join-Path $repoRoot ('build/guest-release-test-' + [Guid]::NewGuid().ToString('N'))
 $savedPath = $env:PATH
+$savedServer = $env:TARK_SERVER
 $utf8 = [Text.UTF8Encoding]::new($false)
 $webTestProbe = @{ FetchCount = 0; PromptCount = 0; RejectPrompts = $false }
 function Assert-Release($Condition, [string]$Description) {
@@ -27,7 +29,7 @@ function Read-Host {
 }
 function Reset-Calls {
     $webTestProbe.FetchCount = 0
-    foreach ($name in @('flutter-args.json', 'flutter-calls.jsonl', 'wrangler-args.json')) {
+    foreach ($name in @('flutter-args.json', 'flutter-calls.jsonl', 'publish-args.json')) {
         $path = Join-Path $fixtureRoot $name
         if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path }
     }
@@ -42,17 +44,11 @@ function Expect-Failure([hashtable]$Options, [string]$Reason) {
     Assert-Release ((Get-Location).Path -eq $originalLocation) 'restore caller directory on failure'
 }
 try {
-    foreach ($dir in @('scripts', 'bin')) {
+    foreach ($dir in @('scripts', 'bin', 'backend/deploy/vps')) {
         New-Item -ItemType Directory -Path (Join-Path $fixtureRoot $dir) -Force | Out-Null
     }
     $fixtureRelease = Join-Path $fixtureRoot 'scripts/build-web-release.ps1'
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'build-web-release.ps1') -Destination $fixtureRelease
-    Copy-Item -LiteralPath (Join-Path $repoRoot 'wrangler.guest.jsonc') -Destination $fixtureRoot
-    $fixtureConfigPath = Join-Path $fixtureRoot 'wrangler.guest.jsonc'
-    $fixtureConfig = Get-Content -Raw -LiteralPath $fixtureConfigPath | ConvertFrom-Json
-    $fixtureConfig.name = 'guest-config-test'
-    [IO.File]::WriteAllText($fixtureConfigPath, ($fixtureConfig | ConvertTo-Json -Depth 10), $utf8)
-    [IO.File]::WriteAllText((Join-Path $fixtureRoot 'wrangler.website.jsonc'), '{"name":"marketing-test"}', $utf8)
     [IO.File]::WriteAllText((Join-Path $fixtureRoot 'pubspec.yaml'), 'version: 1.2.3+42', $utf8)
     [IO.File]::WriteAllText((Join-Path $fixtureRoot 'bin/flutter.ps1'), @'
 $root = Split-Path -Parent $PSScriptRoot
@@ -69,16 +65,11 @@ Set-Content -LiteralPath (Join-Path $out 'index.html') -Value '<html>fixture</ht
 Set-Content -LiteralPath (Join-Path $out 'flutter_bootstrap.js') -Value '// fixture'
 exit 0
 '@, $utf8)
-    [IO.File]::WriteAllText((Join-Path $fixtureRoot 'bin/wrangler.ps1'), @'
-$root = Split-Path -Parent $PSScriptRoot
-$commandArgs = $args
-if ($null -ne $env:TARK_FIXTURE_ARGC) {
-    $commandArgs = @(for ($i = 0; $i -lt [int]$env:TARK_FIXTURE_ARGC; $i++) { [Environment]::GetEnvironmentVariable("TARK_FIXTURE_ARG_$i") })
-}
-$commandArgs | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'wrangler-args.json')
-Set-Content -LiteralPath (Join-Path $root 'wrangler-ci.txt') -Value $env:CI
+    [IO.File]::WriteAllText((Join-Path $fixtureRoot 'backend/deploy/vps/publish-sites.ps1'), @'
+param([string]$Server, [string]$Site, [string]$WebsiteDir, [string]$GuestDir, [int]$SshPort, [string]$SshKey, [switch]$DryRun)
+$root = Join-Path $PSScriptRoot '../../..'
+@{ Server = $Server; Site = $Site; GuestDir = $GuestDir; DryRun = [bool]$DryRun } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'publish-args.json')
 if (Test-Path -LiteralPath (Join-Path $root 'fail-upload')) { exit 9 }
-exit 0
 '@, $utf8)
     # Unix command discovery requires an executable filename without .ps1.
     # Each command is a sh shim around the real .ps1: an extensionless pwsh
@@ -87,7 +78,7 @@ exit 0
     # each argument through the environment exactly as the release script gave it.
     if ([IO.Path]::DirectorySeparatorChar -eq '/') {
         $pwshPath = (Get-Process -Id $PID).Path.Replace("'", "'\''")
-        foreach ($command in @('flutter', 'wrangler')) {
+        foreach ($command in @('flutter')) {
             $commandPath = Join-Path $fixtureRoot "bin/$command"
             $shim = @"
 #!/bin/sh
@@ -103,23 +94,24 @@ exec '$pwshPath' -NoLogo -NoProfile -NonInteractive -File "`$(dirname "`$0")/$co
         }
     }
     $env:PATH = (Join-Path $fixtureRoot 'bin') + [IO.Path]::PathSeparator + $savedPath
+    $env:TARK_SERVER = 'root@fixture.invalid'
     $originalLocation = (Get-Location).Path
-    $options = @{ NonInteractive = $true; WorkerName = 'guest-test'; MakeZip = $false }
+    $options = @{ NonInteractive = $true; Server = 'root@guest-test.invalid'; MakeZip = $false }
 
     & $fixtureRelease @options -BuildOnly
-    Assert-Release (-not (Test-Path -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json'))) 'build-only must not upload'
+    Assert-Release (-not (Test-Path -LiteralPath (Join-Path $fixtureRoot 'publish-args.json'))) 'build-only must not upload'
     Assert-Release ((Get-Location).Path -eq $originalLocation) 'restore caller directory on success'
 
-    $configDefaults = $options.Clone()
-    $configDefaults.Remove('WorkerName')
-    & $fixtureRelease @configDefaults -DryRun
-    $upload = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json') | ConvertFrom-Json
-    Assert-Release ($upload -contains 'guest-config-test') 'use the existing Worker name from configuration'
+    $serverDefault = $options.Clone()
+    $serverDefault.Remove('Server')
+    & $fixtureRelease @serverDefault -DryRun
+    $upload = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'publish-args.json') | ConvertFrom-Json
+    Assert-Release ($upload.Server -eq 'root@fixture.invalid') 'use the server from TARK_SERVER by default'
 
     & $fixtureRelease @options -DryRun
-    $upload = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json') | ConvertFrom-Json
-    Assert-Release ($upload -contains '--dry-run' -and $upload -contains 'guest-test') 'dry run targets the requested guest Worker'
-    Assert-Release ($upload -contains (Join-Path $fixtureRoot 'build/web')) 'publish Flutter build assets'
+    $upload = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'publish-args.json') | ConvertFrom-Json
+    Assert-Release ($upload.DryRun -and $upload.Site -eq 'guest' -and $upload.Server -eq 'root@guest-test.invalid') 'dry run publishes the guest app to the requested server in dry-run mode'
+    Assert-Release ($upload.GuestDir -eq (Join-Path $fixtureRoot 'build/web')) 'publish Flutter build assets'
     Assert-Release ($webTestProbe.FetchCount -eq 0) 'dry run must not verify a live upload'
     $build = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'flutter-args.json') | ConvertFrom-Json
     Assert-Release ($build -contains 'lib/main_guest.dart' -and $build -contains '--dart-define=GUEST_APP_URL=https://app.tarkk.ir') 'guest entrypoint and invite URL'
@@ -129,8 +121,8 @@ exec '$pwshPath' -NoLogo -NoProfile -NonInteractive -File "`$(dirname "`$0")/$co
 
     Reset-Calls
     & $fixtureRelease @options -Deploy
-    $upload = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json') | ConvertFrom-Json
-    Assert-Release ($upload -notcontains '--dry-run' -and $upload -contains 'web-v1.2.3-42') 'production deploy arguments'
+    $upload = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'publish-args.json') | ConvertFrom-Json
+    Assert-Release (-not $upload.DryRun -and $upload.Site -eq 'guest') 'production deploy arguments'
     Assert-Release ($webTestProbe.FetchCount -eq 1) 'successful release verifies its public marker'
 
     Reset-Calls
@@ -138,8 +130,8 @@ exec '$pwshPath' -NoLogo -NoProfile -NonInteractive -File "`$(dirname "`$0")/$co
     $autoPromptCount = $webTestProbe.PromptCount
     $autoOriginalCi = $env:CI
     & $fixtureRelease
-    $upload = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json') | ConvertFrom-Json
-    Assert-Release ($upload -contains 'guest-config-test' -and $upload -notcontains '--dry-run') 'plain execution publishes to the configured guest Worker'
+    $upload = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'publish-args.json') | ConvertFrom-Json
+    Assert-Release ($upload.Server -eq 'root@fixture.invalid' -and -not $upload.DryRun) 'plain execution publishes to the default server'
     Assert-Release ($webTestProbe.FetchCount -eq 1 -and $webTestProbe.PromptCount -eq $autoPromptCount) 'plain execution builds, publishes and verifies without switches or answers'
     $defaultCalls = @(Get-Content -LiteralPath (Join-Path $fixtureRoot 'flutter-calls.jsonl') | ForEach-Object { ,@($_ | ConvertFrom-Json) })
     Assert-Release ($defaultCalls.Count -eq 2 -and $defaultCalls[0][0] -eq 'clean' -and $defaultCalls[1][1] -eq 'web') 'plain execution cleans and builds Flutter web'
@@ -147,27 +139,26 @@ exec '$pwshPath' -NoLogo -NoProfile -NonInteractive -File "`$(dirname "`$0")/$co
     Reset-Calls
     & $fixtureRelease -Auto
     $webTestProbe.RejectPrompts = $false
-    $upload = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json') | ConvertFrom-Json
-    Assert-Release ($upload -contains 'guest-config-test' -and $upload -notcontains '--dry-run') 'auto publishes to the configured guest Worker'
+    $upload = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'publish-args.json') | ConvertFrom-Json
+    Assert-Release ($upload.Server -eq 'root@fixture.invalid' -and -not $upload.DryRun) 'auto publishes to the default server'
     Assert-Release ($webTestProbe.FetchCount -eq 1 -and $webTestProbe.PromptCount -eq $autoPromptCount) 'auto builds, publishes and verifies without prompts'
     Assert-Release (-not (Test-Path -LiteralPath (Join-Path $fixtureRoot 'build/web/landing'))) 'guest releases only contain the Flutter web app'
     Assert-Release (@(Get-ChildItem -LiteralPath (Join-Path $fixtureRoot 'build') -Filter 'tark-web-*.zip').Count -eq 0) 'auto skips ZIP packaging by default'
     $autoCalls = @(Get-Content -LiteralPath (Join-Path $fixtureRoot 'flutter-calls.jsonl') | ForEach-Object { ,@($_ | ConvertFrom-Json) })
     Assert-Release ($autoCalls.Count -eq 2 -and $autoCalls[0][0] -eq 'clean' -and $autoCalls[1][0] -eq 'build' -and $autoCalls[1][1] -eq 'web') 'auto cleans first and only builds Flutter web, without an APK'
-    Assert-Release ((Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'wrangler-ci.txt')).Trim() -eq 'true') 'Wrangler also runs without interactive prompts'
     Assert-Release ($env:CI -ceq $autoOriginalCi) 'restore caller CI environment'
 
     Reset-Calls
     $interactive = $options.Clone()
     $interactive.NonInteractive = $false
     & $fixtureRelease @interactive
-    Assert-Release (Test-Path -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json')) 'interactive build options still allow publishing'
+    Assert-Release (Test-Path -LiteralPath (Join-Path $fixtureRoot 'publish-args.json')) 'interactive build options still allow publishing'
 
     Reset-Calls
     New-Item -ItemType File -Path (Join-Path $fixtureRoot 'fail-build') | Out-Null
     Expect-Failure ($options + @{ Deploy = $true }) 'exit 7'
     Assert-Release ($env:CI -ceq $autoOriginalCi) 'restore caller CI environment after a failure'
-    Assert-Release (-not (Test-Path -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json'))) 'failed build must not publish stale output'
+    Assert-Release (-not (Test-Path -LiteralPath (Join-Path $fixtureRoot 'publish-args.json'))) 'failed build must not publish stale output'
     Remove-Item -LiteralPath (Join-Path $fixtureRoot 'fail-build')
 
     Reset-Calls
@@ -183,16 +174,17 @@ exec '$pwshPath' -NoLogo -NoProfile -NonInteractive -File "`$(dirname "`$0")/$co
     Remove-Item -LiteralPath (Join-Path $fixtureRoot 'stale-live')
 
     Reset-Calls
-    $wrongWorker = $options.Clone()
-    $wrongWorker.WorkerName = 'marketing-test'
-    Expect-Failure ($wrongWorker + @{ Deploy = $true }) 'marketing website Worker'
+    $badServer = $options.Clone()
+    $badServer.Server = 'not a server'
+    Expect-Failure ($badServer + @{ Deploy = $true }) 'does not look like user@host'
     Expect-Failure ($options + @{ Deploy = $true; GuestUrl = 'https://tarkk.ir' }) 'must match the guest host'
     Expect-Failure ($options + @{ Deploy = $true; BaseHref = '/guest/' }) 'requires a root Guest URL'
     Assert-Release (-not (Test-Path -LiteralPath (Join-Path $fixtureRoot 'flutter-args.json'))) 'invalid targets rejected before building'
-    Assert-Release (-not (Test-Path -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json'))) 'invalid targets never uploaded'
+    Assert-Release (-not (Test-Path -LiteralPath (Join-Path $fixtureRoot 'publish-args.json'))) 'invalid targets never uploaded'
     Write-Host 'Guest web release regression checks passed.'
 } finally {
     $env:PATH = $savedPath
+    $env:TARK_SERVER = $savedServer
     $resolvedFixture = [IO.Path]::GetFullPath($fixtureRoot)
     $buildBoundary = [IO.Path]::GetFullPath((Join-Path $repoRoot 'build')) + [IO.Path]::DirectorySeparatorChar
     if (-not $resolvedFixture.StartsWith($buildBoundary, [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe fixture cleanup path.' }

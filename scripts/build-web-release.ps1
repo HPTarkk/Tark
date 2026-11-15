@@ -1,7 +1,9 @@
 #requires -Version 7.0
-# Clean, build and publish the Flutter guest app with Wrangler by default.
+# Clean, build and publish the Flutter guest app to the Tarkk server, which
+# serves it at app.tarkk.ir (backend/deploy/vps/publish-sites.ps1).
 # Examples: ./scripts/build-web-release.ps1
 #           ./scripts/build-web-release.ps1 -BuildOnly
+#           ./scripts/build-web-release.ps1 -Server root@203.0.113.10
 [CmdletBinding()]
 param(
     [switch]$Auto,
@@ -9,13 +11,14 @@ param(
     [switch]$DryRun,
     [switch]$BuildOnly,
     [switch]$NonInteractive = $true,
-    [string]$WorkerName,
-    [string]$WranglerConfig = 'wrangler.guest.jsonc',
+    # user@host of the server. Default: $env:TARK_SERVER, else root@94.184.25.235.
+    [string]$Server = $(if ($env:TARK_SERVER) { $env:TARK_SERVER } else { 'root@94.184.25.235' }),
+    [int]$SshPort = 22,
+    [string]$SshKey = '',
     [string]$GuestUrl = 'https://app.tarkk.ir',
     [string]$BaseHref,
     [bool]$MakeZip = $false,
-    [bool]$CleanFirst = $true,
-    [string]$Message
+    [bool]$CleanFirst = $true
 )
 
 $ErrorActionPreference = 'Stop'
@@ -49,45 +52,21 @@ function Invoke-CheckedCommand([string]$Command, [string[]]$Arguments) {
 }
 
 function Read-DeploymentSettings {
-    $path = $WranglerConfig
-    if (-not [IO.Path]::IsPathRooted($path)) { $path = Join-Path $repoRoot $path }
-    $path = (Resolve-Path -LiteralPath $path -ErrorAction Stop).Path
-    $config = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json
-    $name = $WorkerName
-    if ([string]::IsNullOrWhiteSpace($name)) { $name = [string]$config.name }
-    if ([string]::IsNullOrWhiteSpace($name)) {
-        $name = Ask "Existing Cloudflare Worker name for $($guestUri.Host)" ''
-    }
-    if ([string]::IsNullOrWhiteSpace($name)) {
-        throw 'Provide -WorkerName with the existing guest Worker name, or set name in wrangler.guest.jsonc.'
-    }
-    $name = $name.Trim()
-    # Reject the marketing Worker's identity even if an override config is used.
-    $siteText = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'wrangler.website.jsonc')
-    $site = ($siteText -replace '(?m)^\s*//[^\r\n]*', '') | ConvertFrom-Json
-    if ($name -eq $site.name) { throw 'The guest release must not target the marketing website Worker.' }
     if ($guestUri.AbsolutePath -ne '/' -or $baseHref -ne '/' -or -not $guestUri.IsDefaultPort) {
-        throw 'Wrangler custom-domain publishing requires a root Guest URL and BaseHref /. Use -BuildOnly for subpath hosting.'
+        throw 'Publishing to the server requires a root Guest URL and BaseHref / (it serves the app at the root of its host). Use -BuildOnly for subpath hosting.'
     }
-    $routes = @($config.routes)
-    if ($routes.Count -eq 0 -or @($routes | Where-Object {
-        $_.pattern -ne $guestUri.Host -or $_.custom_domain -ne $true
-    }).Count -gt 0) {
-        throw "Wrangler custom domains must match the guest host $($guestUri.Host). Update $path before publishing."
+    if ($guestUri.Host -ne 'app.tarkk.ir') {
+        throw "The guest URL must match the guest host the server serves, app.tarkk.ir (TARK_GUEST_DOMAIN), not $($guestUri.Host). Use -BuildOnly to build for another host."
     }
-    if ($config.assets.not_found_handling -ne 'single-page-application') {
-        throw 'The guest Wrangler configuration must enable single-page-application asset routing.'
-    }
-    return [pscustomobject]@{
-        Path = $path
-        Name = $name
-        Command = (Get-Command wrangler -ErrorAction Stop).Source
-    }
+    if ($Server -notmatch '^[A-Za-z0-9._-]+@[A-Za-z0-9.:_-]+$') { throw "-Server does not look like user@host: $Server" }
+    $script = Join-Path $repoRoot 'backend/deploy/vps/publish-sites.ps1'
+    if (-not (Test-Path -LiteralPath $script -PathType Leaf)) { throw "$script was not found." }
+    return [pscustomobject]@{ Script = $script }
 }
 
 Push-Location -LiteralPath $repoRoot
 try {
-    # Prevent native tools, including Wrangler login, from opening prompts.
+    # Prevent native tools from opening prompts.
     if ($NonInteractive) { $env:CI = 'true' }
     Write-Host ''
     Write-Host '  TARKK — web guest release' -ForegroundColor Yellow
@@ -151,17 +130,18 @@ try {
 
     $publish = $Deploy -or $DryRun
     if (-not $publish -and -not $BuildOnly) {
-        $publish = AskYesNo 'Publish this guest app with Wrangler now?' $false
+        $publish = AskYesNo "Publish this guest app to $Server now?" $false
     }
     if ($publish) {
         if ($null -eq $deployment) { $deployment = Read-DeploymentSettings }
         $tag = "web-v$($appVersion.Replace('+', '-'))"
-        if (-not $Message) { $Message = "Tarkk guest $appVersion ($($commit.Trim().Substring(0, 7)))" }
-        $deployArgs = @('deploy', '--config', $deployment.Path, '--name', $deployment.Name,
-            '--assets', $outDir, '--tag', $tag, '--message', $Message)
-        if ($DryRun) { $deployArgs += '--dry-run' }
-        Write-Host "> Wrangler $(if ($DryRun) { 'dry run' } else { 'deploy' }) -> $($deployment.Name)" -ForegroundColor Cyan
-        Invoke-CheckedCommand $deployment.Command $deployArgs
+        $publishArgs = @{ Server = $Server; Site = 'guest'; GuestDir = $outDir; SshPort = $SshPort }
+        if ($SshKey) { $publishArgs.SshKey = $SshKey }
+        if ($DryRun) { $publishArgs.DryRun = $true }
+        Write-Host "> Publishing $tag to $Server$(if ($DryRun) { ' (dry run)' })" -ForegroundColor Cyan
+        $global:LASTEXITCODE = 0
+        & $deployment.Script @publishArgs
+        if ($LASTEXITCODE -ne 0) { throw "Publishing to $Server failed (exit $LASTEXITCODE)." }
         if ($DryRun) {
             Write-Host 'Dry run passed. Nothing was published.' -ForegroundColor Green
         } else {
@@ -180,7 +160,7 @@ try {
                 if ($attempt -lt 5) { Start-Sleep -Seconds 3 }
             }
             if (-not $verified) {
-                throw "Wrangler uploaded the guest app, but live verification failed. Check $guestUrl/web-release.json before retrying."
+                throw "Published the guest app to $Server, but live verification failed. Check $guestUrl/web-release.json before retrying."
             }
             Write-Host "Live: $guestUrl/ ($tag)" -ForegroundColor Green
         }

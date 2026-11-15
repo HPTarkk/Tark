@@ -14,14 +14,14 @@
          https://tarkk.ir/v/email#<token>
        On a phone with Tarkk installed, Android App Links open the app
        instead and this page is never seen (see AndroidManifest.xml and
-       /.well-known/assetlinks.json). Anywhere else, _redirects serves this
+       /.well-known/assetlinks.json). Anywhere else, the server (Caddyfile) serves this
        one file at all three paths, and it tells the reader what to do.
 
        The token is in the fragment, which browsers never send to a server.
        This page must keep it that way: NO scripts, no analytics, no
        third-party requests (not even the web font), nothing that could
        read location.hash and pass it on. The CSP below enforces that, and
-       _headers repeats it as a response header. Keep it static.
+       the server repeats it as a response header. Keep it static.
 
        noindex: a page per email link is nothing a search engine should
        list; it is also left out of sitemap.xml. -->

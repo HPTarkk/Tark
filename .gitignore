@@ -92,5 +92,3 @@ client_secret_*.json
 # secret: it can upload builds and send them to Bazaar for review.
 .PISHKHAN
 
-# Local Cloudflare deployment state.
-.wrangler/

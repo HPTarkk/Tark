@@ -150,35 +150,33 @@ flutter build web --release -t lib/main_guest.dart
 
 Deployed at [app.tarkk.ir](https://app.tarkk.ir), which is `GUEST_APP_URL`'s default.
 
-The PowerShell build script can publish the Flutter output to its own Cloudflare
-Worker after the build. Plain execution cleans, builds, publishes and verifies
-the live web app with no prompts:
+The PowerShell build script builds the guest app and publishes it to the Tarkk
+server (the same one that runs the backend; see `backend/DEPLOYMENT.md`), which
+serves it at `app.tarkk.ir`. Plain execution cleans, builds, publishes and
+verifies the live web app with no prompts:
 
 ```powershell
 ./scripts/build-web-release.ps1               # clean, build, publish, verify; no questions
-./scripts/build-web-release.ps1 -Deploy       # clean, build, publish, verify; no questions
-./scripts/build-web-release.ps1 -DryRun       # build and validate Wrangler without publishing
+./scripts/build-web-release.ps1 -DryRun       # build and show what would be uploaded, publish nothing
 ./scripts/build-web-release.ps1 -BuildOnly    # clean/build without publishing
+./scripts/build-web-release.ps1 -Server root@203.0.113.10   # another server
 ```
 
-`wrangler.guest.jsonc` serves `build/web` on `app.tarkk.ir` with SPA routing and
-targets its existing Worker, `rapid-paper-9072`. Override the **existing guest
-Worker name** with `-WorkerName` or update `name` in that configuration when the
-hosting target changes. Use PowerShell 7 and an installed,
-authenticated Wrangler for publishing. Builds need only Flutter and Git.
-The script uses the defaults below and restores the caller's `CI` environment
-afterward. Add `-NonInteractive:$false` to enable interactive options.
-This script builds only the Flutter guest web app; APK and landing-site builds
-use their separate release scripts. Defaults: `https://app.tarkk.ir`, base href
-`/`, `flutter clean` first, and no ZIP. Override the latter options with
-`-CleanFirst:$false` or `-MakeZip:$true` as needed.
-Publishing checks
-the public `/web-release.json` marker against the app version, source commit and
-build time. It does not bump the Android version or publish the marketing site.
-The marketing Worker's name is rejected as a guest deployment target.
-Deployment regressions run in CI with mocked tools and HTTP; run them locally
-with `pwsh -File scripts/test-build-web-release.ps1`. Asset routing follows
-[Cloudflare's SPA configuration](https://developers.cloudflare.com/workers/static-assets/routing/single-page-application/).
+Publishing goes through `backend/deploy/vps/publish-sites.ps1 -Site guest`: it
+packs `build/web`, copies it over SSH and switches the server to it in one step
+(`publish-sites.ps1 -Site guest -Rollback` goes back). The server is
+`$env:TARK_SERVER`, or `root@94.184.25.235` when that is not set; the SSH key
+login is the one `deploy.ps1` uses. The server's Caddy serves the app with
+single-page routing (`backend/deploy/vps/Caddyfile`). Use PowerShell 7;
+builds need only Flutter and Git, publishing also the OpenSSH client.
+The script restores the caller's `CI` environment afterward. Add
+`-NonInteractive:$false` to enable interactive options. Defaults:
+`https://app.tarkk.ir`, base href `/`, `flutter clean` first, and no ZIP.
+Override the latter with `-CleanFirst:$false` or `-MakeZip:$true`.
+Publishing checks the public `/web-release.json` marker against the app version,
+source commit and build time. It does not bump the Android version or publish
+the marketing site. Deployment regressions run in CI with mocked tools and HTTP;
+run them locally with `pwsh -File scripts/test-build-web-release.ps1`.
 
 ### Landing site
 
@@ -194,7 +192,7 @@ node scripts/check-website.mjs              # localization, SEO, assets and scri
 node scripts/serve-website.mjs              # local preview at http://127.0.0.1:4183/fa/
 ```
 
-The existing Cloudflare Worker is configured in `wrangler.website.jsonc`. It serves the static files in `website/`; its only script, `website-worker/index.js`, runs for the home page `/` alone and tags it with the visitor's country so a first-time visitor in Iran (by IP, or by an Iran time zone when the IP is unknown or behind a VPN) opens in Persian. A remembered language choice or `?lang=` always wins, and every other URL keeps its own language. `node scripts/serve-website.mjs` has no country, so locally only the time zone applies. Use PowerShell to version, validate and publish it:
+The site is served by the Tarkk server (Caddy, `backend/deploy/vps/Caddyfile`, which also holds its headers, clean addresses and the `/v/*` email-link rule). The bare home page `/` opens in Persian for a first-time visitor whose device is set to Iran's time zone; a remembered language choice or `?lang=` always wins, and every other URL keeps its own language. Use PowerShell to version, validate and publish it:
 
 ```powershell
 ./scripts/release-website.ps1 -DryRun               # validate the next patch without uploading or saving a version bump
@@ -203,11 +201,11 @@ The existing Cloudflare Worker is configured in `wrangler.website.jsonc`. It ser
 ./scripts/release-website.ps1 -Version 2.0.0 -Message 'Website redesign'
 ```
 
-Node.js, Git and an authenticated Wrangler installation are required. `website/package.json` holds the website's version, independent of the Android version. Each successful release has a `website-vX.Y.Z` Wrangler version tag and a public `/site-version.json` marker with the source commit, working-tree state and build time. Once the live marker checks out, the script commits just those two version files as `Website X.Y.Z` and pushes them to the current branch (`-NoPush` keeps the commit local); if that step fails it says so and names the files to commit by hand. A dry run or failed upload restores those files; a published release retains them even if the public verification fails. This script does not create Git tags or releases. It uploads the entire `website/` directory, including `update.json`, `legal/`, `.well-known/`, `_headers` and `_redirects`. The browser guest app is hosted separately and is not part of this upload.
+Node.js, Git and the OpenSSH client are required; the script publishes through `backend/deploy/vps/publish-sites.ps1 -Site website` to `$env:TARK_SERVER`, or `root@94.184.25.235` when that is not set (`-Server` picks another). `website/package.json` holds the website's version, independent of the Android version. Each successful release has a public `/site-version.json` marker with the version, source commit, working-tree state and build time. Once the live marker checks out, the script commits just those two version files as `Website X.Y.Z` and pushes them to the current branch (`-NoPush` keeps the commit local); if that step fails it says so and names the files to commit by hand. A dry run or failed upload restores those files; a published release retains them even if the public verification fails. This script does not create Git tags or releases. It uploads the entire `website/` directory, including `update.json`, `legal/` and `.well-known/`, and the server switches to it in one step (`publish-sites.ps1 -Site website -Rollback` goes back). The browser guest app is published separately.
 
 The forest palette and application handoff are documented in `docs/website-design.md`. Local font files, icons and GSAP include their licenses. The branded loading sequence runs on the first visit in a tab; subsequent document navigation shares the horizontal curtain used for language changes. Same-page anchors retain smooth scrolling. Email-token fallback routes use CSS-only entrance motion.
 
-Account-email links (`https://tarkk.ir/v/<register|reset|email>#<token>`) open the app through Android App Links, verified by `website/.well-known/assetlinks.json`, which lists the release signing key's SHA-256 (`keytool -list -v -keystore <release keystore>`). Without the app they land on `website/v/index.html`, served at all three paths by `website/_redirects`: a static, script-free, `noindex` page that never reads or sends the fragment.
+Account-email links (`https://tarkk.ir/v/<register|reset|email>#<token>`) open the app through Android App Links, verified by `website/.well-known/assetlinks.json`, which lists the release signing key's SHA-256 (`keytool -list -v -keystore <release keystore>`). Without the app they land on `website/v/index.html`, served at all three paths by a rule in the Caddyfile: a static, script-free, `noindex` page that never reads or sends the fragment.
 
 ---
 
@@ -401,7 +399,7 @@ published with the website — and compares build numbers:
 - anything else — no signal, a timeout, a malformed file — nothing happens.
 
 The request carries a throwaway `?t=` query so no cache along the way can hand
-back an old answer, and `website/_headers` marks the file uncacheable too.
+back an old answer, and the server (Caddyfile) marks the file uncacheable too.
 *Update on Bazaar* opens the Bazaar app, or the listing in a browser without it.
 Bump `latestBuild` only after Bazaar has published the build, or people will be
 sent to a store page that still has the old one. Point a fork elsewhere, or

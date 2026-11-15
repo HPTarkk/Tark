@@ -202,7 +202,7 @@ function renderBlock(block, lang, where) {
 
 function renderHead(doc, lang) {
   const other = lang === 'en' ? 'fa' : 'en';
-  // Workers' existing HTML handling serves .html URLs at extensionless URLs.
+  // The server (Caddyfile) serves .html files at extensionless URLs.
   // Canonicals and hreflang must point directly at the final 200 response.
   const self = ORIGIN + doc.webPath[lang].replace(/\.html$/, '');
   const rel = lang === 'fa' ? '../' : '';

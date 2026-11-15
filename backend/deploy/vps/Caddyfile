@@ -69,11 +69,10 @@
 #   curl -H "Host: site.localhost"  http://<server address>/
 #   curl -H "Host: guest.localhost" http://<server address>/
 #
-# The rules below are website/_headers and website/_redirects written for
-# Caddy; keep the three in step. One thing the old edge did is not here: it
-# told the home page the visitor's country. Without it the page uses the
-# visitor's time zone (Asia/Tehran starts in Persian), which it already did
-# whenever the country was unknown, and a remembered choice still wins.
+# These rules are the only place the website's headers and redirects live
+# (the website/_headers and website/_redirects files of the old Cloudflare
+# host are gone). The home page picks Persian by the visitor's time zone
+# (Asia/Tehran), and a remembered choice still wins.
 {$TARK_SITE_ADDRESS:http://site.localhost} {
 	root * {$TARK_SITES_ROOT:/srv/sites}/website
 	import hardened
@@ -95,7 +94,7 @@
 	rewrite @emaillinks /v/index.html
 
 	route {
-		# The host-rule files of the previous host are not content.
+		# The host-rule files of the previous host, should one come back.
 		@hostrules path /_headers /_redirects
 		respond @hostrules 404
 

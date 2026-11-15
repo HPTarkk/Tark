@@ -181,9 +181,10 @@ so treat one short blip as noise and a lasting one as real.
 
 **The website and the guest app on the same server (optional).** Caddy can
 also serve `tarkk.ir` (the `website/` folder) and `app.tarkk.ir` (the Flutter
-web build), with the same redirects and headers the previous host applied
-(`website/_headers` and `website/_redirects`, written for Caddy in the
-`Caddyfile`; keep them in step). Nothing is switched on by a deploy alone.
+web build), with their redirects and headers, which live in the `Caddyfile`
+only. This is where both sites are published now (Cloudflare is no longer
+used): `scripts/release-website.ps1` and `scripts/build-web-release.ps1` call
+`publish-sites.ps1` for you. Nothing is switched on by a deploy alone.
 
 1. Publish the files. They go up as one archive and the server switches to
    them in one step:

@@ -9,7 +9,7 @@ feed takes.
 ## When people see them
 
 - At launch the app fetches the file. It adds a `?t=` query so nothing serves
-  a stale copy, and `website/_headers` marks the file uncacheable as well.
+  a stale copy, and the server (Caddyfile) marks the file uncacheable as well.
 - The sheet only comes up on the home and room-list screens. It never comes up
   over a channel, the splash or a flow someone is in the middle of.
 - The update prompt always goes first. On a launch that offers an update,

@@ -1,8 +1,9 @@
-# Isolated release regression checks; Wrangler and the public fetch are mocked.
+# Isolated release regression checks; publishing to the server and the public fetch are mocked.
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $fixtureRoot = Join-Path $repoRoot ('build/website-release-test-' + [Guid]::NewGuid().ToString('N'))
-$savedPath = $env:PATH
+$savedServer = $env:TARK_SERVER
+$env:TARK_SERVER = 'root@fixture.invalid'
 $utf8 = [Text.UTF8Encoding]::new($false)
 function Assert-Release($Condition, [string]$Description) {
     if (-not $Condition) { throw "Release regression: $Description" }
@@ -12,7 +13,7 @@ function Invoke-RestMethod {
     Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'website/site-version.json') | ConvertFrom-Json
 }
 try {
-    foreach ($dir in @('scripts', 'website', 'bin')) {
+    foreach ($dir in @('scripts', 'website', 'backend/deploy/vps')) {
         New-Item -ItemType Directory -Path (Join-Path $fixtureRoot $dir) -Force | Out-Null
     }
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'release-website.ps1') -Destination (Join-Path $fixtureRoot 'scripts/release-website.ps1')
@@ -23,13 +24,13 @@ try {
     $fixtureManifest = Join-Path $fixtureRoot 'website/site-version.json'
     $fixtureRelease = Join-Path $fixtureRoot 'scripts/release-website.ps1'
     [IO.File]::WriteAllText($fixturePackage, "{`r`n  `"version`": `"1.2.3`",`r`n  `"private`": true`r`n}`r`n", $utf8)
-    [IO.File]::WriteAllText((Join-Path $fixtureRoot 'wrangler.website.jsonc'), '{}', $utf8)
-    [IO.File]::WriteAllText((Join-Path $fixtureRoot 'bin/wrangler.ps1'), @'
-$args | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $PSScriptRoot '../wrangler-args.json')
-if (Test-Path -LiteralPath (Join-Path $PSScriptRoot '../fail-upload')) { exit 9 }
-exit 0
+    # Stands in for backend/deploy/vps/publish-sites.ps1 and records how it was called.
+    [IO.File]::WriteAllText((Join-Path $fixtureRoot 'backend/deploy/vps/publish-sites.ps1'), @'
+param([string]$Server, [string]$Site, [string]$WebsiteDir, [string]$GuestDir, [int]$SshPort, [string]$SshKey, [switch]$DryRun)
+$root = Join-Path $PSScriptRoot '../../..'
+@{ Server = $Server; Site = $Site; WebsiteDir = $WebsiteDir; DryRun = [bool]$DryRun } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'publish-args.json')
+if (Test-Path -LiteralPath (Join-Path $root 'fail-upload')) { exit 9 }
 '@, $utf8)
-    $env:PATH = (Join-Path $fixtureRoot 'bin') + [IO.Path]::PathSeparator + $savedPath
     & git -C $fixtureRoot init --quiet
     & git -C $fixtureRoot add .
     & git -C $fixtureRoot -c user.name=ReleaseTest -c user.email=release-test@example.invalid commit --quiet -m fixture
@@ -39,8 +40,9 @@ exit 0
     & $fixtureRelease -DryRun -Bump minor
     Assert-Release ($original -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($fixturePackage))) 'dry run must restore package bytes'
     Assert-Release (-not (Test-Path -LiteralPath $fixtureManifest)) 'dry run must remove a newly staged marker'
-    $uploadArgs = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json') | ConvertFrom-Json
-    Assert-Release ($uploadArgs -contains '--dry-run' -and $uploadArgs -contains 'website-v1.3.0') 'Wrangler dry-run tag'
+    $uploadArgs = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'publish-args.json') | ConvertFrom-Json
+    Assert-Release ($uploadArgs.DryRun -and $uploadArgs.Site -eq 'website' -and $uploadArgs.Server -eq 'root@fixture.invalid') 'dry run publishes the website to the given server in dry-run mode'
+    Assert-Release ($uploadArgs.WebsiteDir -eq (Join-Path $fixtureRoot 'website')) 'the whole website folder is published'
 
     [IO.File]::WriteAllText($fixtureManifest, '{"version":"1.2.3"}', $utf8)
     $oldManifest = [IO.File]::ReadAllText($fixtureManifest)
@@ -64,14 +66,14 @@ exit 0
     $manifest = Get-Content -Raw -LiteralPath $fixtureManifest | ConvertFrom-Json
     Assert-Release ($package.version -eq '2.0.0' -and $manifest.version -eq '2.0.0') 'successful release must keep matching versions'
     Assert-Release ($manifest.tag -eq 'website-v2.0.0' -and $manifest.sourceCommit -match '^[0-9a-f]{40}$') 'source metadata'
-    $uploadArgs = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json') | ConvertFrom-Json
-    Assert-Release ($uploadArgs -notcontains '--dry-run' -and $uploadArgs -contains 'Fixture release') 'production Wrangler arguments'
+    $uploadArgs = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'publish-args.json') | ConvertFrom-Json
+    Assert-Release (-not $uploadArgs.DryRun -and $uploadArgs.Site -eq 'website') 'production publish arguments'
     Assert-Release ((& git -C $fixtureRoot log -1 --format=%s) -eq 'Fixture release') 'successful release must commit the version files'
     Assert-Release ((& git -C $fixtureRoot show --name-only --format= HEAD) -join ',' -eq 'website/package.json,website/site-version.json') 'release commit holds only the version files'
     Assert-Release (-not (& git -C $fixtureRoot status --porcelain -- website)) 'release must leave the version files committed'
     Write-Host 'Website release regression checks passed.'
 } finally {
-    $env:PATH = $savedPath
+    $env:TARK_SERVER = $savedServer
     foreach ($name in @('GIT_AUTHOR_NAME', 'GIT_COMMITTER_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_EMAIL')) {
         Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
     }
