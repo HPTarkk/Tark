@@ -627,3 +627,39 @@ func TestSystemAndLogsPages(t *testing.T) {
 		t.Fatalf("viewer logs: %d", code)
 	}
 }
+
+// TestSignInPagesGuideTheAdmin checks the sign-in steps: fields carry an
+// example and the password tools, and the code step (half signed in) shows
+// no menu, whose links would only lead back to it.
+func TestSignInPagesGuideTheAdmin(t *testing.T) {
+	e := setup(t)
+	temp, err := CreateAdmin(context.Background(), e.deps, "g@example.com", "G", RoleOwner, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := e.browser()
+	_, body := b.get("/login")
+	for _, want := range []string{`placeholder="name@example.com"`, `placeholder="Your password"`, `class="reveal"`, `class="hint caps"`, `motion.js`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("login page lacks %s", want)
+		}
+	}
+	_, body = b.post("/login", url.Values{"pre": {field(t, body, "pre")}, "email": {"g@example.com"}, "password": {temp}})
+	if !strings.Contains(body, `id="totp-hint"`) {
+		t.Error("code page lacks its hint")
+	}
+	if strings.Contains(body, `class="nav"`) || strings.Contains(body, `href="/users"`) {
+		t.Error("code page shows the menu before the second step")
+	}
+	b = e.browser()
+	b.signIn("g@example.com", temp, nil)
+	_, body = b.get("/account/password")
+	for _, want := range []string{`class="pw-rules"`, `minlength="12"`, `aria-describedby="pw-rules"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("password page lacks %s", want)
+		}
+	}
+	if strings.Contains(body, `class="nav"`) {
+		t.Error("forced password change shows the menu")
+	}
+}

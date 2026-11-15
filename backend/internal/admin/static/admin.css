@@ -1,5 +1,6 @@
-/* Tarkk admin. CSS only: the panel's CSP allows no scripts and no inline
-   styles, so menus, hovers and motion all live here. */
+/* Tarkk admin. The CSP allows no inline scripts or styles, so menus, hovers
+   and motion live here; admin.js and motion.js only add small touches on
+   top of pages that already work without them. */
 :root {
   --bg: #f4f5f7; --surface: #fff; --surface-2: #f0f2f5; --line: #e4e7ec; --line-2: #d3d8df;
   --fg: #14171c; --muted: #667085; --accent: #e8590c; --accent-2: #ff8c42;
@@ -949,3 +950,160 @@ body:has(.auth) { background: radial-gradient(ellipse 80% 55% at 50% 0%, color-m
 
 .auth-mark img { width: 100%; height: 100%; border-radius: 50%; display: block; }
 .auth-mark:has(img) { overflow: hidden; }
+
+/* ---- fields: an icon, an example, and help that answers back ----------- */
+/* Label, box and hint keep one rhythm everywhere: 8px apart, the hint a
+   little quieter than the label. */
+.field { gap: 8px; }
+.auth .field > label, .drawer-form label { font-size: .88rem; letter-spacing: .005em; }
+.auth .stack { gap: 18px; }
+.auth .stack > .go { margin-top: 6px; }
+.control { position: relative; display: flex; align-items: center; min-width: 0; font-weight: 400; }
+.control > input { flex: 1; width: 100%; }
+.control > .i { position: absolute; left: 14px; width: 18px; height: 18px; color: var(--muted); pointer-events: none; transition: color .2s ease, scale .35s var(--spring); }
+[dir="rtl"] .control > .i { left: auto; right: 14px; }
+/* Physical sides: an email or password box reads left to right even on a
+   Persian page, so its own start is not the page's start. */
+.control > .i ~ input { padding-left: 44px; }
+[dir="rtl"] .control > .i ~ input { padding-left: 14px; padding-right: 44px; }
+.control:focus-within > .i { color: var(--accent); scale: 1.1; }
+.control:has(:user-invalid) > .i { color: var(--bad); }
+input:user-invalid { border-color: color-mix(in srgb, var(--bad) 65%, var(--line-2)); }
+input:user-invalid:focus { box-shadow: 0 0 0 4px color-mix(in srgb, var(--bad) 16%, transparent); }
+/* A Persian example in a left-to-right box sits on the right, like the
+   label; typing then starts from the left as usual. */
+:root[lang="fa"] .control input:placeholder-shown { text-align: right; }
+:root[lang="fa"] .control input[type="password"]:placeholder-shown, :root[lang="fa"] .control input[name="name"]:placeholder-shown { direction: rtl; }
+:root[lang="fa"] .control input[type="password"]:placeholder-shown::placeholder { direction: rtl; }
+/* Show / hide password. */
+.control .reveal, .auth .control .reveal { position: absolute; right: 6px; margin: 0; padding: 7px; border-radius: 10px; background: transparent; color: var(--muted); box-shadow: none; filter: none; transition: color .18s ease, background-color .18s ease, transform .12s var(--ease); }
+[dir="rtl"] .control .reveal, [dir="rtl"] .auth .control .reveal { right: auto; left: 6px; }
+.control .reveal:hover, .auth .control .reveal:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); box-shadow: none; filter: none; }
+.control .reveal:active { transform: scale(.88); }
+.control .reveal .i { width: 18px; height: 18px; }
+.control .reveal .i + .i, .control .reveal[aria-pressed="true"] .i { display: none; }
+.control .reveal[aria-pressed="true"] .i + .i { display: block; animation: pop .3s var(--spring) both; }
+.control .reveal[aria-pressed="false"] .i:first-child { animation: pop .3s var(--spring) both; }
+.control:has(.reveal:not([hidden])) > input { padding-right: 46px; }
+[dir="rtl"] .control:has(.reveal:not([hidden])) > input { padding-left: 46px; }
+/* Caps Lock note. */
+.hint.caps { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--warn); font-size: .8rem; font-weight: 600; animation: rise .28s var(--ease) both; }
+.hint.caps[hidden] { display: none; }
+.hint.caps .i { width: 15px; height: 15px; }
+.auth .field > .hint { color: var(--muted); font-size: .8rem; line-height: 1.55; }
+/* What a new password needs; each rule lights up once met. */
+.pw-rules { list-style: none; margin: -4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: .82rem; }
+.form-grid .pw-rules { grid-column: 1 / -1; margin: 0; }
+.pw-rules li { display: inline-flex; align-items: center; gap: 7px; transition: color .25s ease; }
+.pw-rules .i { width: 18px; height: 18px; padding: 3px; border-radius: 50%; stroke-width: 3; border: 1.5px solid color-mix(in srgb, currentColor 45%, transparent); opacity: .55; scale: .82; transition: scale .4s var(--spring), opacity .2s ease, background-color .25s ease, border-color .25s ease, color .25s ease; }
+.pw-rules li.ok { color: var(--good); }
+.pw-rules li.ok .i { opacity: 1; scale: 1; color: #fff; background: var(--good); border-color: var(--good); }
+/* The browser's saved-login fill keeps the theme instead of turning yellow or blue. */
+input:-webkit-autofill, input:-webkit-autofill:hover { -webkit-text-fill-color: var(--fg); caret-color: var(--fg); box-shadow: 0 0 0 40px color-mix(in srgb, var(--accent) 6%, var(--bg)) inset; transition: background-color 600000s 0s, color 600000s 0s; }
+input:-webkit-autofill:focus { box-shadow: 0 0 0 40px color-mix(in srgb, var(--accent) 6%, var(--bg)) inset, 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent); }
+/* Sign-in card: a little more air around the mark and the fields. */
+.auth-card { padding: 34px 28px 28px; }
+.auth-mark { margin-bottom: 18px; }
+.auth h1 { margin-bottom: .35rem; }
+.auth-lead, .auth-who { margin-bottom: 1.5rem; line-height: 1.65; }
+@media (max-width: 480px) { .auth-card { padding: 28px 20px 22px; border-radius: 22px; } }
+
+/* ---- buttons that answer ------------------------------------------------ */
+/* "Go" buttons carry an arrow that leans forward on hover and keeps
+   travelling while the next page loads. */
+button.go .i { transition: translate .35s var(--spring); }
+[dir="rtl"] button.go .i { scale: -1 1; }
+button.go:hover .i { translate: 3px 0; }
+[dir="rtl"] button.go:hover .i { translate: -3px 0; }
+button.go.busy .i { animation: go-on .9s var(--ease) infinite; }
+[dir="rtl"] button.go.busy .i { animation-name: go-on-rtl; }
+@keyframes go-on { 0% { translate: 0 0; opacity: 1; } 45% { translate: 14px 0; opacity: 0; } 46% { translate: -14px 0; opacity: 0; } 100% { translate: 0 0; opacity: 1; } }
+@keyframes go-on-rtl { 0% { translate: 0 0; opacity: 1; } 45% { translate: -14px 0; opacity: 0; } 46% { translate: 14px 0; opacity: 0; } 100% { translate: 0 0; opacity: 1; } }
+/* Any button that sent its form: a light sweeps across it until the next
+   page arrives, and it cannot be pressed twice. */
+button.busy { position: relative; overflow: hidden; cursor: progress; pointer-events: none; }
+button.busy::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 25%, rgba(255, 255, 255, .38) 50%, transparent 75%); translate: -100% 0; animation: sweep 1.15s ease-in-out .15s infinite; }
+button.ghost.busy::after, button.link.busy::after { background: linear-gradient(100deg, transparent 25%, color-mix(in srgb, var(--accent) 16%, transparent) 50%, transparent 75%); }
+form.sending > button.busy, form.sending .busy { opacity: 1; }
+@keyframes sweep { to { translate: 100% 0; } }
+/* A thin bar along the top while the next page is on its way; it only
+   shows for anything slower than a blink. */
+html.leaving body::before { content: ""; position: fixed; z-index: 90; top: 0; left: 0; right: 0; height: 3px; pointer-events: none; transform-origin: left; background: linear-gradient(90deg, var(--accent-2), var(--accent)); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent); animation: leave-bar 9s cubic-bezier(.08, .82, .17, 1) .14s both; }
+html[dir="rtl"].leaving body::before { transform-origin: right; background: linear-gradient(-90deg, var(--accent-2), var(--accent)); }
+@keyframes leave-bar { from { transform: scaleX(0); } to { transform: scaleX(.92); } }
+.nav a.going .i { animation: pop .35s var(--spring) both; }
+
+/* ---- page motion -------------------------------------------------------- */
+/* Moving between pages uses the browser's own cross-document view
+   transitions: no script framework, no change to forms, links or the CSP,
+   and a browser without them simply loads the page as before. The menu
+   and top bar hold still, the open-page highlight slides to the next link,
+   the sign-in card reshapes into the next step, and the content swaps with
+   a short cross-fade (the new page's own entrance does the rest). */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+}
+.side-inner { view-transition-name: side; }
+.topbar { view-transition-name: topbar; }
+.auth-card { view-transition-name: auth-card; }
+.auth-mark { view-transition-name: auth-mark; }
+.lang-corner { view-transition-name: lang-corner; }
+/* The theme change in Settings is its own circle reveal of the whole page. */
+html.theme-shift *, html.theme-shift *::before { view-transition-name: none !important; }
+
+/* One highlight for the open page, tied to its link by anchor positioning,
+   so it can travel from link to link. Browsers without anchor positioning
+   keep the link's own highlight. */
+.nav { position: relative; }
+.nav-pill { display: none; }
+@supports (anchor-name: --a) and (top: anchor(top)) {
+  .nav a.on { anchor-name: --nav-on; background: transparent; }
+  .nav a.on::before { display: none; }
+  .nav:has(a.on) .nav-pill { display: block; position: absolute; position-anchor: --nav-on; top: anchor(top); bottom: anchor(bottom); left: anchor(left); right: anchor(right); border-radius: 11px; background: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; view-transition-name: nav-pill; }
+  .nav-pill::before { content: ""; position: absolute; inset-inline-start: -14px; top: 9px; bottom: 9px; width: 4px; border-start-end-radius: 4px; border-end-end-radius: 4px; background: var(--accent); box-shadow: 0 0 12px var(--accent); animation: grow-y .45s var(--ease) both; }
+  .vt-in .nav-pill::before { animation: none; }
+}
+
+::view-transition-group(*) { animation-duration: .42s; animation-timing-function: var(--ease); }
+::view-transition-old(root) { animation: vt-out .2s ease both; }
+::view-transition-new(root) { animation: vt-fade .26s ease .04s both; }
+html[data-way="down"]::view-transition-old(root) { animation-name: vt-out-up; }
+html[data-way="up"]::view-transition-old(root) { animation-name: vt-out-down; }
+html[data-way="same"]::view-transition-old(root) { animation: vt-out .16s ease both; }
+html[data-way="same"]::view-transition-new(root) { animation: vt-fade .16s ease both; }
+/* The highlight glides with a little give at the end, like the app's tabs. */
+::view-transition-group(nav-pill) { animation-duration: .52s; animation-timing-function: cubic-bezier(.3, 1.3, .5, 1); }
+::view-transition-old(nav-pill) { animation: none; opacity: 0; }
+::view-transition-new(nav-pill) { animation: none; }
+/* Menu and bar are the same picture before and after: no blink. */
+::view-transition-old(side), ::view-transition-old(topbar) { animation: none; opacity: 0; }
+::view-transition-new(side), ::view-transition-new(topbar) { animation: none; }
+/* The sign-in card keeps its top edge while it grows or shrinks; its
+   content rises in on its own. */
+::view-transition-group(auth-card) { animation-duration: .5s; }
+::view-transition-old(auth-card), ::view-transition-new(auth-card) { height: 100%; object-fit: cover; object-position: top; }
+::view-transition-old(auth-card) { animation: vt-out .18s ease both; }
+::view-transition-new(auth-card) { animation: vt-fade .3s ease both; }
+.vt-in .auth-card, .vt-in .auth-mark { animation: none; }
+/* Going up the menu, the new page comes down from above instead of rising. */
+html[data-way="up"] main.content > * { animation-name: drop; }
+@keyframes drop { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
+@keyframes vt-out { to { opacity: 0; } }
+@keyframes vt-out-up { to { opacity: 0; transform: translateY(-10px); } }
+@keyframes vt-out-down { to { opacity: 0; transform: translateY(10px); } }
+@keyframes vt-fade { from { opacity: 0; } }
+/* Phones: following a link in the open menu slides the menu away while the
+   page changes underneath. */
+@media (max-width: 960px) {
+  ::view-transition-old(side) { animation: vt-out .3s ease both; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control > .i, .pw-rules .i, button.go .i { transition: none; }
+  .control:focus-within > .i, button.go:hover .i, [dir="rtl"] button.go:hover .i { scale: none; translate: none; }
+  [dir="rtl"] button.go .i { scale: -1 1; }
+  button.go.busy .i, .nav a.going .i, .control .reveal .i { animation: none !important; }
+  button.busy::after { animation: none; background: color-mix(in srgb, var(--fg) 8%, transparent); }
+  html.leaving body::before { animation: auth-fade .3s .14s both; transform: none; opacity: .9; }
+  .hint.caps { animation-name: auth-fade; }
+}

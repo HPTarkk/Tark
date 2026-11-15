@@ -356,11 +356,15 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	}
 	if sess := sessionFrom(r.Context()); sess != nil {
 		data["CSRF"] = sess.csrf
+		// Half signed in (code not given yet) gets no menu: every link
+		// would only lead back to the code page.
+		data["Signed"] = sess.stage == "full"
 	}
 	if _, set := data["ReviewsBadge"]; !set {
 		data["ReviewsBadge"] = s.reviewsBadge(r.Context())
 	}
 	data["ReviewsOn"] = s.Reviews != nil
+	data["MinPassword"] = adminMinPassword
 	var b strings.Builder
 	if err := t.Execute(&b, data); err != nil {
 		s.fail(w, r, err)

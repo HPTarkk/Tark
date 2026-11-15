@@ -22,6 +22,21 @@ var funcs = template.FuncMap{
 	"fieldFactor": func(f float64) string { return strconv.FormatFloat(f, 'f', -1, 64) },
 	"round":       func(f float64) int64 { return int64(math.Round(f)) },
 	"list":        func(v ...int) []int { return v },
+	// dict builds a template's data from key, value pairs.
+	"dict": func(kv ...any) (map[string]any, error) {
+		if len(kv)%2 != 0 {
+			return nil, fmt.Errorf("dict: odd number of arguments")
+		}
+		m := make(map[string]any, len(kv)/2)
+		for i := 0; i < len(kv); i += 2 {
+			k, ok := kv[i].(string)
+			if !ok {
+				return nil, fmt.Errorf("dict: key %v is not a string", kv[i])
+			}
+			m[k] = kv[i+1]
+		}
+		return m, nil
+	},
 	// bar maps a count to one of ten height classes for the CSS bar chart
 	// (the CSP forbids inline styles).
 	"bar": func(n, max int) int {
@@ -259,6 +274,10 @@ var icons = map[string]string{
 	"ban":       `<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>`,
 	"refresh":   `<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>`,
 	"plus":      `<path d="M12 5v14M5 12h14"/>`,
+	"eye-off":   `<path d="M10.7 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-2.2 3.2M6.6 6.6C3.7 8.5 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="m2 2 20 20"/>`,
+	"arrow":     `<path d="M5 12h14M13 6l6 6-6 6"/>`,
+	"user":      `<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>`,
+	"pen":       `<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>`,
 	"eye":       `<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>`,
 	"flag":      `<path d="M4 22V4a1 1 0 0 1 1-1h12l-2 4 2 4H5"/>`,
 	"send":      `<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>`,

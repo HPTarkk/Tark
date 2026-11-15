@@ -71,13 +71,13 @@
 <form method="post" action="/users/{{.ID}}/disable#actions" class="act bad" data-confirm="{{t "confirm.userDisable.q" .Name}}" data-confirm-x="{{t "confirm.userDisable.x"}}" data-confirm-ok="{{t "btn.disable"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}">
   <span class="act-icon">{{icon "ban"}}</span>
   <div class="act-text"><h4>{{t "user.disableH"}}</h4><p>{{t "user.disableP"}}</p></div>
-  <div class="act-do"><label class="act-reason">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button class="danger-soft">{{t "btn.disable"}}</button></div>
+  <div class="act-do"><label class="act-reason">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500" placeholder="{{t "ph.reason"}}"></label><button class="danger-soft">{{t "btn.disable"}}</button></div>
 </form>
 {{else}}
 <form method="post" action="/users/{{.ID}}/enable#actions" class="act good"><input type="hidden" name="csrf" value="{{$.CSRF}}">
   <span class="act-icon">{{icon "check"}}</span>
   <div class="act-text"><h4>{{t "user.enableH"}}</h4><p>{{t "user.enableP"}}</p></div>
-  <div class="act-do"><label class="act-reason">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.enable"}}</button></div>
+  <div class="act-do"><label class="act-reason">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500" placeholder="{{t "ph.reason"}}"></label><button>{{t "btn.enable"}}</button></div>
 </form>
 {{end}}
 </div>
@@ -96,14 +96,14 @@
 <form method="post" action="/users/{{$.U.ID}}/revoke-grant#actions" class="act bad" data-confirm="{{t "confirm.revoke.q"}}" data-confirm-x="{{t "confirm.revoke.x"}}" data-confirm-ok="{{t "btn.revoke"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="grant" value="{{.ID}}">
   <span class="act-icon">{{icon "close"}}</span>
   <div class="act-text"><h4>{{t "user.revokeH" (when .Ends)}}</h4><p>{{t "user.revokeP"}}</p></div>
-  <div class="act-do"><label class="act-reason">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button class="danger-soft">{{t "btn.revoke"}}</button></div>
+  <div class="act-do"><label class="act-reason">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500" placeholder="{{t "ph.reason"}}"></label><button class="danger-soft">{{t "btn.revoke"}}</button></div>
 </form>
 {{end}}{{end}}
 {{if .Suspicious}}
 <form method="post" action="/users/{{.ID}}/clear-suspicious#actions" class="act warn" data-confirm="{{t "confirm.clear.q"}}" data-confirm-x="{{t "confirm.clear.x"}}" data-confirm-ok="{{t "user.clearBtn"}}"><input type="hidden" name="csrf" value="{{$.CSRF}}">
   <span class="act-icon">{{icon "flag"}}</span>
   <div class="act-text"><h4>{{t "user.clearH"}}</h4><p>{{t "user.clearP"}}</p></div>
-  <div class="act-do"><label class="act-reason">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button class="ghost">{{t "user.clearBtn"}}</button></div>
+  <div class="act-do"><label class="act-reason">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500" placeholder="{{t "ph.reason"}}"></label><button class="ghost">{{t "user.clearBtn"}}</button></div>
 </form>
 {{end}}
 </div>

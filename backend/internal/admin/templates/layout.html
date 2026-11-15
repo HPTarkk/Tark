@@ -14,11 +14,14 @@
 <link rel="preload" href="{{static "Vazirmatn-Bold.ttf"}}" as="font" type="font/ttf" crossorigin>
 <link rel="preload" href="{{static "VazirmatnDigits-Regular.woff2"}}" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="{{static "VazirmatnDigits-Bold.woff2"}}" as="font" type="font/woff2" crossorigin>
-{{end}}<script src="{{static "admin.js"}}" defer></script>
+{{end}}{{/* Runs before the first paint, so a page reached by a page transition knows it (motion.js). */}}
+<script src="{{static "motion.js"}}"></script>
+<script src="{{static "admin.js"}}" defer></script>
 {{if eq .Page "reviews"}}<link rel="stylesheet" href="{{static "reviews.css"}}">
 <script src="{{static "reviews.js"}}"></script>{{end}}
 </head>
-{{$top := false}}{{with .Admin}}{{if not .MustChangePassword}}{{$top = true}}{{end}}{{end}}
+{{- /* The menu shows only once both sign-in steps are done and the password is the admin's own. */}}
+{{$top := false}}{{if .Signed}}{{with .Admin}}{{if not .MustChangePassword}}{{$top = true}}{{end}}{{end}}{{end}}
 <body class="{{if $top}}app{{end}}{{if .Posted}} posted{{end}}">
 {{if $top}}{{with .Admin}}
 {{/* The phone menu opens with this checkbox and its labels: the CSP allows no scripts. */}}
@@ -35,6 +38,8 @@
     <label for="nav-open" class="icon-btn side-close" title="{{t "menuClose"}}">{{icon "close"}}</label>
   </div>
   <nav class="nav">
+    {{- /* One highlight for the open page; it slides to the next page's link (admin.css, page motion). */}}
+    <span class="nav-pill" aria-hidden="true"></span>
     <p class="nav-group">{{t "nav.gOverview"}}</p>
     <a href="/"{{if eq $.Page "dashboard"}} class="on" aria-current="page"{{end}}>{{icon "dashboard"}}<span>{{t "nav.dashboard"}}</span></a>
     <a href="/system"{{if eq $.Page "system"}} class="on" aria-current="page"{{end}}>{{icon "system"}}<span>{{t "nav.system"}}</span></a>
@@ -85,6 +90,21 @@
 </main>
 </body>
 </html>
+{{/* A password field: a lock, a show/hide eye (admin.js shows it), and a
+     Caps Lock warning. Data comes from dict: ID, Name, Auto, Label,
+     Placeholder, and optionally Min, Max and Describe. */}}
+{{define "password-field"}}<div class="field">
+  <label for="{{.ID}}">{{.Label}}</label>
+  <span class="control">{{icon "lock"}}<input id="{{.ID}}" type="password" name="{{.Name}}" autocomplete="{{.Auto}}" required{{with .Min}} minlength="{{.}}"{{end}}{{with .Max}} maxlength="{{.}}"{{end}} dir="ltr" placeholder="{{.Placeholder}}" spellcheck="false" autocapitalize="off"{{with .Describe}} aria-describedby="{{.}}"{{end}}>
+  <button type="button" class="reveal" hidden aria-pressed="false" aria-label="{{t "pw.show"}}" data-show="{{t "pw.show"}}" data-hide="{{t "pw.hide"}}">{{icon "eye"}}{{icon "eye-off"}}</button></span>
+  <small class="hint caps" hidden>{{icon "alert"}}<span>{{t "pw.caps"}}</span></small>
+</div>{{end}}
+{{/* What a new password needs, ticked off while typing (admin.js). Without
+     scripts it reads as a plain hint. */}}
+{{define "password-rules"}}<ul class="pw-rules" id="{{.ID}}" data-min="{{.Min}}" aria-live="polite">
+  <li data-rule="len">{{icon "check"}}<span>{{t "pw.ruleLen" .Min}}</span></li>
+  <li data-rule="match">{{icon "check"}}<span>{{t "pw.ruleMatch"}}</span></li>
+</ul>{{end}}
 {{/* Sign out asks first. A popover needs no script, so it works under the CSP. */}}
 {{define "signout-dialog"}}
 <div id="confirm-signout" popover class="dialog" role="alertdialog" aria-labelledby="signout-q" aria-describedby="signout-x">
