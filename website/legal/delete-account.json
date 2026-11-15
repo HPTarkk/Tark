@@ -77,6 +77,10 @@
           {
             "en": "Your sign-in sessions. Every phone signed in to the account is signed out.",
             "fa": "نشست‌های ورودت. همه‌ی گوشی‌هایی که وارد حساب بودن ازش خارج می‌شن."
+          },
+          {
+            "en": "Your purchase and subscription records. A subscription still running in Bazaar can be restored into a new account.",
+            "fa": "سابقه‌ی خریدها و اشتراک‌هات. اشتراکی که هنوز توی بازار فعاله رو می‌شه توی یه حساب تازه بازیابی کرد."
           }
         ]
       },
@@ -88,8 +92,12 @@
         },
         "items": [
           {
-            "en": "Records of purchases and subscriptions, where the law or Cafe Bazaar requires them — only as long as required by law.",
-            "fa": "سابقه‌ی خریدها و اشتراک‌ها، جایی که قانون یا کافه‌بازار لازمش بدونه — فقط تا مدتی که قانون لازم می‌دونه."
+            "en": "Security records, such as failed sign-ins, for up to a year — with your account id removed, and the IP address only as a one-way hash.",
+            "fa": "سوابق امنیتی، مثل ورودهای ناموفق، تا یک سال — بدون شناسه‌ی حسابت، و نشانی IP فقط به شکل هش یک‌طرفه."
+          },
+          {
+            "en": "Cafe Bazaar’s own record of your payment, which Bazaar keeps under its own policy.",
+            "fa": "سابقه‌ای که خود کافه‌بازار از پرداختت داره، که بازار طبق سیاست خودش نگهش می‌داره."
           },
           {
             "en": "A subscription in Bazaar keeps running until you cancel it there. Deleting the account doesn’t cancel or refund it.",
@@ -234,14 +242,18 @@
             {
               "en": "Your sign-in sessions, including each phone’s platform and install key.",
               "fa": "نشست‌های ورودت، همراه با سکو و کلید نصب هر گوشی."
+            },
+            {
+              "en": "Your purchase and subscription records.",
+              "fa": "سابقه‌ی خریدها و اشتراک‌هات."
             }
           ]
         },
         {
           "type": "p",
           "text": {
-            "en": "Records of purchases and subscriptions may be kept where the law or Cafe Bazaar requires them — for example, to account for a payment. They are kept only as long as required by law, and used for nothing else.",
-            "fa": "سابقه‌ی خریدها و اشتراک‌ها ممکنه جایی که قانون یا کافه‌بازار لازم بدونه نگه داشته بشه — مثلاً برای پاسخ‌گویی درباره‌ی یه پرداخت. این سوابق فقط تا مدتی که قانون لازم می‌دونه نگه داشته می‌شن و برای هیچ کار دیگه‌ای استفاده نمی‌شن."
+            "en": "Security records — for example a failed sign-in, or the fact that an account was deleted — stay for up to a year so we can look into abuse. Your account id is removed from them, and an IP address is only ever stored as a one-way hash. Cafe Bazaar keeps its own record of a payment, under Bazaar’s policy; we can’t delete that for you.",
+            "fa": "سوابق امنیتی — مثلاً یه ورود ناموفق، یا این‌که حسابی پاک شده — تا یک سال می‌مونن تا اگه سوءاستفاده‌ای شد بتونیم بررسیش کنیم. شناسه‌ی حسابت ازشون پاک می‌شه و نشانی IP هیچ‌وقت جز به شکل هش یک‌طرفه ذخیره نمی‌شه. کافه‌بازار هم سابقه‌ی پرداخت رو طبق سیاست خودش نگه می‌داره؛ اون رو ما نمی‌تونیم پاک کنیم."
           }
         },
         {

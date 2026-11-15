@@ -128,4 +128,75 @@ void main() {
     expect(backs, 1);
     expect(find.byTooltip('Back'), findsOneWidget);
   });
+
+  group('the hint names what is on screen', () {
+    Future<void> pumpLobby(
+      WidgetTester tester, {
+      required SavedRoom saved,
+      VoidCallback? onConnect,
+      Locale locale = const Locale('en'),
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: locale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SelectedRoomLobby(
+            room: saved,
+            onStartRide: () {},
+            onBack: () {},
+            onConnect: onConnect,
+          ),
+        ),
+      );
+      await tester.pump(const Duration(seconds: 1));
+    }
+
+    SavedRoom alone() {
+      final full = room();
+      return SavedRoom(
+        room: full.room.copyWith(members: [full.room.members.first]),
+        membership: full.membership,
+      );
+    }
+
+    testWidgets('Start ride is the button the hint mentions', (tester) async {
+      await pumpLobby(tester, saved: room());
+      expect(
+        find.text('Your mic stays off until you press Start ride.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('when phones must connect first, the hint says so', (
+      tester,
+    ) async {
+      await pumpLobby(tester, saved: room(), onConnect: () {});
+      expect(
+        find.text('Your mic stays off until you press Connect phones.'),
+        findsOneWidget,
+      );
+      await pumpLobby(
+        tester,
+        saved: room(),
+        onConnect: () {},
+        locale: const Locale('fa'),
+      );
+      expect(
+        find.text('تا «وصل کردن گوشی‌ها» رو نزنی، میکروفون خاموش می‌مونه.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('alone, no button is named and the heading is not stale', (
+      tester,
+    ) async {
+      await pumpLobby(tester, saved: alone());
+      expect(find.byKey(const Key('selected-room-start-ride')), findsNothing);
+      expect(find.text('Just you so far'), findsOneWidget);
+      expect(find.text('Invite someone to start talking.'), findsOneWidget);
+      expect(find.textContaining('Room created'), findsNothing);
+      expect(find.textContaining('Start ride'), findsNothing);
+    });
+  });
 }

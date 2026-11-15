@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../motion/app_motion.dart';
+import 'icon_pop_switcher.dart';
 
 /// A name reduced to its first glyph, in a tinted tile.
 ///
@@ -8,12 +9,17 @@ import '../motion/app_motion.dart';
 /// which is why Landing's resume action wears the same one: the card you picked
 /// the room from and the button that resumes it are then visibly the same
 /// object, rather than a generic door icon standing in for it.
+///
+/// A room whose name says what it is about («کوهنوردی», "Road Trip") wears
+/// that topic's [icon] instead of the letter; renaming it springs the new
+/// mark in.
 class MonogramMark extends StatelessWidget {
   const MonogramMark({
     required this.name,
     required this.accent,
     this.size = 44,
     this.strong = false,
+    this.icon,
     this.child,
     super.key,
   });
@@ -25,7 +31,11 @@ class MonogramMark extends StatelessWidget {
   /// Loud variant — a selected card, or Landing's hero.
   final bool strong;
 
-  /// Drawn instead of the letter. Used for an archived room's box glyph.
+  /// The room's topic, drawn instead of the letter when set.
+  final IconData? icon;
+
+  /// Drawn instead of the letter and [icon]. Used for an archived room's
+  /// box glyph, which outranks the topic.
   final Widget? child;
 
   @override
@@ -51,13 +61,20 @@ class MonogramMark extends StatelessWidget {
       ),
       child:
           child ??
-          Text(
-            initial,
-            style: TextStyle(
-              color: accent,
-              fontSize: size * 0.41,
-              fontWeight: FontWeight.w900,
-            ),
+          IconPopSwitcher(
+            icon: icon,
+            reduced: AppMotion.reduced(context),
+            alignment: Alignment.center,
+            child: icon != null
+                ? Icon(icon, color: accent, size: size * 0.5)
+                : Text(
+                    initial,
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: size * 0.41,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
           ),
     );
   }

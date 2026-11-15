@@ -13,10 +13,12 @@ import 'account_store.dart';
 /// The local profile (SettingsRepository) stays the source of truth: it is
 /// what the radio uses, and it works with no account and no network. While
 /// signed in, every local change is pushed with PUT /profile; a change made
-/// offline is remembered and pushed at the next launch or sign-in. Signing
-/// in pushes the local profile too, so the phone the person is holding
-/// wins — except when this phone has no name of its own yet, which then
-/// takes the account's.
+/// offline is remembered and pushed at the next launch.
+///
+/// Signing in is the one moment the account wins: a name and avatar the
+/// account already has are pulled down onto this phone, and never
+/// overwritten by whatever this phone used before. Only what the account
+/// lacks — a brand-new account has no avatar yet — goes up from the phone.
 class ProfileSync {
   ProfileSync({
     required this._session,
@@ -31,6 +33,11 @@ class ProfileSync {
   Future<void>? _pushing;
   bool _again = false;
 
+  /// True while a sign-in writes the account's profile onto this phone.
+  /// Those writes are not the person's own changes and must not be pushed
+  /// half-applied (the account's name with the phone's old avatar).
+  bool _adopting = false;
+
   /// Starts listening. Also pushes a change left over from last time.
   Future<void> start() async {
     if (!_session.available) return;
@@ -44,21 +51,28 @@ class ProfileSync {
   }
 
   void _localChanged() {
-    if (!_session.isSignedIn) return;
+    if (!_session.isSignedIn || _adopting) return;
     unawaited(push());
   }
 
   Future<void> _onSignedIn(AccountProfile remote) async {
-    final localName = (await _settings.getMyName()).trim();
-    if (localName.isEmpty && remote.name.trim().isNotEmpty) {
-      await _settings.setMyName(remote.name.trim());
-      final avatar = remote.localAvatarId;
-      if (await _settings.getMyAvatarId() == null &&
-          AvatarCatalog.isValidId(avatar)) {
-        await _settings.setMyAvatarId(avatar!);
+    final remoteName = remote.name.trim();
+    final remoteAvatar = remote.localAvatarId;
+    _adopting = true;
+    try {
+      if (remoteName.isNotEmpty &&
+          (await _settings.getMyName()).trim() != remoteName) {
+        await _settings.setMyName(remoteName);
       }
-      return;
+      if (AvatarCatalog.isValidId(remoteAvatar) &&
+          await _settings.getMyAvatarId() != remoteAvatar) {
+        await _settings.setMyAvatarId(remoteAvatar!);
+      }
+    } finally {
+      _adopting = false;
     }
+    // Sends only what the account still lacks; a no-op when the phone now
+    // matches the account.
     await push();
   }
 

@@ -214,6 +214,7 @@ class RoomEntryAction extends StatefulWidget {
     required this.variant,
     required this.onTap,
     this.monogram,
+    this.monogramIcon,
     this.showHint = true,
     super.key,
   });
@@ -227,6 +228,10 @@ class RoomEntryAction extends StatefulWidget {
   /// Drawn in place of [icon] when set — the room's own mark, so resuming a
   /// room looks like the card it was chosen on.
   final String? monogram;
+
+  /// The room's topic icon, worn by the [monogram] in place of its letter,
+  /// as the Rooms list draws it.
+  final IconData? monogramIcon;
 
   /// Whether [hint] is drawn. It is always read out by screen readers. Home's
   /// resume hero hides it: once the room is the only thing in the middle of
@@ -244,6 +249,7 @@ class RoomEntryAction extends StatefulWidget {
     variant: variant ?? this.variant,
     onTap: onTap,
     monogram: monogram,
+    monogramIcon: monogramIcon,
     showHint: showHint,
   );
 
@@ -481,7 +487,13 @@ class _RoomEntryActionState extends State<RoomEntryAction>
         child: Icon(widget.icon, color: ink, size: 24),
       );
     }
-    return MonogramMark(name: monogram, accent: ink, size: 48, strong: true);
+    return MonogramMark(
+      name: monogram,
+      accent: ink,
+      size: 48,
+      strong: true,
+      icon: widget.monogramIcon,
+    );
   }
 
   /// A quiet full-width row: the only alternative on a first run.

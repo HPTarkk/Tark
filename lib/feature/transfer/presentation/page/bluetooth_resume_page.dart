@@ -11,6 +11,7 @@ import '../../../../core/motion/scene_turn.dart';
 import '../../../../core/motion/route_arrival.dart';
 import '../../../../core/router/route_exit.dart';
 import '../../../../core/router/routes.dart';
+import '../../../../core/settings/connection_history.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/widget/connection_journey.dart';
@@ -89,6 +90,7 @@ class _BluetoothResumePageState extends State<BluetoothResumePage>
   @override
   void initState() {
     super.initState();
+    ConnectionHistory.resumeShownThisRun = true;
     unawaited(_begin());
   }
 
@@ -170,9 +172,20 @@ class _BluetoothResumePageState extends State<BluetoothResumePage>
       _giveUp?.cancel();
       _successHold?.cancel();
       _countdown.stop();
+      // Nobody answered. A link that came up and then fell apart is not a
+      // miss: connecting already re-armed the resume.
+      if (!_linked) {
+        unawaited(ConnectionHistory.registered?.recordBluetoothResumeMiss());
+      }
       unawaited(_holdFailure());
       context.read<BluetoothConnectCubit>().backToRoleSelection();
       return;
+    }
+    // Cancelled while it was still looking: that is a "no" to resuming, so
+    // the next cold start goes straight Home instead of asking again (and,
+    // for a host, raising the discoverable dialog again).
+    if (_phase == _Phase.searching) {
+      unawaited(ConnectionHistory.registered?.standDownBluetoothResume());
     }
     setState(() => _phase = _Phase.leaving);
     _giveUp?.cancel();
