@@ -37,17 +37,77 @@ void main() {
     'avatarId': r.body!['avatarId'],
   };
 
-  test('signing in pushes the local name and avatar', () async {
+  test('signing in to an existing account pulls its name and avatar down, '
+      'and never overwrites them', () async {
     h.client.handler = (r) async => ApiOk(200, echo(r));
     await sync.start();
-    await h.signIn();
+    await h.signIn(
+      session: sessionJson(
+        profile: profileJson(name: 'Pedi', avatarId: '3'),
+      ),
+    );
+    await settle();
+    await settle();
+
+    expect(await settings.getMyName(), 'Pedi');
+    expect(await settings.getMyAvatarId(), 3);
+    expect(h.client.to('/profile'), isEmpty);
+    expect(h.session.current!.name, 'Pedi');
+    expect(h.session.current!.avatarId, '3');
+  });
+
+  test('a brand-new account without an avatar takes the phone\'s', () async {
+    h.client.handler = (r) async => ApiOk(200, echo(r));
+    await sync.start();
+    await h.signIn(
+      session: sessionJson(
+        profile: profileJson(name: 'Falcon', avatarId: null),
+      ),
+    );
     await settle();
     await settle();
 
     final put = h.client.to('/profile').single;
     expect(put.method, ApiMethod.put);
     expect(put.body, {'name': 'Falcon', 'avatarId': '8'});
-    expect(h.session.current!.name, 'Falcon');
+    expect(await settings.getMyAvatarId(), 8);
+  });
+
+  test('an account with a name but no avatar keeps its name and gets the '
+      'phone\'s avatar', () async {
+    h.client.handler = (r) async => ApiOk(200, echo(r));
+    await sync.start();
+    await h.signIn(
+      session: sessionJson(profile: profileJson(name: 'Pedi', avatarId: null)),
+    );
+    await settle();
+    await settle();
+
+    expect(await settings.getMyName(), 'Pedi');
+    expect(h.client.to('/profile').single.body, {
+      'name': 'Pedi',
+      'avatarId': '8',
+    });
+  });
+
+  test('a change after sign-in still goes up', () async {
+    h.client.handler = (r) async => ApiOk(200, echo(r));
+    await sync.start();
+    await h.signIn(
+      session: sessionJson(
+        profile: profileJson(name: 'Pedi', avatarId: '3'),
+      ),
+    );
+    await settle();
+    await settle();
+    await settings.setMyName('Hawk');
+    await settle();
+    await settle();
+
+    expect(h.client.to('/profile').single.body, {
+      'name': 'Hawk',
+      'avatarId': '3',
+    });
   });
 
   test('a local change while signed in is pushed', () async {
