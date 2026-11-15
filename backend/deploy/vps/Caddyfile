@@ -93,6 +93,16 @@
 	@emaillinks path /v/register /v/reset /v/email /v/register/ /v/reset/ /v/email/
 	rewrite @emaillinks /v/index.html
 
+	# Deleting an account from the website (/delete-account asks for a link,
+	# /confirm-delete uses it). The pages call the API on this same host, so
+	# the browser needs no cross-origin permission, and only these three
+	# routes are passed on: the rest of the API stays on its own host name.
+	@webdelete path /api/v1/account/web-delete/request /api/v1/account/web-delete/inspect /api/v1/account/web-delete/confirm
+	handle @webdelete {
+		uri strip_prefix /api
+		reverse_proxy api:8080
+	}
+
 	route {
 		# The host-rule files of the previous host, should one come back.
 		@hostrules path /_headers /_redirects
@@ -126,6 +136,21 @@
 			X-Robots-Tag "noindex, nofollow"
 			Referrer-Policy no-referrer
 			Content-Security-Policy "default-src 'none'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+			Cache-Control no-cache
+		}
+
+		# The page an account-deletion email opens. Its script reads the token
+		# from the #fragment and may talk only to this host.
+		header /confirm-delete {
+			X-Robots-Tag "noindex, nofollow"
+			Referrer-Policy no-referrer
+			Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+			Cache-Control no-cache
+		}
+		header /fa/confirm-delete {
+			X-Robots-Tag "noindex, nofollow"
+			Referrer-Policy no-referrer
+			Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 			Cache-Control no-cache
 		}
 

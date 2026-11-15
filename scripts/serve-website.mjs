@@ -10,7 +10,7 @@ http.createServer(async (req, res) => {
   try {
     let path = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
     if (/^\/v\/(register|reset|email)\/?$/.test(path)) path = '/v/';
-    if (/^\/(?:fa\/)?(?:privacy|terms|delete-account)$/.test(path)) path += '.html';
+    if (/^\/(?:fa\/)?(?:privacy|terms|delete-account|confirm-delete)$/.test(path)) path += '.html';
     let file = resolve(root, '.' + path);
     if (!file.startsWith(resolve(root) + sep) && file !== resolve(root)) {res.writeHead(403);res.end();return;}
     if ((await stat(file)).isDirectory()) file = resolve(file, 'index.html');
@@ -18,6 +18,10 @@ http.createServer(async (req, res) => {
     const headers = { 'Content-Type':mime[extname(file)] || 'application/octet-stream', 'Cache-Control':'no-store' };
     if (path.startsWith('/v/')) {
       headers['Content-Security-Policy'] = "default-src 'none'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+      headers['Referrer-Policy'] = 'no-referrer'; headers['X-Robots-Tag'] = 'noindex, nofollow';
+    }
+    if (/^\/(?:fa\/)?confirm-delete\.html$/.test(path)) {
+      headers['Content-Security-Policy'] = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
       headers['Referrer-Policy'] = 'no-referrer'; headers['X-Robots-Tag'] = 'noindex, nofollow';
     }
     if (path === '/update.json' || path === '/.well-known/assetlinks.json') headers['Access-Control-Allow-Origin'] = '*';

@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Delete your account — Tarkk</title>
-  <meta name="description" content="How to delete your Tarkk account: in the app, or by an email request. What is deleted, what may be kept and why, and what happens to a subscription.">
+  <meta name="description" content="How to delete your Tarkk account: in the app, or right here on the website with a link sent to your email. What is deleted, what may be kept and why, and what happens to a subscription.">
   <meta name="theme-color" content="#0D1913">
 
   <!-- ── Search ───────────────────────────────────────────────────────
@@ -27,7 +27,7 @@
   <meta property="og:site_name" content="Tarkk">
   <meta property="og:url" content="https://tarkk.ir/delete-account">
   <meta property="og:title" content="Delete your account — Tarkk">
-  <meta property="og:description" content="How to delete your Tarkk account: in the app, or by an email request. What is deleted, what may be kept and why, and what happens to a subscription.">
+  <meta property="og:description" content="How to delete your Tarkk account: in the app, or right here on the website with a link sent to your email. What is deleted, what may be kept and why, and what happens to a subscription.">
   <meta property="og:image" content="https://tarkk.ir/og-image-en.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -36,7 +36,7 @@
   <meta property="og:locale:alternate" content="fa_IR">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Delete your account — Tarkk">
-  <meta name="twitter:description" content="Delete your Tarkk account in the app, or ask by email. What is deleted, and what may be kept.">
+  <meta name="twitter:description" content="Delete your Tarkk account in the app, or on the website with a link sent to your email.">
   <meta name="twitter:image" content="https://tarkk.ir/og-image-en.png">
 
 
@@ -115,6 +115,7 @@
   <link rel="stylesheet" href="/scene.css?v=site-1">
   <link rel="stylesheet" href="/polish.css?v=site-1">
   <link rel="stylesheet" href="/legal.css?v=site-1">
+  <link rel="stylesheet" href="/delete-flow.css?v=site-1">
 </head>
 
 <body class="legal-page">
@@ -186,7 +187,7 @@
     <div class="legal-hero-inner">
       <p class="eyebrow reveal-up">ACCOUNT DELETION</p>
       <h1 class="legal-title reveal-up d1">How to delete your Tarkk account.</h1>
-      <p class="legal-lede reveal-up d2">The quickest way is inside the app, and it takes effect at once. If you can’t use the app, send us a request by email from the address the account uses. This page doesn’t delete anything by itself — it explains both ways.</p>
+      <p class="legal-lede reveal-up d2">The quickest way is inside the app. If you can’t use the app, you can do it right here: we email a one-time link to the account’s address, and you confirm on the page it opens. Either way it takes effect at once.</p>
       <div class="legal-meta reveal-up d3">
         <span class="legal-stamp">
           <i aria-hidden="true"></i>
@@ -207,7 +208,7 @@
       <p class="legal-toc-title">CONTENTS</p>
       <ol>
         <li><a href="#in-app">In the app</a></li>
-        <li><a href="#by-email">By email</a></li>
+        <li><a href="#by-email">On the website</a></li>
         <li><a href="#what">What is deleted</a></li>
         <li><a href="#subscription">Your subscription</a></li>
         <li><a href="#contact">Contact</a></li>
@@ -265,14 +266,47 @@
       <!-- ── 2 ───────────────────────────────────────────────────── -->
       <section class="legal-sec reveal" id="by-email">
         <h2>
-          <span>Ask us by email</span>
+          <span>Delete it here, on the website</span>
           <a class="legal-anchor" href="#by-email"><span class="sr-only">Link to this section</span></a>
         </h2>
-        <p>If you no longer have the app, or can’t sign in, you can ask us to delete the account. Please send the request from the email address the account uses, so we can tell it comes from the account’s owner.</p>
-        <p class="legal-action">
-          <a class="btn btn-primary" href="mailto:tarkk.hp@gmail.com?subject=Delete%20my%20Tarkk%20account&amp;body=Please%20delete%20the%20Tarkk%20account%20that%20uses%20this%20email%20address.">Email a deletion request</a>
-        </p>
-        <p>If the button doesn’t open your email app, write to tarkk.hp@gmail.com with the subject “Delete my Tarkk account”. We may reply to that address to confirm the request before deleting anything, and we’ll let you know once it’s done.</p>
+        <p>No phone, a forgotten password, or a Google account you no longer use? Enter the account’s email below. If it belongs to a Tarkk account, we email it a one-time link that works for 15 minutes. The link opens a page that shows what will be deleted and asks you to confirm.</p>
+        <div class="wdel" data-wdel
+          data-sent-body="If {email} belongs to a Tarkk account, a link is on its way from noreply@tarkk.ir. It works once, for 15 minutes."
+          data-again="Send again in {time}"
+          data-again-now="Send it again"
+          data-err-invalid="That doesn’t look like an email address."
+          data-err-limited="Too many requests for now. Try again in {time}."
+          data-err-network="We couldn’t reach Tarkk. Check your connection and try again."
+          data-err-generic="Something went wrong on our side. Please try again in a minute.">
+          <form class="wdel-form" novalidate>
+            <label class="wdel-label" for="wdelEmail">The account’s email</label>
+            <div class="wdel-field">
+              <input class="wdel-input" id="wdelEmail" name="email" type="email" inputmode="email" autocomplete="email"
+                autocapitalize="off" spellcheck="false" dir="ltr" required placeholder="you@example.com" aria-describedby="wdelMsg wdelHint">
+              <button class="wdel-send" type="submit">
+                <span class="wdel-send-label">Email me a link</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3 10 14"/><path d="m21 3-7 18-4-7-7-4z"/></svg>
+              </button>
+            </div>
+            <p class="wdel-msg" id="wdelMsg" role="alert"></p>
+            <p class="wdel-hint" id="wdelHint">Only someone who can open this inbox can delete the account. We never say whether an email has an account.</p>
+          </form>
+          <div class="wdel-sent" hidden tabindex="-1">
+            <div class="wdel-env" aria-hidden="true">
+              <svg viewBox="0 0 44 44"><rect class="env-body" x="4" y="12" width="36" height="24" rx="4"/><path class="env-flap" d="M5 13l17 13 17-13"/><circle class="env-seal" cx="22" cy="25" r="3.2"/></svg>
+            </div>
+            <div>
+              <h3 class="rise">Check your inbox</h3>
+              <p class="rise wdel-sent-body"></p>
+              <p class="rise wdel-hint">Nothing yet? Look in your spam folder.</p>
+              <div class="rise wdel-again">
+                <button class="wdel-link wdel-resend" type="button" disabled></button>
+                <button class="wdel-link wdel-other" type="button">Use a different email</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p>If you no longer have access to that inbox either, write to tarkk.hp@gmail.com from any address and tell us what you can about the account. We will ask for proof that it’s yours before deleting anything.</p>
       </section>
 
       <!-- ── 3 ───────────────────────────────────────────────────── -->
@@ -353,6 +387,7 @@
   </footer>
 
   <script type="module" src="/legal-page.js?v=site-1"></script>
+  <script type="module" src="/delete-request.js?v=site-1"></script>
 </body>
 
 </html>

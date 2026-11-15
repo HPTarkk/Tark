@@ -456,6 +456,86 @@ func (a *api) deleteAccount(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (a *api) webDeleteRequest(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Email  string `json:"email"`
+		Locale string `json:"locale"`
+	}
+	if err := decode(r, &body); err != nil {
+		writeError(w, r, a.Log, err)
+		return
+	}
+	c, err := a.client(r, body.Locale)
+	if err != nil {
+		writeError(w, r, a.Log, err)
+		return
+	}
+	out, err := a.Auth.RequestWebDelete(r.Context(), body.Email, c)
+	if err != nil {
+		writeError(w, r, a.Log, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{"expiresAt": ms(out.ExpiresAt)})
+}
+
+func (a *api) webDeleteInspect(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Token string `json:"token"`
+	}
+	if err := decode(r, &body); err != nil {
+		writeError(w, r, a.Log, err)
+		return
+	}
+	c, err := a.client(r, "")
+	if err != nil {
+		writeError(w, r, a.Log, err)
+		return
+	}
+	acc, err := a.Auth.InspectWebDelete(r.Context(), body.Token, c)
+	if err != nil {
+		writeError(w, r, a.Log, err)
+		return
+	}
+	sub := map[string]any{"active": acc.SubscriptionActive, "autoRenewing": acc.SubscriptionRenewing}
+	if acc.SubscriptionUntil != nil {
+		sub["validUntil"] = ms(*acc.SubscriptionUntil)
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, map[string]any{
+		"email":             acc.Email,
+		"name":              acc.Name,
+		"avatarId":          acc.AvatarID,
+		"createdAt":         ms(acc.CreatedAt),
+		"expiresAt":         ms(acc.ExpiresAt),
+		"subscription":      sub,
+		"confirmationWords": auth.ConfirmationWords,
+	})
+}
+
+func (a *api) webDeleteConfirm(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Token                    string `json:"token"`
+		Confirmation             string `json:"confirmation"`
+		SubscriptionAcknowledged bool   `json:"subscriptionAcknowledged"`
+		Locale                   string `json:"locale"`
+	}
+	if err := decode(r, &body); err != nil {
+		writeError(w, r, a.Log, err)
+		return
+	}
+	c, err := a.client(r, body.Locale)
+	if err != nil {
+		writeError(w, r, a.Log, err)
+		return
+	}
+	if err := a.Auth.ConfirmWebDelete(r.Context(), auth.WebDeleteInput{
+		Token: body.Token, Confirmation: body.Confirmation, SubscriptionAcknowledged: body.SubscriptionAcknowledged}, c); err != nil {
+		writeError(w, r, a.Log, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (a *api) startEmailChange(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		NewEmail        string `json:"newEmail"`

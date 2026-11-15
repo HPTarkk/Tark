@@ -721,6 +721,135 @@ paths:
         '429':
           $ref: '#/components/responses/Problem'
 
+  /account/web-delete/request:
+    post:
+      operationId: requestWebDelete
+      tags: [Account]
+      summary: Mail a one-time deletion link to an account's address (website).
+      description: |
+        For someone who can't use the app. The website at
+        tarkk.ir/delete-account sends the address; if it belongs to an
+        account, a link to `/confirm-delete#<handle>.<token>` (under `/fa`
+        for Persian) is mailed to it, valid for 15 minutes. Only the newest
+        link works. The answer is the same 202 whether or not the address
+        has an account. Rate limited per IP and per address.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: {type: string}
+                locale: {type: string, enum: [en, fa]}
+      responses:
+        '202':
+          description: Accepted. Says nothing about whether the address has an account.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  expiresAt: {type: integer, format: int64, description: Unix ms.}
+        '400':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /account/web-delete/inspect:
+    post:
+      operationId: inspectWebDelete
+      tags: [Account]
+      summary: What a deletion link would delete. Changes nothing.
+      description: |
+        `token` is the link's fragment. Answers whose account it is and
+        whether a paid Bazaar period is running. 404 `flow_not_found` for a
+        link that is not valid, 410 `flow_expired`, 409 `flow_completed`
+        for a used link or one sent before the account's email changed.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: {type: string}
+      responses:
+        '200':
+          description: The account the link is for.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email: {type: string}
+                  name: {type: string}
+                  avatarId: {type: string, nullable: true}
+                  createdAt: {type: integer, format: int64}
+                  expiresAt: {type: integer, format: int64}
+                  subscription:
+                    type: object
+                    properties:
+                      active: {type: boolean}
+                      autoRenewing: {type: boolean}
+                      validUntil: {type: integer, format: int64}
+                  confirmationWords:
+                    type: object
+                    additionalProperties: {type: string}
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '410':
+          $ref: '#/components/responses/Problem'
+        '423':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /account/web-delete/confirm:
+    post:
+      operationId: confirmWebDelete
+      tags: [Account]
+      summary: Delete the account a deletion link is for, at once and for good.
+      description: |
+        Needs the link's `token` and the typed `confirmation` word (`DELETE`
+        or `حذف`, either language; otherwise 422 `confirmation_mismatch`).
+        While a paid Bazaar period runs it also needs
+        `subscriptionAcknowledged: true`, else 409 `subscription_active`.
+        Deletes exactly as `/account/delete` does, and mails the same
+        confirmation.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, confirmation]
+              properties:
+                token: {type: string}
+                confirmation: {type: string}
+                subscriptionAcknowledged: {type: boolean}
+                locale: {type: string, enum: [en, fa]}
+      responses:
+        '204':
+          description: Deleted.
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '410':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
   # ---- Subscription --------------------------------------------------------
 
   /subscription:

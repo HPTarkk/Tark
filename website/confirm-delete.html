@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Delete your account · Tarkk</title>
+  <meta name="theme-color" content="#0D1913">
+
+  <!-- ── What this page is ────────────────────────────────────────────
+       The page an account-deletion email opens:
+         https://tarkk.ir/confirm-delete#<token>
+       It asks the API (same origin, /api/…) whose account the link is
+       for, shows what will be deleted, and deletes only after the
+       confirmation word is typed and the button is held.
+
+       The token is in the fragment, which browsers never send to a
+       server. confirm-delete.js moves it into this tab's sessionStorage
+       and out of the address bar. Nothing on this page loads from another
+       site: no analytics, no web font from a CDN. The CSP below enforces
+       that, and the server repeats it as a response header (Caddyfile).
+       noindex, and left out of sitemap.xml. -->
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="preload" href="/assets/Vazirmatn-ExtraBold.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/delete-flow.css?v=site-1">
+</head>
+
+<body class="dflow">
+  <div class="dflow-bg" aria-hidden="true"><i class="g1"></i><i class="g2"></i></div>
+
+  <header class="dflow-top">
+    <a class="dflow-brand" href="/"><img src="/logo.png" alt="" width="34" height="34"><span>TARKK</span></a>
+    <a class="dflow-lang" href="/fa/confirm-delete" hreflang="fa" lang="fa">فارسی</a>
+  </header>
+
+  <main class="dflow-main">
+    <section class="dflow-card" id="card" aria-live="polite">
+      <div data-view="static" class="df-result">
+        <h1 class="df-title">Delete your Tarkk account</h1>
+        <p class="df-lede">This page needs JavaScript to read the link from your email. Turn it on and reload, or delete the account in the app: Profile → Account → Delete account.</p>
+      </div>
+    </section>
+    <p class="dflow-foot">Questions? Write to <a href="mailto:tarkk.hp@gmail.com">tarkk.hp@gmail.com</a></p>
+  </main>
+
+  <script type="module" src="/confirm-delete.js?v=site-1"></script>
+</body>
+
+</html>

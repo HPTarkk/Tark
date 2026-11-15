@@ -1196,3 +1196,101 @@ func TestRateLimitCountersAreUnlogged(t *testing.T) {
 		t.Fatalf("rate_limits persistence is %q, want u (unlogged)", persistence)
 	}
 }
+
+func webDeleteToken(t *testing.T, m mail.Message) string {
+	t.Helper()
+	match := regexp.MustCompile(`/confirm-delete#(\S+)`).FindStringSubmatch(m.Text)
+	if match == nil {
+		t.Fatalf("no deletion link in %q", m.Text)
+	}
+	return match[1]
+}
+
+func TestWebAccountDeletion(t *testing.T) {
+	e := setup(t)
+	p := e.phone()
+	p.register("web@example.com", "a good passphrase", "Webby")
+	buy := map[string]any{"sku": "tark_premium_12m", "purchaseToken": "tok-web"}
+	expect(t, p.do("POST", "/v1/subscription/bazaar/purchases", buy, "Idempotency-Key", "1a2b3c4d-1b8e-4d52-9a3c-6b1e2d3f4a5b"), 200, "")
+	web := e.phone()
+
+	// Unknown and known addresses get the same answer; only a known one gets mail.
+	unknown := web.do("POST", "/v1/account/web-delete/request", map[string]any{"email": "nobody@example.com", "locale": "en"})
+	expect(t, unknown, 202, "")
+	if len(e.mail.to("nobody@example.com")) != 0 {
+		t.Fatal("mail sent to an address without an account")
+	}
+	known := web.do("POST", "/v1/account/web-delete/request", map[string]any{"email": " Web@Example.com ", "locale": "fa"})
+	expect(t, known, 202, "")
+	if len(known.body) != len(unknown.body) {
+		t.Fatalf("answers differ: %v vs %v", known.body, unknown.body)
+	}
+	first := e.lastMail("web@example.com")
+	if !strings.Contains(first.Text, "/fa/confirm-delete#") {
+		t.Fatalf("Persian request should link the Persian page: %q", first.Text)
+	}
+	oldToken := webDeleteToken(t, first)
+
+	// A second request replaces the first link.
+	expect(t, web.do("POST", "/v1/account/web-delete/request", map[string]any{"email": "web@example.com", "locale": "en"}), 202, "")
+	token := webDeleteToken(t, e.lastMail("web@example.com"))
+	expect(t, web.do("POST", "/v1/account/web-delete/inspect", map[string]any{"token": oldToken}), 410, "flow_expired")
+
+	// Bad tokens.
+	expect(t, web.do("POST", "/v1/account/web-delete/inspect", map[string]any{"token": "nonsense"}), 404, "flow_not_found")
+	handle, _, _ := strings.Cut(token, ".")
+	expect(t, web.do("POST", "/v1/account/web-delete/inspect", map[string]any{"token": handle + ".AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}), 422, "code_invalid")
+
+	info := web.do("POST", "/v1/account/web-delete/inspect", map[string]any{"token": token})
+	expect(t, info, 200, "")
+	if info.body["email"] != "web@example.com" || info.body["name"] != "Webby" {
+		t.Fatalf("%v", info.body)
+	}
+	if sub, _ := info.body["subscription"].(map[string]any); sub["active"] != true {
+		t.Fatalf("subscription not reported: %v", info.body)
+	}
+
+	confirm := map[string]any{"token": token, "confirmation": "nope", "locale": "en"}
+	expect(t, web.do("POST", "/v1/account/web-delete/confirm", confirm), 422, "confirmation_mismatch")
+	confirm["confirmation"] = " حذف "
+	expect(t, web.do("POST", "/v1/account/web-delete/confirm", confirm), 409, "subscription_active")
+	confirm["subscriptionAcknowledged"] = true
+	expect(t, web.do("POST", "/v1/account/web-delete/confirm", confirm), 204, "")
+	if m := e.lastMail("web@example.com"); m.Subject != "Your Tarkk account was deleted" {
+		t.Fatalf("last mail %q", m.Subject)
+	}
+
+	// The account and its sessions are gone; the link cannot be used again.
+	expect(t, p.do("GET", "/v1/profile", nil), 401, "")
+	expect(t, web.do("POST", "/v1/account/web-delete/confirm", confirm), 404, "flow_not_found")
+	var left int
+	if err := e.pool.QueryRow(context.Background(), `
+		SELECT (SELECT count(*) FROM users) + (SELECT count(*) FROM user_emails) + (SELECT count(*) FROM sessions)
+		     + (SELECT count(*) FROM bazaar_purchases) + (SELECT count(*) FROM audit_events WHERE user_id IS NOT NULL)`).Scan(&left); err != nil {
+		t.Fatal(err)
+	}
+	if left != 0 {
+		t.Fatalf("%d rows still tied to the deleted account", left)
+	}
+}
+
+func TestWebDeletionLinkDiesWithEmailChangeAndIsRateLimited(t *testing.T) {
+	e := setup(t)
+	p := e.phone()
+	p.register("moving@example.com", "a good passphrase", "Mover")
+	web := e.phone()
+	expect(t, web.do("POST", "/v1/account/web-delete/request", map[string]any{"email": "moving@example.com"}), 202, "")
+	token := webDeleteToken(t, e.lastMail("moving@example.com"))
+	if _, err := e.pool.Exec(context.Background(), `UPDATE user_emails SET email = 'moved@example.com' WHERE email = 'moving@example.com'`); err != nil {
+		t.Fatal(err)
+	}
+	expect(t, web.do("POST", "/v1/account/web-delete/inspect", map[string]any{"token": token}), 409, "flow_completed")
+	expect(t, web.do("POST", "/v1/account/web-delete/confirm", map[string]any{"token": token, "confirmation": "DELETE"}), 409, "flow_completed")
+
+	// Three requests per address per hour; the fourth is refused.
+	for i := 0; i < 2; i++ {
+		expect(t, e.phone().do("POST", "/v1/account/web-delete/request", map[string]any{"email": "moved@example.com"}), 202, "")
+	}
+	expect(t, e.phone().do("POST", "/v1/account/web-delete/request", map[string]any{"email": "moved@example.com"}), 202, "")
+	expect(t, e.phone().do("POST", "/v1/account/web-delete/request", map[string]any{"email": "moved@example.com"}), 429, "rate_limited")
+}

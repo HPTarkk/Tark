@@ -49,6 +49,7 @@ const (
 	LoggedOutAll           = "session.logged_out_all"
 	AccountDeleted         = "account.deleted"
 	AccountDeleteFailed    = "account.delete_failed"
+	AccountDeleteRequested = "account.delete_requested"
 	PurchaseVerified       = "billing.purchase_verified"
 	PurchaseOwnedElsewhere = "billing.purchase_owned_elsewhere"
 	PurchaseRefunded       = "billing.purchase_refunded"

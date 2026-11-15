@@ -193,6 +193,46 @@ function renderBlock(block, lang, where) {
         '        </p>',
       ].join('\n');
 
+    // Web-only: the "email me a deletion link" form (delete-request.js).
+    // Every string the script shows is rendered here, in this language, so
+    // the script carries no copy of its own.
+    case 'webDelete': {
+      const s = (key) => t(block[key], lang, `${where} ${key}`);
+      const data = ['sentBody', 'again', 'againNow', 'errInvalid', 'errLimited', 'errNetwork', 'errGeneric']
+        .map((key) => `data-${key.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())}="${attr(s(key))}"`)
+        .join('\n          ');
+      return `        <div class="wdel" data-wdel
+          ${data}>
+          <form class="wdel-form" novalidate>
+            <label class="wdel-label" for="wdelEmail">${esc(s('label'))}</label>
+            <div class="wdel-field">
+              <input class="wdel-input" id="wdelEmail" name="email" type="email" inputmode="email" autocomplete="email"
+                autocapitalize="off" spellcheck="false" dir="ltr" required placeholder="${attr(s('placeholder'))}" aria-describedby="wdelMsg wdelHint">
+              <button class="wdel-send" type="submit">
+                <span class="wdel-send-label">${esc(s('button'))}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3 10 14"/><path d="m21 3-7 18-4-7-7-4z"/></svg>
+              </button>
+            </div>
+            <p class="wdel-msg" id="wdelMsg" role="alert"></p>
+            <p class="wdel-hint" id="wdelHint">${esc(s('hint'))}</p>
+          </form>
+          <div class="wdel-sent" hidden tabindex="-1">
+            <div class="wdel-env" aria-hidden="true">
+              <svg viewBox="0 0 44 44"><rect class="env-body" x="4" y="12" width="36" height="24" rx="4"/><path class="env-flap" d="M5 13l17 13 17-13"/><circle class="env-seal" cx="22" cy="25" r="3.2"/></svg>
+            </div>
+            <div>
+              <h3 class="rise">${esc(s('sentTitle'))}</h3>
+              <p class="rise wdel-sent-body"></p>
+              <p class="rise wdel-hint">${esc(s('sentNote'))}</p>
+              <div class="rise wdel-again">
+                <button class="wdel-link wdel-resend" type="button" disabled></button>
+                <button class="wdel-link wdel-other" type="button">${esc(s('other'))}</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }
+
     default:
       return fail(`${where}: unknown block type "${block.type}"`);
   }
@@ -256,7 +296,9 @@ ${loaderFontCss(lang)}
   <link rel="stylesheet" href="/styles.css?v=site-1">
   <link rel="stylesheet" href="/scene.css?v=site-1">
   <link rel="stylesheet" href="/polish.css?v=site-1">
-  <link rel="stylesheet" href="/legal.css?v=site-1">
+  <link rel="stylesheet" href="/legal.css?v=site-1">${
+    usesWebDelete(doc) ? '\n  <link rel="stylesheet" href="/delete-flow.css?v=site-1">' : ''
+  }
 </head>`;
 }
 
@@ -277,6 +319,8 @@ function renderNav(doc, lang) {
     </nav>
   </header>`;
 }
+
+const usesWebDelete = (doc) => doc.sections.some((sec) => sec.blocks.some((b) => b.type === 'webDelete'));
 
 function renderBody(doc, lang) {
   const home = lang === 'fa' ? '/fa/' : '/';
@@ -399,7 +443,9 @@ ${FOOTER.map(
     <p>${esc(UI.tagline[lang])}</p>
   </footer>
 
-  <script type="module" src="/legal-page.js?v=site-1"></script>
+  <script type="module" src="/legal-page.js?v=site-1"></script>${
+    usesWebDelete(doc) ? '\n  <script type="module" src="/delete-request.js?v=site-1"></script>' : ''
+  }
 </body>
 
 </html>
@@ -437,8 +483,10 @@ function validate(doc, { consent }) {
     if (ids.has(sec.id)) fail(`${where}: duplicate section id "${sec.id}"`);
     ids.add(sec.id);
     if (!sec.blocks?.length) fail(`${where}: section "${sec.id}" has no blocks`);
-    if (consent && sec.blocks.some((b) => b.type === 'button')) {
-      fail(`${where}: section "${sec.id}" uses a "button" block, which the app cannot show`);
+    for (const webOnly of ['button', 'webDelete']) {
+      if (consent && sec.blocks.some((b) => b.type === webOnly)) {
+        fail(`${where}: section "${sec.id}" uses a "${webOnly}" block, which the app cannot show`);
+      }
     }
   }
 

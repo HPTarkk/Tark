@@ -72,13 +72,16 @@ var (
 	limitRegisterEmail = ratelimit.Rule{Name: "register_email", Max: 5, Window: time.Hour}
 	limitForgotIP      = ratelimit.Rule{Name: "forgot_ip", Max: 10, Window: time.Hour}
 	limitForgotEmail   = ratelimit.Rule{Name: "forgot_email", Max: 5, Window: time.Hour}
-	limitVerifyIP      = ratelimit.Rule{Name: "verify_ip", Max: 60, Window: 15 * time.Minute}
-	limitLoginIP       = ratelimit.Rule{Name: "login_ip", Max: 30, Window: 15 * time.Minute}
-	limitLoginEmailIP  = ratelimit.Rule{Name: "login_fail_email_ip", Max: 5, Window: 15 * time.Minute}
-	limitLoginEmail    = ratelimit.Rule{Name: "login_fail_email", Max: 20, Window: time.Hour}
-	limitGoogleIP      = ratelimit.Rule{Name: "google_ip", Max: 30, Window: 15 * time.Minute}
-	limitRefreshIP     = ratelimit.Rule{Name: "refresh_ip", Max: 120, Window: 15 * time.Minute}
-	limitUserSensitive = ratelimit.Rule{Name: "user_sensitive", Max: 10, Window: 15 * time.Minute}
+	limitWebDeleteIP   = ratelimit.Rule{Name: "web_delete_ip", Max: 10, Window: time.Hour}
+	// Each request mails the address, so one address gets few per hour.
+	limitWebDeleteEmail = ratelimit.Rule{Name: "web_delete_email", Max: 3, Window: time.Hour}
+	limitVerifyIP       = ratelimit.Rule{Name: "verify_ip", Max: 60, Window: 15 * time.Minute}
+	limitLoginIP        = ratelimit.Rule{Name: "login_ip", Max: 30, Window: 15 * time.Minute}
+	limitLoginEmailIP   = ratelimit.Rule{Name: "login_fail_email_ip", Max: 5, Window: 15 * time.Minute}
+	limitLoginEmail     = ratelimit.Rule{Name: "login_fail_email", Max: 20, Window: time.Hour}
+	limitGoogleIP       = ratelimit.Rule{Name: "google_ip", Max: 30, Window: 15 * time.Minute}
+	limitRefreshIP      = ratelimit.Rule{Name: "refresh_ip", Max: 120, Window: 15 * time.Minute}
+	limitUserSensitive  = ratelimit.Rule{Name: "user_sensitive", Max: 10, Window: 15 * time.Minute}
 	// Wrong verification codes for one address, across all of its flows.
 	limitCodeFailEmail = ratelimit.Rule{Name: "code_fail_email", Max: 20, Window: 24 * time.Hour}
 )

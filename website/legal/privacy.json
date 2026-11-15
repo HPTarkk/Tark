@@ -703,15 +703,15 @@
         {
           "type": "p",
           "text": {
-            "en": "Account data is kept for as long as the account exists. You can delete the account whenever you like: in the app, go to Profile → Delete account and confirm with your email and password, or with a fresh Google sign-in. It is deleted straight away, and every phone signed in to it is signed out.",
-            "fa": "داده‌های حساب تا وقتی حساب وجود داره نگه داشته می‌شن. هر وقت خواستی می‌تونی حساب رو پاک کنی: توی برنامه برو به پروفایل ← پاک کردن حساب و با ایمیل و رمز عبورت، یا با یه ورود تازه با گوگل، تأییدش کن. حساب همون لحظه پاک می‌شه و همه‌ی گوشی‌هایی که واردش بودن ازش خارج می‌شن."
+            "en": "Account data is kept for as long as the account exists. You can delete the account whenever you like: in the app, go to Profile → Delete account and confirm with your email and password, or with a fresh Google sign-in. If you can’t use the app, enter the account’s email on tarkk.ir/delete-account: we email a one-time link to that address, and you confirm on the page it opens. Either way it is deleted straight away, and every phone signed in to it is signed out.",
+            "fa": "داده‌های حساب تا وقتی حساب وجود داره نگه داشته می‌شن. هر وقت خواستی می‌تونی حساب رو پاک کنی: توی برنامه برو به پروفایل ← پاک کردن حساب و با ایمیل و رمز عبورت، یا با یه ورود تازه با گوگل، تأییدش کن. اگه به برنامه دسترسی نداری، ایمیل حسابت رو توی tarkk.ir/delete-account وارد کن: یه لینک یک‌بارمصرف به همون نشانی می‌فرستیم و توی صفحه‌ای که باز می‌کنه تأیید می‌کنی. در هر دو حالت حساب همون لحظه پاک می‌شه و همه‌ی گوشی‌هایی که واردش بودن ازش خارج می‌شن."
           }
         },
         {
           "type": "p",
           "text": {
-            "en": "Deleting removes your email, your password hash or Google account id, your name and avatar, and your sign-in sessions. Records of purchases and subscriptions may be kept where the law or Cafe Bazaar requires it, only as long as required by law, and for no other purpose.",
-            "fa": "با پاک کردن حساب، ایمیلت، هش رمز عبور یا شناسه‌ی حساب گوگلت، اسم و آواتارت و نشست‌های ورودت پاک می‌شن. سابقه‌ی خریدها و اشتراک‌ها ممکنه جایی که قانون یا کافه‌بازار لازم بدونه نگه داشته بشه — فقط تا مدتی که قانون لازم می‌دونه، و برای هیچ کار دیگه‌ای."
+            "en": "Deleting removes your email, your password hash or Google account id, your name and avatar, your sign-in sessions, and your purchase and subscription records. Security records — for example a failed sign-in, or the fact that an account was deleted — stay for up to a year so we can look into abuse, with your account id removed and IP addresses only ever stored as a one-way hash. Cafe Bazaar keeps its own record of a payment, under Bazaar’s policy.",
+            "fa": "با پاک کردن حساب، ایمیلت، هش رمز عبور یا شناسه‌ی حساب گوگلت، اسم و آواتارت، نشست‌های ورودت و سابقه‌ی خریدها و اشتراک‌هات پاک می‌شن. سوابق امنیتی — مثلاً یه ورود ناموفق، یا این‌که حسابی پاک شده — تا یک سال می‌مونن تا اگه سوءاستفاده‌ای شد بتونیم بررسیش کنیم؛ شناسه‌ی حسابت ازشون پاک می‌شه و نشانی IP هیچ‌وقت جز به شکل هش یک‌طرفه ذخیره نمی‌شه. کافه‌بازار هم سابقه‌ی پرداخت رو طبق سیاست خودش نگه می‌داره."
           }
         },
         {
@@ -735,8 +735,8 @@
               },
               "href": "https://tarkk.ir/delete-account.html",
               "text": {
-                "en": "Both ways to do it — in the app, or by an email request if you can’t use the app — and exactly what is deleted.",
-                "fa": "هر دو راهش — از داخل برنامه، یا با درخواست ایمیلی اگه به برنامه دسترسی نداری — و اینکه دقیقاً چی پاک می‌شه."
+                "en": "Both ways to do it — in the app, or on the website with a link sent to your email — and exactly what is deleted.",
+                "fa": "هر دو راهش — از داخل برنامه، یا روی وب‌سایت با لینکی که به ایمیلت می‌فرستیم — و اینکه دقیقاً چی پاک می‌شه."
               }
             }
           ]
