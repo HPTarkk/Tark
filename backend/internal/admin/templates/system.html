@@ -5,36 +5,28 @@
   <div><h1>{{t "nav.system"}}</h1><p class="lead">{{t "lead.system"}}</p></div>
 </header>
 {{with .Health}}{{$state := .State}}
-<section class="panel health is-{{$state}}" aria-labelledby="health-h">
-  <header class="health-head">
-    <span class="health-mark" aria-hidden="true">{{if eq $state "good"}}{{icon "check"}}{{else if eq $state "none"}}{{icon "clock"}}{{else if eq $state "stale"}}{{icon "clock"}}{{else}}{{icon "alert"}}{{end}}</span>
-    <div class="health-text">
-      {{if eq $state "good"}}<h2 id="health-h">{{t "system.h.good"}}</h2><p>{{t "system.h.goodSub" .Total (ago .LastRun)}}</p>
-      {{else if eq $state "bad"}}<h2 id="health-h">{{t "system.h.bad" .Firing}}</h2><p>{{t "system.h.badSub" .OK .Total}}</p>
-      {{else if eq $state "stale"}}<h2 id="health-h">{{t "system.h.stale"}}</h2><p>{{t "system.h.staleSub" .Stale .Total (ago .LastRun)}}</p>
-      {{else}}<h2 id="health-h">{{t "system.h.none"}}</h2><p>{{t "system.noChecks"}}</p>{{end}}
+{{- /* The status board: one line that answers "is anything wrong?", one
+     tick per check, then the checks as a ledger with the broken ones first. */}}
+<section class="board is-{{$state}}" aria-labelledby="health-h">
+  <header class="board-head">
+    <div class="board-word">
+      <span class="led" aria-hidden="true"></span>
+      {{if eq $state "good"}}<h2 id="health-h">{{t "system.h.good"}}</h2>
+      {{else if eq $state "bad"}}<h2 id="health-h">{{t "system.h.bad" .Firing}}</h2>
+      {{else if eq $state "stale"}}<h2 id="health-h">{{t "system.h.stale"}}</h2>
+      {{else}}<h2 id="health-h">{{t "system.h.none"}}</h2>{{end}}
     </div>
-    {{if .Firing}}<div class="health-tally">
-      <span class="chip good">{{t "system.okCount" .OK}}</span>{{if .Firing}}<span class="chip bad">{{t "system.badCount" .Firing}}</span>{{end}}
-    </div>{{end}}
+    <p class="board-sub">{{if eq $state "good"}}{{t "system.h.goodSub" .Total (ago .LastRun)}}{{else if eq $state "bad"}}{{t "system.h.badSub" .OK .Total}}{{else if eq $state "stale"}}{{t "system.h.staleSub" .Stale .Total (ago .LastRun)}}{{else}}{{t "system.noChecks"}}{{end}}</p>
+    {{if .Total}}<p class="ticks" aria-label="{{t "system.okCount" .OK}}{{if .Firing}}{{t "sep"}}{{t "system.badCount" .Firing}}{{end}}">{{range $.Alerts}}<span class="{{if .Firing}}bad{{else if .Stale}}stale{{end}}" title="{{code "check" .Key}}"></span>{{end}}</p>{{end}}
   </header>
-  {{if .Total}}<ul class="checks" aria-label="{{t "system.checks"}}">
-  {{range $.Alerts}}<li class="check{{if .Firing}} firing{{else if .Stale}} stale{{end}}"><details{{if .Firing}} open{{end}}>
-    <summary>
-      <span class="check-icon">{{checkIcon .Key}}</span>
-      <span class="check-name"><b>{{code "check" .Key}}</b>{{$what := code "checkWhat" .Key}}{{if ne $what .Key}}<small title="{{$what}}">{{$what}}</small>{{else}}<small><code>{{.Key}}</code></small>{{end}}</span>
-      {{if .Firing}}<span class="chip bad live">{{t "system.firing" (when .Since)}}</span>{{else if .Stale}}<span class="chip warn">{{t "system.stale"}}</span>{{else}}<span class="chip good">{{t "ok"}}</span>{{end}}
-      <span class="check-caret" aria-hidden="true"></span>
-    </summary>
-    <div class="check-body">
-      <p class="check-label">{{t "system.reading"}}</p>
-      <p class="check-reading"><span class="ltr email">{{.Detail}}</span></p>
-      {{if .Firing}}{{$fix := code "checkFix" .Key}}{{if ne $fix .Key}}<p class="check-label">{{t "system.todo"}}</p><p class="check-fix">{{$fix}}</p>{{end}}{{end}}
-      <p class="check-meta"><code>{{.Key}}</code> · {{t "system.updated" (ago .Updated)}}{{if .Notified}} · {{t "system.notified" (ago .Notified)}}{{end}}</p>
-    </div>
-  </details></li>{{end}}
-  </ul>
-  <p class="panel-note">{{icon "info"}}{{t "system.checksNote"}}</p>{{end}}
+  {{if .Total}}<div class="ledgers" aria-label="{{t "system.checks"}}" role="group">
+  {{if or .Firing .Stale}}<ul class="ledger off">
+  {{range $.Alerts}}{{if .Firing}}{{template "check-row" .}}{{end}}{{end}}
+  {{range $.Alerts}}{{if and .Stale (not .Firing)}}{{template "check-row" .}}{{end}}{{end}}
+  </ul>{{end}}
+  <ul class="ledger fine">{{range $.Alerts}}{{if not (or .Firing .Stale)}}{{template "check-row" .}}{{end}}{{end}}</ul>
+  </div>
+  <p class="board-note">{{t "system.checksNote"}}</p>{{end}}
 </section>
 {{end}}
 {{with .M}}
@@ -77,3 +69,18 @@
 </section>
 {{end}}
 {{end}}
+
+{{define "check-row"}}<li class="check{{if .Firing}} firing{{else if .Stale}} stale{{end}}"><details{{if .Firing}} open{{end}}>
+  <summary>
+    <span class="check-icon">{{checkIcon .Key}}</span>
+    <span class="check-name"><b>{{code "check" .Key}}</b>{{$what := code "checkWhat" .Key}}{{if ne $what .Key}}<small title="{{$what}}">{{$what}}</small>{{else}}<small><code>{{.Key}}</code></small>{{end}}</span>
+    <span class="check-state">{{if .Firing}}{{t "system.firing" (when .Since)}}{{else if .Stale}}{{t "system.stale"}}{{else}}{{t "ok"}}{{end}}</span>
+    <span class="check-caret" aria-hidden="true"></span>
+  </summary>
+  <div class="check-body">
+    <p class="check-label">{{t "system.reading"}}</p>
+    <p class="check-reading"><span class="ltr email">{{.Detail}}</span></p>
+    {{if .Firing}}{{$fix := code "checkFix" .Key}}{{if ne $fix .Key}}<p class="check-label">{{t "system.todo"}}</p><p class="check-fix">{{$fix}}</p>{{end}}{{end}}
+    <p class="check-meta"><code>{{.Key}}</code> · {{t "system.updated" (ago .Updated)}}{{if .Notified}} · {{t "system.notified" (ago .Notified)}}{{end}}</p>
+  </div>
+</details></li>{{end}}
