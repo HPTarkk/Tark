@@ -225,10 +225,20 @@ function markBusy(button) {
   button.classList.add("busy");
   button.setAttribute("aria-busy", "true");
   const label = button.querySelector(":scope > span");
-  if (label && button.dataset.busy) {
-    button.dataset.idle = label.textContent;
-    label.textContent = button.dataset.busy;
-  }
+  if (!label || !button.dataset.busy) return;
+  button.dataset.idle = label.textContent;
+  const swap = () => { label.textContent = button.dataset.busy; };
+  // The old words rise and fade, the new ones rise in from below.
+  if (!label.animate || matchMedia("(prefers-reduced-motion: reduce)").matches) return swap();
+  const out = label.animate(
+    [{ transform: "none", opacity: 1 }, { transform: "translateY(-55%)", opacity: 0 }],
+    { duration: 140, easing: "cubic-bezier(.4, 0, 1, 1)" });
+  out.onfinish = () => {
+    swap();
+    label.animate(
+      [{ transform: "translateY(55%)", opacity: 0 }, { transform: "none", opacity: 1 }],
+      { duration: 260, easing: "cubic-bezier(.2, .8, .2, 1)" });
+  };
 }
 const root = document.documentElement;
 document.addEventListener("submit", (event) => {

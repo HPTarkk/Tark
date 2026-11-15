@@ -1015,20 +1015,24 @@ button.go:hover .i { translate: 3px 0; }
    data-busy) and, on go buttons, the arrow gives way to three small
    square lights that step along, like the panel's status LEDs. */
 button.busy { position: relative; cursor: progress; pointer-events: none; }
-button.busy > span { transition: opacity .15s ease; }
+button.busy > span { display: inline-block; }
 button.go.busy .i { display: none; }
+button.go.busy { overflow: hidden; }
 button.go.busy::after { content: ""; width: 5px; height: 5px; flex-shrink: 0; margin-inline-end: 16px; border-radius: 1px;
-  --dim: color-mix(in srgb, currentColor 30%, transparent); --lit: var(--accent-2);
-  background: var(--lit); box-shadow: 8px 0 0 var(--dim), 16px 0 0 var(--dim); animation: leds .9s steps(1) infinite; }
-[dir="rtl"] button.go.busy::after { animation-name: leds-rtl; box-shadow: -8px 0 0 var(--dim), -16px 0 0 var(--dim); }
+  --dim: color-mix(in srgb, currentColor 28%, transparent); --lit: var(--accent-2);
+  background: var(--dim); box-shadow: 8px 0 0 var(--dim), 16px 0 0 var(--dim);
+  animation: leds-in .26s .1s ease both, leds 1.2s .1s ease-in-out infinite; }
+[dir="rtl"] button.go.busy::after { animation-name: leds-in, leds-rtl; box-shadow: -8px 0 0 var(--dim), -16px 0 0 var(--dim); }
+/* A soft wave: each light glows up and fades as the next one rises. */
 @keyframes leds {
-  0% { background: var(--lit); box-shadow: 8px 0 0 var(--dim), 16px 0 0 var(--dim); }
+  0%, 100% { background: var(--lit); box-shadow: 8px 0 0 var(--dim), 16px 0 0 var(--dim); }
   33% { background: var(--dim); box-shadow: 8px 0 0 var(--lit), 16px 0 0 var(--dim); }
   66% { background: var(--dim); box-shadow: 8px 0 0 var(--dim), 16px 0 0 var(--lit); } }
 @keyframes leds-rtl {
-  0% { background: var(--lit); box-shadow: -8px 0 0 var(--dim), -16px 0 0 var(--dim); }
+  0%, 100% { background: var(--lit); box-shadow: -8px 0 0 var(--dim), -16px 0 0 var(--dim); }
   33% { background: var(--dim); box-shadow: -8px 0 0 var(--lit), -16px 0 0 var(--dim); }
   66% { background: var(--dim); box-shadow: -8px 0 0 var(--dim), -16px 0 0 var(--lit); } }
+@keyframes leds-in { from { opacity: 0; translate: 0 6px; } }
 /* Other buttons only dim a touch while their page is on its way. */
 button.busy:not(.go) { opacity: .7; }
 form.sending > button.go.busy, form.sending .go.busy { opacity: 1; }
@@ -1107,7 +1111,7 @@ html.theme-shift *, html.theme-shift *::before { view-transition-name: none !imp
   .control:focus-within > .i, button.go:hover .i, [dir="rtl"] button.go:hover .i { scale: none; translate: none; }
   [dir="rtl"] button.go .i { scale: -1 1; }
   button.go.busy .i, .nav a.going .i, .control .reveal .i { animation: none !important; }
-  button.go.busy::after { animation: none; }
+  button.go.busy::after { animation: none; background: var(--lit); }
   html.leaving body.app::before { animation: auth-fade .3s .14s both; transform: none; opacity: .9; }
   .hint.caps { animation-name: auth-fade; }
 }
