@@ -1065,12 +1065,6 @@ html.theme-shift *, html.theme-shift *::before { view-transition-name: none !imp
 }
 
 ::view-transition-group(*) { animation-duration: .42s; animation-timing-function: var(--ease); }
-::view-transition-old(root) { animation: vt-out .2s ease both; }
-::view-transition-new(root) { animation: vt-fade .26s ease .04s both; }
-html[data-way="down"]::view-transition-old(root) { animation-name: vt-out-up; }
-html[data-way="up"]::view-transition-old(root) { animation-name: vt-out-down; }
-html[data-way="same"]::view-transition-old(root) { animation: vt-out .16s ease both; }
-html[data-way="same"]::view-transition-new(root) { animation: vt-fade .16s ease both; }
 /* The highlight glides with a little give at the end, like the app's tabs. */
 ::view-transition-group(nav-pill) { animation-duration: .52s; animation-timing-function: cubic-bezier(.3, 1.3, .5, 1); }
 ::view-transition-old(nav-pill) { animation: none; opacity: 0; }
@@ -1085,8 +1079,6 @@ html[data-way="same"]::view-transition-new(root) { animation: vt-fade .16s ease 
 ::view-transition-old(auth-card) { animation: vt-out .18s ease both; }
 ::view-transition-new(auth-card) { animation: vt-fade .3s ease both; }
 .vt-in .auth-card, .vt-in .auth-mark { animation: none; }
-/* Going up the menu, the new page comes down from above instead of rising. */
-html[data-way="up"] main.content > * { animation-name: drop; }
 @keyframes drop { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
 @keyframes vt-out { to { opacity: 0; } }
 @keyframes vt-out-up { to { opacity: 0; transform: translateY(-10px); } }
@@ -1204,3 +1196,62 @@ th { background: transparent; border-bottom-color: var(--line-2); }
 html.leaving body::before { height: 2px; }
 .search > .i { color: var(--muted); }
 .search:focus-within > .i { color: var(--fg); }
+
+/* ---- dashboard: what needs you, then the business, then the rest ------- */
+.section-label { margin: 0 0 12px; font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+:root[lang="fa"] .section-label { text-transform: none; letter-spacing: 0; font-size: .85rem; }
+.todo { margin-bottom: 30px; }
+.todo-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.todo-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.todo-list li:last-child { border-bottom: 0; }
+.todo-list b { display: block; font-weight: 650; }
+.todo-list small { display: block; color: var(--muted); font-size: .84rem; overflow-wrap: anywhere; }
+.todo-list a { font-weight: 600; font-size: .88rem; white-space: nowrap; padding: 6px 12px; border: 1px solid var(--line-2); border-radius: 6px; text-decoration: none; transition: border-color .18s ease, background-color .18s ease, color .18s ease; }
+.todo-list a:hover { border-color: var(--fg); color: var(--fg); background: var(--surface-2); }
+/* A small square light, like a radio's: amber for "look", red for "broken". */
+.led { width: 8px; height: 8px; border-radius: 1px; background: var(--warn); }
+.todo-list li.bad .led { background: var(--bad); animation: blink 1.6s ease-in-out infinite; }
+.todo-none { display: flex; align-items: center; gap: 10px; margin: 0; padding: 14px 18px; border: 1px dashed var(--line-2); border-radius: 10px; color: var(--muted); }
+.todo-none .i { color: var(--good); }
+.kpi.lead-kpi { border-color: var(--fg); }
+.kpi.lead-kpi .kpi-sub + .kpi-sub { margin-top: 8px; }
+.delta.down { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.dash-main { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+@media (max-width: 1100px) { .dash-main { grid-template-columns: minmax(0, 1fr); } }
+.rows-h { margin: 20px 0 4px; font-size: .8rem; font-weight: 700; color: var(--muted); }
+details.more { margin-top: 8px; }
+details.more > summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 8px 14px; border: 1px solid var(--line-2); border-radius: 6px; cursor: pointer; font-weight: 600; font-size: .9rem; color: var(--fg); transition: border-color .18s ease, background-color .18s ease; }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary:hover { border-color: var(--fg); background: var(--surface-2); }
+details.more > summary .i { width: 16px; height: 16px; transition: rotate .3s var(--ease); }
+details.more[open] > summary .i { rotate: 180deg; }
+details.more[open] > section { animation: rise .35s var(--ease) both; }
+@media (max-width: 640px) {
+  .todo-list li { grid-template-columns: auto minmax(0, 1fr); }
+  .todo-list a { grid-column: 2; justify-self: start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .todo-list li.bad .led, details.more[open] > section { animation: none; }
+  details.more > summary .i { transition: none; }
+}
+
+/* ---- page changes without jumps -----------------------------------------
+   A page reached by a page transition does not also build itself up piece
+   by piece: the content arrives as one sheet (a short fade and a 10px
+   slide in the menu's direction) and everything in it is already in place.
+   The first load and the sign-in steps keep their entrance. */
+main.content { view-transition-name: content; }
+.vt-in main.content > :not(.toast), .vt-in .page-icon, .vt-in .hero-icon, .vt-in .avatar.xl, .vt-in .kpi .big, .vt-in .bar, .vt-in .meter span,
+.vt-in .nil-tile, .vt-in .drawn > *, .vt-in .nil-title, .vt-in .nil-hint, .vt-in .finder .scene, .vt-in .finder h2, .vt-in .finder-x, .vt-in .finder-q,
+.vt-in .finder-ways li, .vt-in .finder-tips li, .vt-in table.events tbody tr, .vt-in .nav-pill::before { animation-name: none; }
+::view-transition-old(content) { animation: vt-out .16s ease both; }
+::view-transition-new(content) { animation: vt-sheet .3s var(--ease) both; }
+html[data-way="up"]::view-transition-new(content) { animation-name: vt-sheet-down; }
+html[data-way="same"]::view-transition-new(content) { animation: vt-fade .16s ease both; }
+::view-transition-old(content), ::view-transition-new(content) { height: auto; }
+::view-transition-group(content) { animation-duration: .3s; }
+@keyframes vt-sheet { from { opacity: 0; transform: translateY(10px); } }
+@keyframes vt-sheet-down { from { opacity: 0; transform: translateY(-10px); } }
+/* The root now holds only the background: no fade, so nothing flickers. */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+::view-transition-old(root) { display: none; }

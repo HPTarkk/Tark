@@ -257,7 +257,7 @@ func TestOwnerFlow(t *testing.T) {
 	if !strings.Contains(body, `popovertarget="confirm-signout"`) || !strings.Contains(body, `id="confirm-signout" popover`) {
 		t.Fatal("sign out does not ask first")
 	}
-	for _, want := range []string{"<p class=\"big\">1</p>", "<code>tark_premium_12m</code></dt><dd>1</dd>", "Failed sign-ins and codes</dt><dd>1</dd>"} {
+	for _, want := range []string{"<p class=\"big\">1</p>", "<dt>Tarkk Premium, 1 year</dt><dd>1</dd>", "Failed sign-ins and codes</dt><dd>1</dd>"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("dashboard lacks %q:\n%s", want, body)
 		}

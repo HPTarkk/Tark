@@ -15,6 +15,7 @@ type Stats struct {
 	UsersTotal      int
 	UsersNew7       int
 	UsersNew30      int
+	UsersPrev7      int // created 7 to 14 days ago, to compare the last week with
 	SignupsEmail30  int
 	SignupsGoogle30 int
 	Active7         int // accounts with a session seen in the last 7 days
@@ -42,6 +43,14 @@ type Stats struct {
 	LastBackupOK bool
 	SignupsByDay []DayCount
 	SignupDayMax int
+
+	// Shares of all accounts, whole percent.
+	PayingPct int
+	ActivePct int
+	// BackupStale: no good backup in the last 36 hours (a nightly job missed).
+	BackupStale bool
+	// BackupFailed: the newest finished backup run failed.
+	BackupFailed bool
 }
 
 type PlanCount struct {
@@ -61,6 +70,7 @@ func loadStats(ctx context.Context, q store.Querier) (*Stats, error) {
 		  (SELECT count(*) FROM users),
 		  (SELECT count(*) FROM users WHERE created_at > now() - interval '7 days'),
 		  (SELECT count(*) FROM users WHERE created_at > now() - interval '30 days'),
+		  (SELECT count(*) FROM users WHERE created_at <= now() - interval '7 days' AND created_at > now() - interval '14 days'),
 		  (SELECT count(*) FROM users u WHERE u.created_at > now() - interval '30 days'
 		     AND EXISTS (SELECT 1 FROM auth_identities i WHERE i.user_id = u.id AND i.provider = 'password')),
 		  (SELECT count(*) FROM users u WHERE u.created_at > now() - interval '30 days'
@@ -68,7 +78,7 @@ func loadStats(ctx context.Context, q store.Querier) (*Stats, error) {
 		  (SELECT count(DISTINCT user_id) FROM sessions WHERE revoked_at IS NULL AND last_seen_at > now() - interval '7 days'),
 		  (SELECT count(*) FROM users WHERE status = 'disabled'),
 		  (SELECT count(*) FROM audit_events WHERE kind = 'account.deleted' AND at > now() - interval '30 days')`).
-		Scan(&st.UsersTotal, &st.UsersNew7, &st.UsersNew30, &st.SignupsEmail30, &st.SignupsGoogle30,
+		Scan(&st.UsersTotal, &st.UsersNew7, &st.UsersNew30, &st.UsersPrev7, &st.SignupsEmail30, &st.SignupsGoogle30,
 			&st.Active7, &st.Disabled, &st.Deleted30); err != nil {
 		return nil, err
 	}
@@ -125,6 +135,12 @@ func loadStats(ctx context.Context, q store.Querier) (*Stats, error) {
 		return nil, err
 	}
 	st.LastBackupOK = ok != nil && *ok
+	st.BackupFailed = ok != nil && !*ok
+	st.BackupStale = st.LastBackup == nil || time.Since(*st.LastBackup) > 36*time.Hour
+	if st.UsersTotal > 0 {
+		st.PayingPct = share(st.Subscribers, st.UsersTotal)
+		st.ActivePct = share(st.Active7, st.UsersTotal)
+	}
 	rows, err = q.Query(ctx, `
 		SELECT d::date, count(u.id)
 		FROM generate_series(date_trunc('day', now()) - interval '29 days', date_trunc('day', now()), interval '1 day') d
@@ -144,4 +160,13 @@ func loadStats(ctx context.Context, q store.Querier) (*Stats, error) {
 		st.SignupDayMax = max(st.SignupDayMax, d.Count)
 	}
 	return st, nil
+}
+
+// share is part of whole in whole percent, rounded; anything above zero
+// shows as at least 1%.
+func share(part, whole int) int {
+	if part <= 0 || whole <= 0 {
+		return 0
+	}
+	return max(1, (part*100+whole/2)/whole)
 }
