@@ -176,7 +176,7 @@ try {
 
     if (-not $SkipBuild) {
         Step 'Building the image'
-        Invoke-Native 'docker' @('build', '-t', $image, $BackendDir)
+        Invoke-Native 'docker' @('build', '--build-arg', "VERSION=$Tag", '-t', $image, $BackendDir)
     }
 
     Step 'Preparing the server'

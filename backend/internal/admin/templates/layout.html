@@ -69,6 +69,7 @@
     <div class="side-actions">
       <button type="button" class="ghost signout" popovertarget="confirm-signout">{{icon "signout"}}<span>{{t "signout"}}</span></button>
     </div>
+    <p class="ver">{{t "version"}} <code>{{version}}</code></p>
   </div>
 </div></aside>
 {{template "signout-dialog" $}}
@@ -84,6 +85,7 @@
 </div>
 {{end}}{{else}}
 <a class="lang lang-corner" href="/lang/{{t "lang.otherCode"}}?next={{.Here}}" lang="{{t "lang.otherCode"}}">{{t "lang.other"}}</a>
+<p class="ver ver-corner">{{t "version"}} <code>{{version}}</code></p>
 {{end}}
 <main{{if $top}} class="content"{{end}}>
 {{block "main" .}}{{end}}

@@ -120,6 +120,7 @@ var texts = map[string][2]string{
 	"lang.other":     {"فارسی", "English"},
 	"lang.otherCode": {"fa", "en"},
 	"lang.otherName": {"Persian", "انگلیسی"},
+	"version":        {"Version", "نسخه"},
 	"sep":            {", ", "، "},
 	"nav.dashboard":  {"Dashboard", "داشبورد"},
 	"nav.system":     {"System", "سیستم"},

@@ -257,7 +257,7 @@ func TestOwnerFlow(t *testing.T) {
 	if !strings.Contains(body, `popovertarget="confirm-signout"`) || !strings.Contains(body, `id="confirm-signout" popover`) {
 		t.Fatal("sign out does not ask first")
 	}
-	for _, want := range []string{"<p class=\"big\">1</p>", "<dt>Tarkk Premium, 1 year</dt><dd>1</dd>", "Failed sign-ins and codes</dt><dd>1</dd>"} {
+	for _, want := range []string{"<p class=\"big\">1</p>", "<dt>Tarkk Premium, 1 year</dt><dd>1</dd>", `<p class="ver">Version <code>`, "Failed sign-ins and codes</dt><dd>1</dd>"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("dashboard lacks %q:\n%s", want, body)
 		}
@@ -639,7 +639,7 @@ func TestSignInPagesGuideTheAdmin(t *testing.T) {
 	}
 	b := e.browser()
 	_, body := b.get("/login")
-	for _, want := range []string{`placeholder="name@example.com"`, `placeholder="Your password"`, `class="reveal"`, `class="hint caps"`, `motion.js`} {
+	for _, want := range []string{`placeholder="name@example.com"`, `placeholder="Your password"`, `class="reveal"`, `class="hint caps"`, `motion.js`, `<p class="ver ver-corner">Version <code>`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("login page lacks %s", want)
 		}

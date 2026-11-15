@@ -13,7 +13,9 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/tarkd ./cmd/tarkd
+# The version the admin panel shows; deploy.ps1 passes its image tag.
+ARG VERSION=""
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/HPTarkk/Tark/backend/internal/buildinfo.Version=${VERSION}" -o /out/tarkd ./cmd/tarkd
 # Empty directories for backups and log files, owned by the runtime user so a
 # volume mounted there starts out writable by it.
 RUN mkdir -p /out/backups /out/logs && chmod 700 /out/backups /out/logs
