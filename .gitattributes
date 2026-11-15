@@ -11,3 +11,8 @@ backend/deploy/**/.env*.example text eol=lf
 website/**/*.html             text eol=lf
 website/package.json          text eol=lf
 website/site-version.json     text eol=lf
+# The legal documents and their generated copies (the app's bundle, the
+# manifest): a Windows checkout with CRLF sources made every release rewrite
+# them with CRLF.
+website/legal/*.json          text eol=lf
+assets/legal/*.json           text eol=lf
