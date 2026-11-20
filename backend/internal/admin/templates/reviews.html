@@ -61,12 +61,12 @@
     <p class="big">{{num $s.Last30}}</p>
     <p class="kpi-sub">{{t "rv.newSub" $s.Prev30}}</p>
   </article>
-  <a class="kpi kpi-link{{if $s.Needs}} warn{{end}}" href="{{(index .Tabs 0).URL}}">
+  <a class="kpi kpi-link{{if $s.Needs}} warn{{end}}" href="{{(index .Tabs 1).URL}}">
     <div class="kpi-head"><span class="kpi-icon">{{icon "reply"}}</span><h2>{{t "rv.needsH"}}</h2></div>
     <p class="big">{{num $s.Needs}}</p>
     <p class="kpi-sub">{{if $s.Needs}}{{t "rv.needsSub"}}{{else}}{{t "rv.needsNone"}}{{end}}</p>
   </a>
-  <a class="kpi kpi-link" href="{{(index .Tabs 1).URL}}">
+  <a class="kpi kpi-link" href="{{(index .Tabs 2).URL}}">
     <div class="kpi-head"><span class="kpi-icon">{{icon "hourglass"}}</span><h2>{{t "rv.awaitH"}}</h2></div>
     <p class="big">{{num $s.Awaiting}}</p>
     <p class="kpi-sub">{{t "rv.awaitSub"}}</p>

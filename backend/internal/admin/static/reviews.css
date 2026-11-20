@@ -123,6 +123,7 @@ a.kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .rv-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .rv-filters .search { flex: 1 1 220px; flex-direction: row; align-items: center; gap: 6px; margin: 0; padding: 0 4px; border-radius: 6px; box-shadow: none; background: var(--bg); border-color: var(--line-2); }
 .rv-filters .search input { padding: 10px 4px; min-width: 0; }
+.rv-filters .search input:placeholder-shown { direction: inherit; text-align: start; }
 .rv-filters select { flex: 0 1 auto; width: auto; }
 .rv-filters.auto .rv-apply { display: none; }
 .rv-stars-pick { display: flex; gap: 4px; margin: 0; padding: 0; border: 0; min-width: 0; }

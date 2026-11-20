@@ -225,7 +225,7 @@
               },
               "text": {
                 "en": "To identify your account, and to send the emails an account needs: verification codes and links, and password resets.",
-                "fa": "برای شناختن حسابت، و فرستادن ایمیل‌هایی که یه حساب لازم داره: کدها و لینک‌های تأیید، و بازنشانی رمز عبور."
+                "fa": "برای شناختن حسابت، و فرستادن ایمیل‌هایی که یه حساب لازم داره: کدها و لینک‌های تایید، و بازنشانی رمز عبور."
               }
             },
             {
@@ -275,13 +275,13 @@
               },
               "text": {
                 "en": "Which plan you have, when it started and when it ends, and the purchase details Cafe Bazaar gives us to confirm a payment. We never see your card or bank details; paying happens entirely inside Bazaar.",
-                "fa": "اینکه کدوم طرح رو داری، کی شروع شده و کی تموم می‌شه، و جزئیات خریدی که کافه‌بازار برای تأیید پرداخت به ما می‌ده. اطلاعات کارت یا حساب بانکیت رو هیچ‌وقت نمی‌بینیم؛ پرداخت کاملاً داخل بازار انجام می‌شه."
+                "fa": "اینکه کدوم طرح رو داری، کی شروع شده و کی تموم می‌شه، و جزییات خریدی که کافه‌بازار برای تایید پرداخت به ما می‌ده. اطلاعات کارت یا حساب بانکیت رو هیچ‌وقت نمی‌بینیم؛ پرداخت کاملاً داخل بازار انجام می‌شه."
               }
             },
             {
               "name": {
                 "en": "Connection details",
-                "fa": "جزئیات اتصال"
+                "fa": "جزییات اتصال"
               },
               "text": {
                 "en": "Like any web server, ours sees the IP address each request comes from, as part of answering it.",
@@ -348,7 +348,7 @@
           "type": "p",
           "text": {
             "en": "Tarkk keeps a small amount of state so it can behave sensibly the second time you open it. All of it lives in the app’s own storage on your device, and uninstalling the app removes the lot. Apart from the account details described above, none of it syncs anywhere.",
-            "fa": "تَرک یه مقدار کمی وضعیت رو نگه می‌داره تا بار دومی که بازش می‌کنی درست رفتار کنه. همه‌ش توی حافظه‌ی خود برنامه روی دستگاه شماست و با حذف برنامه، همه‌ش پاک می‌شه. جز جزئیات حسابی که بالاتر گفتیم، هیچ‌کدومش جایی هم‌گام نمی‌شه."
+            "fa": "تَرک یه مقدار کمی وضعیت رو نگه می‌داره تا بار دومی که بازش می‌کنی درست رفتار کنه. همه‌ش توی حافظه‌ی خود برنامه روی دستگاه شماست و با حذف برنامه، همه‌ش پاک می‌شه. جز جزییات حسابی که بالاتر گفتیم، هیچ‌کدومش جایی هم‌گام نمی‌شه."
           }
         },
         {
@@ -371,7 +371,7 @@
               },
               "text": {
                 "en": "If you sign in: the sign-in session for this phone, and the account details the app shows you — email, name, avatar and subscription status. Signing out removes the session from the phone.",
-                "fa": "اگه وارد حساب بشی: نشست ورود همین گوشی، و جزئیاتی از حساب که برنامه بهت نشون می‌ده — ایمیل، اسم، آواتار و وضعیت اشتراک. با خروج از حساب، نشست از روی گوشی پاک می‌شه."
+                "fa": "اگه وارد حساب بشی: نشست ورود همین گوشی، و جزییاتی از حساب که برنامه بهت نشون می‌ده — ایمیل، اسم، آواتار و وضعیت اشتراک. با خروج از حساب، نشست از روی گوشی پاک می‌شه."
               }
             },
             {
@@ -626,7 +626,7 @@
               "external": true,
               "text": {
                 "en": "If you choose Google sign-in, Google confirms your account to us and shares your Google account id and email address; it does not share your password.",
-                "fa": "اگه ورود با گوگل رو انتخاب کنی، گوگل حسابت رو برای ما تأیید می‌کنه و شناسه‌ی حساب گوگل و نشانی ایمیلت رو در اختیارمون می‌ذاره؛ رمز عبورت رو نه."
+                "fa": "اگه ورود با گوگل رو انتخاب کنی، گوگل حسابت رو برای ما تایید می‌کنه و شناسه‌ی حساب گوگل و نشانی ایمیلت رو در اختیارمون می‌ذاره؛ رمز عبورت رو نه."
               }
             },
             {
@@ -704,14 +704,14 @@
           "type": "p",
           "text": {
             "en": "Account data is kept for as long as the account exists. You can delete the account whenever you like: in the app, go to Profile → Delete account and confirm with your email and password, or with a fresh Google sign-in. If you can’t use the app, enter the account’s email on tarkk.ir/delete-account: we email a one-time link to that address, and you confirm on the page it opens. Either way it is deleted straight away, and every phone signed in to it is signed out.",
-            "fa": "داده‌های حساب تا وقتی حساب وجود داره نگه داشته می‌شن. هر وقت خواستی می‌تونی حساب رو پاک کنی: توی برنامه برو به پروفایل ← پاک کردن حساب و با ایمیل و رمز عبورت، یا با یه ورود تازه با گوگل، تأییدش کن. اگه به برنامه دسترسی نداری، ایمیل حسابت رو توی tarkk.ir/delete-account وارد کن: یه لینک یک‌بارمصرف به همون نشانی می‌فرستیم و توی صفحه‌ای که باز می‌کنه تأیید می‌کنی. در هر دو حالت حساب همون لحظه پاک می‌شه و همه‌ی گوشی‌هایی که واردش بودن ازش خارج می‌شن."
+            "fa": "داده‌های حساب تا وقتی حساب وجود داره نگه داشته می‌شن. هر وقت خواستی می‌تونی حساب رو پاک کنی: توی برنامه برو به پروفایل ← پاک کردن حساب و با ایمیل و رمز عبورت، یا با یه ورود تازه با گوگل، تاییدش کن. اگه به برنامه دسترسی نداری، ایمیل حسابت رو توی tarkk.ir/delete-account وارد کن: یه لینک یک‌بارمصرف به همون نشانی می‌فرستیم و توی صفحه‌ای که باز می‌کنه تایید می‌کنی. در هر دو حالت حساب همون لحظه پاک می‌شه و همه‌ی گوشی‌هایی که واردش بودن ازش خارج می‌شن."
           }
         },
         {
           "type": "p",
           "text": {
             "en": "Deleting removes your email, your password hash or Google account id, your name and avatar, your sign-in sessions, and your purchase and subscription records. Security records — for example a failed sign-in, or the fact that an account was deleted — stay for up to a year so we can look into abuse, with your account id removed and IP addresses only ever stored as a one-way hash. Cafe Bazaar keeps its own record of a payment, under Bazaar’s policy.",
-            "fa": "با پاک کردن حساب، ایمیلت، هش رمز عبور یا شناسه‌ی حساب گوگلت، اسم و آواتارت، نشست‌های ورودت و سابقه‌ی خریدها و اشتراک‌هات پاک می‌شن. سوابق امنیتی — مثلاً یه ورود ناموفق، یا این‌که حسابی پاک شده — تا یک سال می‌مونن تا اگه سوءاستفاده‌ای شد بتونیم بررسیش کنیم؛ شناسه‌ی حسابت ازشون پاک می‌شه و نشانی IP هیچ‌وقت جز به شکل هش یک‌طرفه ذخیره نمی‌شه. کافه‌بازار هم سابقه‌ی پرداخت رو طبق سیاست خودش نگه می‌داره."
+            "fa": "با پاک کردن حساب، ایمیلت، هش رمز عبور یا شناسه‌ی حساب گوگلت، اسم و آواتارت، نشست‌های ورودت و سابقه‌ی خریدها و اشتراک‌هات پاک می‌شن. سوابق امنیتی — مثلاً یه ورود ناموفق، یا این‌که حسابی پاک شده — تا یک سال می‌مونن تا اگه سواستفاده‌ای شد بتونیم بررسیش کنیم؛ شناسه‌ی حسابت ازشون پاک می‌شه و نشانی IP هیچ‌وقت جز به شکل هش یک‌طرفه ذخیره نمی‌شه. کافه‌بازار هم سابقه‌ی پرداخت رو طبق سیاست خودش نگه می‌داره."
           }
         },
         {
@@ -827,7 +827,7 @@
           "type": "p",
           "text": {
             "en": "Questions about anything on this page, or about something you think it fails to describe, go to the address below. A specific question about a specific line gets a specific answer.",
-            "fa": "سؤال درباره‌ی هر چیزی توی این صفحه، یا درباره‌ی چیزی که فکر می‌کنی اینجا توضیح داده نشده، به نشانی زیر بفرست. سؤال مشخص درباره‌ی یه خط مشخص، جواب مشخص می‌گیره."
+            "fa": "سوال درباره‌ی هر چیزی توی این صفحه، یا درباره‌ی چیزی که فکر می‌کنی اینجا توضیح داده نشده، به نشانی زیر بفرست. سوال مشخص درباره‌ی یه خط مشخص، جواب مشخص می‌گیره."
           }
         },
         {
@@ -836,7 +836,7 @@
             {
               "text": {
                 "en": "Privacy questions, account deletion requests, and everything else.",
-                "fa": "سؤالات حریم خصوصی، درخواست پاک کردن حساب، و هر چیز دیگه‌ای."
+                "fa": "سوالات حریم خصوصی، درخواست پاک کردن حساب، و هر چیز دیگه‌ای."
               },
               "name": "tarkk.hp@gmail.com",
               "href": "mailto:tarkk.hp@gmail.com"

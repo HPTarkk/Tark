@@ -237,7 +237,7 @@ const modes = {
     icon: "broadcast",
     title: ["شبکه نیست؟ خودمون می‌سازیم.", "No network? Make your own."],
     description: [
-      "یه گوشی اندرویدی میزبان می‌شه و بقیه به شبکهٔ همون گوشی وصل می‌شن.",
+      "یه گوشی اندرویدی میزبان می‌شه و بقیه به شبکه‌ی همون گوشی وصل می‌شن.",
       "An Android phone hosts, and the others join that phone’s own network.",
     ],
     people: ["به ظرفیت میزبان", "Host-dependent"],
@@ -256,7 +256,7 @@ const modes = {
       "On the same network? Connect over that Wi-Fi, even without internet.",
     ],
     people: ["بدون سقف در برنامه", "No app-set limit"],
-    range: ["پوشش شبکهٔ مشترک", "Network coverage"],
+    range: ["پوشش شبکه‌ی مشترک", "Network coverage"],
     internet: ["نیاز ندارد", "Not needed"],
     caveat: [
       "با اشتراک. وقتی دو گوشی روی وای‌فای خانه همدیگر را پیدا می‌کنند، تَرک خودش آن‌ها را به هات‌اسپات یکی از گوشی‌ها می‌برد تا با بیرون رفتن از خانه ارتباط قطع نشود.",
@@ -274,7 +274,7 @@ const modes = {
     range: ["هر جا اینترنت هست", "Anywhere with internet"],
     internet: ["نیاز دارد", "Required"],
     caveat: [
-      "فعلاً در نسخهٔ بتا و رایگان. سرویس عمومی کشف اتصال فقط برای پیدا کردن دستگاه‌هاست؛ صدا مستقیم می‌رود و بعضی شبکه‌های محدود ممکن است اتصال را ببندند.",
+      "فعلاً در نسخه‌ی بتا و رایگان. سرویس عمومی کشف اتصال فقط برای پیدا کردن دستگاه‌هاست؛ صدا مستقیم می‌رود و بعضی شبکه‌های محدود ممکن است اتصال را ببندند.",
       "Free while in Beta. Public STUN helps devices find each other; audio travels directly. Some restricted networks may block the connection.",
     ],
   },

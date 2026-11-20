@@ -440,6 +440,9 @@ function Invoke-Release {
         # broken libflutter.so before.
         Step 'Building'
         $defines = @(
+            '--dart-define=TARK_ACCOUNTS=true',
+            '--dart-define=TARK_MONETIZED=false',
+            '--dart-define=TARK_LOCK_PREMIUM=false',
             "--dart-define=GUEST_APP_URL=$guestUrl",
             "--dart-define=GIT_COMMIT=$((git rev-parse HEAD).Trim())",
             '--dart-define=GIT_DIRTY=false',

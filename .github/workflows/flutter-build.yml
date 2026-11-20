@@ -145,6 +145,9 @@ jobs:
       - name: Verify public app naming
         run: node scripts/check-branding.mjs
 
+      - name: Verify Persian copy
+        run: node scripts/check-persian-copy.mjs
+
       - name: Test guest web release script
         shell: pwsh
         run: ./scripts/test-build-web-release.ps1

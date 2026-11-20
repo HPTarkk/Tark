@@ -66,12 +66,12 @@ const NAV = [
   ['#handshake', { en: 'How it works', fa: 'چطور کار می‌کند؟' }],
   ['#features', { en: 'Features', fa: 'ویژگی‌ها' }],
   ['#music', { en: 'Music', fa: 'پخش آهنگ' }],
-  ['#tech', { en: 'Details', fa: 'جزئیات بیشتر' }],
+  ['#tech', { en: 'Details', fa: 'جزییات بیشتر' }],
 ];
 
 const FOOTER = [
   ['#features', { en: 'Features', fa: 'ویژگی‌ها' }],
-  ['#tech', { en: 'Details', fa: 'جزئیات بیشتر' }],
+  ['#tech', { en: 'Details', fa: 'جزییات بیشتر' }],
   ['#faq', { en: 'FAQ', fa: 'سوالات شما' }],
   ['#download', { en: 'Download', fa: 'دریافت' }],
 ];

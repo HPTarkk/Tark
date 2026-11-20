@@ -68,6 +68,7 @@ class LinkPreparingVisual extends StatefulWidget {
     this.qrSize = 250,
     this.ready,
     this.failed = false,
+    this.failureIcon,
     super.key,
   });
 
@@ -82,6 +83,9 @@ class LinkPreparingVisual extends StatefulWidget {
 
   /// The link (or the code) could not be made. Ignored once [ready] is set.
   final bool failed;
+
+  /// A specific cause to show in place of the generic failure glyph.
+  final IconData? failureIcon;
 
   /// The square this widget occupies for [qrSize]: [GlowingQrCard]'s own.
   static double extentFor(double qrSize) => qrSize + 28 + 26;
@@ -244,6 +248,7 @@ class _LinkPreparingVisualState extends State<LinkPreparingVisual>
                     whiten: _whiten(r, _reduced),
                     fade: _reduced ? 1 - r : 1 - _span(r, 0.5, 0.9),
                     fail: f,
+                    failureIcon: widget.failureIcon,
                     reduced: _reduced,
                   ),
                 if (ready != null && childIn > 0)
@@ -325,6 +330,7 @@ class _Emblem extends StatelessWidget {
     required this.whiten,
     required this.fade,
     this.fail = 0,
+    this.failureIcon,
     this.reduced = false,
   });
 
@@ -336,6 +342,7 @@ class _Emblem extends StatelessWidget {
 
   /// How far the failure has been told, 0..1.
   final double fail;
+  final IconData? failureIcon;
   final bool reduced;
 
   @override
@@ -390,7 +397,7 @@ class _Emblem extends StatelessWidget {
                 ),
               ),
               child: Icon(
-                icon,
+                broken ? failureIcon ?? icon : icon,
                 size: size * 0.52,
                 color: tone.withValues(alpha: 1 - whiten),
               ),

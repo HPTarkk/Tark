@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:tark/core/network/api_failure.dart';
+import 'package:tark/core/network/http_api_client.dart';
 import 'package:tark/core/network/http_service_client.dart';
 import 'package:tark/core/network/service_api.dart';
 
@@ -146,6 +147,54 @@ void main() {
     expect((response as ApiTransportFailure).failure, isA<RequestTimedOut>());
     expect(response.unreachable, isTrue);
   });
+
+  for (final publicDocument in [false, true]) {
+    final source = publicDocument ? 'published feed' : 'account API';
+    testWidgets('$source times out even when the server keeps sending bytes', (
+      tester,
+    ) async {
+      final body = StreamController<List<int>>();
+      var aborted = false;
+      final httpClient = MockClient.streaming((request, _) async {
+        final abort = (request as http.AbortableRequest).abortTrigger!;
+        unawaited(
+          abort.then((_) async {
+            aborted = true;
+            await body.close();
+          }),
+        );
+        return http.StreamedResponse(body.stream, 200);
+      });
+      const deadline = Duration(milliseconds: 100);
+      final Future<Object?> failure;
+      if (publicDocument) {
+        failure = HttpApiClient(client: httpClient)
+            .getJson(base, timeout: deadline)
+            .then((result) => result.fold((error) => error, (_) => null));
+      } else {
+        failure =
+            HttpTarkServiceClient(
+                  baseUrl: base,
+                  client: httpClient,
+                  timeout: deadline,
+                )
+                .send(const ApiRequest.get('/profile'))
+                .then(
+                  (result) =>
+                      result is ApiTransportFailure ? result.failure : null,
+                );
+      }
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 40));
+      body.add([32]);
+      await tester.pump(const Duration(milliseconds: 40));
+      body.add([32]);
+      await tester.pump(const Duration(milliseconds: 20));
+
+      expect(await failure, isA<RequestTimedOut>());
+      expect(aborted, isTrue);
+    });
+  }
 
   test('refuses a plaintext base URL before sending anything', () async {
     var sent = false;

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../utils/logger.dart';
 import 'api_client.dart';
 import 'api_failure.dart';
+import 'http_deadline.dart';
 
 /// [ApiClient] over `package:http`.
 ///
@@ -36,46 +37,10 @@ class HttpApiClient implements ApiClient {
     }
 
     try {
-      // send() rather than get(): a streamed response is what makes the byte
-      // ceiling meaningful. http.get() reads the whole body first, so a
-      // limit checked afterwards has already cost the download.
-      final request = http.Request('GET', url)
-        ..headers['Accept'] = 'application/json';
-
-      final response = await _client.send(request).timeout(timeout);
-
-      if (response.statusCode != 200) {
-        return Left(
-          BadStatus(response.statusCode, 'GET $url → ${response.statusCode}'),
-        );
-      }
-
-      // A server that declares an oversized body is refused before reading
-      // it; one that declares nothing is cut off mid-stream below.
-      final declared = response.contentLength;
-      if (declared != null && declared > maxBytes) {
-        return Left(
-          ResponseTooLarge('$url declared $declared bytes, ceiling $maxBytes'),
-        );
-      }
-
-      final bytes = <int>[];
-      await for (final chunk in response.stream.timeout(timeout)) {
-        bytes.addAll(chunk);
-        if (bytes.length > maxBytes) {
-          return Left(
-            ResponseTooLarge('$url exceeded $maxBytes bytes mid-stream'),
-          );
-        }
-      }
-
-      final decoded = jsonDecode(utf8.decode(bytes));
-      if (decoded is! Map<String, dynamic>) {
-        return Left(
-          MalformedResponse('$url returned ${decoded.runtimeType}, want an object'),
-        );
-      }
-      return Right(decoded);
+      return await withHttpDeadline(
+        timeout,
+        (abort) => _fetch(url, maxBytes, abort),
+      );
     } on TimeoutException catch (e) {
       return Left(RequestTimedOut('GET $url timed out: $e'));
     } on FormatException catch (e) {
@@ -91,6 +56,60 @@ class HttpApiClient implements ApiClient {
       Logger.log('ApiClient: GET $url failed — $e');
       return Left(NetworkUnreachable('GET $url failed: $e'));
     }
+  }
+
+  Future<Either<ApiFailure, Map<String, dynamic>>> _fetch(
+    Uri url,
+    int maxBytes,
+    Completer<void> abort,
+  ) async {
+    // send() rather than get(): a streamed response is what makes the byte
+    // ceiling meaningful. http.get() reads the whole body first, so a
+    // limit checked afterwards has already cost the download.
+    final request = http.AbortableRequest(
+      'GET',
+      url,
+      abortTrigger: abort.future,
+    )..headers['Accept'] = 'application/json';
+
+    final response = await _client.send(request);
+
+    if (response.statusCode != 200) {
+      await discardHttpBody(response);
+      return Left(
+        BadStatus(response.statusCode, 'GET $url → ${response.statusCode}'),
+      );
+    }
+
+    // A server that declares an oversized body is refused before reading
+    // it; one that declares nothing is cut off mid-stream below.
+    final declared = response.contentLength;
+    if (declared != null && declared > maxBytes) {
+      await discardHttpBody(response);
+      return Left(
+        ResponseTooLarge('$url declared $declared bytes, ceiling $maxBytes'),
+      );
+    }
+
+    final bytes = <int>[];
+    await for (final chunk in response.stream) {
+      bytes.addAll(chunk);
+      if (bytes.length > maxBytes) {
+        return Left(
+          ResponseTooLarge('$url exceeded $maxBytes bytes mid-stream'),
+        );
+      }
+    }
+
+    final decoded = jsonDecode(utf8.decode(bytes));
+    if (decoded is! Map<String, dynamic>) {
+      return Left(
+        MalformedResponse(
+          '$url returned ${decoded.runtimeType}, want an object',
+        ),
+      );
+    }
+    return Right(decoded);
   }
 
   @override

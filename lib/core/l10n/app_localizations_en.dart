@@ -754,6 +754,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hotspot_open_settings => 'OPEN SETTINGS';
 
   @override
+  String get rcv_invite_location_title => 'Turn on Location';
+
+  @override
+  String get rcv_invite_location_settings => 'Open Location settings';
+
+  @override
   String get hotspot_try_joining => 'JOIN THE OTHER PHONE INSTEAD';
 
   @override
@@ -1069,10 +1075,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profile_title => 'PROFILE';
 
   @override
+  String get profile_edit => 'Edit profile';
+
+  @override
+  String get profile_save => 'Save changes';
+
+  @override
   String get profile_name_label => 'RADIO NAME';
 
   @override
-  String get profile_avatar_label => 'YOUR FACE';
+  String get profile_name_required => 'Enter a radio name.';
+
+  @override
+  String get profile_avatar_label => 'Choose an avatar';
+
+  @override
+  String get profile_save_error => 'Some changes couldn’t be saved. Try again.';
 
   @override
   String get onboarding_mode_title => 'How will you connect?';
@@ -2603,11 +2621,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get update_open_failed => 'Bazaar didn\'t open. Try once more.';
 
   @override
-  String get account_section_title => 'ACCOUNT';
+  String get account_section_title => 'Tarkk account';
 
   @override
   String get account_signed_out_body =>
-      'An account is only needed for a subscription. Everything else in Tarkk works without one.';
+      'You can use the radio without signing in.';
 
   @override
   String get account_sign_in_row => 'Sign in or create an account';

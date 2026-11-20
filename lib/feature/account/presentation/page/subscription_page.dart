@@ -44,10 +44,8 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       GetIt.instance<SubscriptionService>();
   StreamSubscription<void>? _changes;
 
-  /// Whether this build sells subscriptions. A build with sign-in but no
-  /// checkout (monetization parked, `TARK_ACCOUNTS=true` for testing) has
-  /// nothing to refresh and no plans to show, so it says that plainly
-  /// instead of "couldn't reach Tarkk" and an empty plan list.
+  /// Whether this build sells subscriptions. Account-only builds have no
+  /// plans to show or subscription to refresh.
   final bool _sells =
       !GetIt.instance.isRegistered<LicenseGate>() ||
       GetIt.instance<LicenseGate>().canPurchase;

@@ -34,6 +34,7 @@ class SettingsCubit extends Cubit<SettingsState> {
   final WalkieTalkieCubit? _liveSession;
   final SettingsRepository _repository;
   StreamSubscription<WalkieTalkieState>? _liveSub;
+  StreamSubscription<String>? _nameSub;
   StreamSubscription<int>? _avatarSub;
 
   /// The borrowed live-session cubit (if any), so the Settings page can
@@ -48,12 +49,17 @@ class SettingsCubit extends Cubit<SettingsState> {
   }
 
   Future<void> _init() async {
+    final live = _liveSession;
+    if (live == null) {
+      _nameSub = _repository.myNameChanges.listen((name) {
+        if (!isClosed) emit(state.copyWith(myName: name));
+      });
+    }
     // The Profile page is its own route with its own cubit; this keeps the
     // Settings card under it in step when the person picks a new avatar.
     _avatarSub = _repository.myAvatarIdChanges.listen((id) {
       if (!isClosed) emit(state.copyWith(myAvatarId: id));
     });
-    final live = _liveSession;
     if (live != null) {
       // Live values are available synchronously — surface them before the
       // prefs read so the page never shows defaults for the session fields.
@@ -134,21 +140,21 @@ class SettingsCubit extends Cubit<SettingsState> {
     if (live != null) {
       await live.setMyName(trimmed);
     } else {
-      emit(state.copyWith(myName: trimmed));
       await _repository.setMyName(trimmed);
+      if (!isClosed) emit(state.copyWith(myName: trimmed));
     }
   }
 
   /// Saves the picked avatar; with a live channel open, through it, so the
   /// people in the channel see the change straight away.
   Future<void> setMyAvatarId(int id) async {
-    emit(state.copyWith(myAvatarId: id));
     final live = _liveSession;
     if (live != null) {
       await live.setMyAvatarId(id);
     } else {
       await _repository.setMyAvatarId(id);
     }
+    if (!isClosed) emit(state.copyWith(myAvatarId: id));
   }
 
   Future<void> setVoxMargin(double value) async {
@@ -319,6 +325,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     // BlocProvider owns starting/closing it, never this cubit.
     unawaited(_liveSub?.cancel());
     unawaited(_avatarSub?.cancel());
+    unawaited(_nameSub?.cancel());
     return super.close();
   }
 }

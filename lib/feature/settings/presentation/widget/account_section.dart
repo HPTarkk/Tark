@@ -5,25 +5,19 @@ import 'package:get_it/get_it.dart';
 
 import '../../../../core/account/account_models.dart';
 import '../../../../core/account/account_session.dart';
+import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/subscription_service.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/confirm_sheet.dart';
 import '../../../account/api/account_api.dart';
-import 'settings_category_card.dart';
 import 'settings_row.dart';
 
-/// The account card on the Profile page. Signed out: one "Sign in" row and
-/// a line saying an account is only for subscriptions. Signed in: the
-/// email (read-only), password change, sign-out and deletion.
-///
-/// Renders nothing on builds without sign-in (web, guest, iOS for now, and
-/// builds that sell nothing).
+/// A sign-in entry point or a compact account summary that opens in place.
 class AccountSection extends StatelessWidget {
   const AccountSection({super.key});
 
-  /// Whether this build shows the account card at all.
   static bool get visible =>
       GetIt.instance.isRegistered<AccountSession>() &&
       GetIt.instance<AccountSession>().available;
@@ -33,68 +27,255 @@ class AccountSection extends StatelessWidget {
     if (!visible) return const SizedBox.shrink();
     final session = GetIt.instance<AccountSession>();
     final s = context.getString;
-    return ValueListenableBuilder<AccountProfile?>(
-      valueListenable: session.profile,
-      builder: (context, profile, _) => SettingsCategoryCard(
-        key: const ValueKey('account-section'),
-        icon: Icons.account_circle_rounded,
-        title: s.account_section_title,
-        // Signing in or out swaps the card's contents in place: the old
-        // state fades as the card resizes to the new one.
-        child: AnimatedSize(
-          duration: AppMotion.card,
-          curve: AppMotion.easeOut,
-          alignment: Alignment.topCenter,
-          child: PhaseSwitcher(
-            child: profile == null
-                ? _SignedOut(
-                    key: const ValueKey('signed-out'),
-                    onSignIn: () => _signIn(context),
-                  )
-                : _SignedIn(
-                    key: const ValueKey('signed-in'),
-                    profile: profile,
-                    session: session,
-                  ),
+    final radius = BorderRadius.circular(20);
+    final accent = AppColors.amber;
+    return Material(
+      key: const ValueKey('account-section'),
+      color: AppColors.card,
+      borderRadius: radius,
+      clipBehavior: Clip.antiAlias,
+      child: Ink(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          border: Border.all(color: AppColors.border),
+          gradient: LinearGradient(
+            begin: AlignmentDirectional.centerStart,
+            end: AlignmentDirectional.centerEnd,
+            colors: [
+              accent.withValues(alpha: 0.07),
+              accent.withValues(alpha: 0),
+            ],
           ),
+        ),
+        child: ValueListenableBuilder<AccountProfile?>(
+          valueListenable: session.profile,
+          builder: (_, profile, _) {
+            final content = PhaseSwitcher(
+              child: profile == null
+                  ? _AccountLink(
+                      key: const ValueKey('account-sign-in'),
+                      heroTag: AuthHero.flowTag,
+                      icon: Icons.login_rounded,
+                      title: s.account_sign_in_row,
+                      body: s.account_signed_out_body,
+                      onTap: () => pushAuthPage(
+                        context,
+                        SignInPage.routeName,
+                        (_) => SignInPage.buildPage(),
+                      ),
+                    )
+                  : _SignedIn(
+                      key: ValueKey(profile.id),
+                      profile: profile,
+                      onSignOut: (everywhere) => unawaited(
+                        _signOut(context, session, everywhere: everywhere),
+                      ),
+                    ),
+            );
+            if (AppMotion.reduced(context)) return content;
+            return AnimatedSize(
+              duration: AppMotion.card,
+              curve: AppMotion.easeOut,
+              alignment: Alignment.topCenter,
+              child: content,
+            );
+          },
         ),
       ),
     );
   }
 
-  Future<void> _signIn(BuildContext context) => pushAuthPage(
-    context,
-    SignInPage.routeName,
-    (_) => SignInPage.buildPage(),
+  Future<void> _signOut(
+    BuildContext context,
+    AccountSession session, {
+    required bool everywhere,
+  }) async {
+    final s = context.getString;
+    final label = everywhere
+        ? s.account_sign_out_everywhere
+        : s.account_sign_out;
+    final confirmed = await showConfirmSheet(
+      context,
+      title: label,
+      body: everywhere
+          ? s.account_sign_out_everywhere_body
+          : s.account_sign_out_body,
+      action: label,
+      icon: everywhere ? Icons.devices_other_rounded : Icons.logout_rounded,
+    );
+    if (!confirmed) return;
+    await session.signOut(everywhere: everywhere);
+    if (context.mounted) showAuthToast(context, s.account_signed_out_toast);
+  }
+}
+
+class _AccountMark extends StatelessWidget {
+  const _AccountMark(this.icon);
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: AppColors.amber.withValues(alpha: 0.16),
+    ),
+    child: SizedBox.square(
+      dimension: 44,
+      child: Icon(icon, color: AppColors.amber, size: 20),
+    ),
   );
 }
 
-/// Signed out: one inviting card that says what an account is for, and
-/// opens sign-in.
-class _SignedOut extends StatelessWidget {
-  const _SignedOut({required this.onSignIn, super.key});
+class _AccountLink extends StatelessWidget {
+  const _AccountLink({
+    required this.heroTag,
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.onTap,
+    super.key,
+  });
 
-  final VoidCallback onSignIn;
+  final Object heroTag;
+  final IconData icon;
+  final String title;
+  final String body;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        spacing: 12,
+        children: [
+          AuthHero(
+            tag: heroTag,
+            icon: icon,
+            color: AppColors.amber,
+            look: AuthHeroLook.badge(AppColors.amber),
+            child: _AccountMark(icon),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 3,
+              children: [
+                Text(title, style: _accountTitle),
+                Text(body, style: _accountSubtitle),
+              ],
+            ),
+          ),
+          Icon(Icons.arrow_forward_rounded, color: AppColors.amber, size: 20),
+        ],
+      ),
+    ),
+  );
+}
+
+TextStyle get _accountTitle => TextStyle(
+  color: AppColors.textPrimary,
+  fontSize: 15,
+  fontWeight: FontWeight.w800,
+);
+
+TextStyle get _accountSubtitle =>
+    TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4);
+
+class _SignedIn extends StatelessWidget {
+  const _SignedIn({required this.profile, required this.onSignOut, super.key});
+
+  final AccountProfile profile;
+  final ValueChanged<bool> onSignOut;
 
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: _Spotlight(
-        tapKey: const ValueKey('account-sign-in'),
-        heroTag: AuthHero.flowTag,
-        icon: Icons.login_rounded,
-        title: s.account_sign_in_row,
-        body: s.account_signed_out_body,
-        onTap: onSignIn,
+    final reduced = AppMotion.reduced(context);
+    final getIt = GetIt.instance;
+    final hasSubscriptions =
+        getIt.isRegistered<LicenseGate>() &&
+        getIt<LicenseGate>().canPurchase &&
+        getIt.isRegistered<SubscriptionService>();
+    final chevron = Icon(
+      Icons.chevron_right_rounded,
+      color: AppColors.textSecondary,
+    );
+    return ExpansionTile(
+      key: const ValueKey('account-manage'),
+      shape: const Border(),
+      collapsedShape: const Border(),
+      tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      iconColor: AppColors.amber,
+      collapsedIconColor: AppColors.amber,
+      expansionAnimationStyle: reduced
+          ? AnimationStyle.noAnimation
+          : const AnimationStyle(
+              duration: AppMotion.sheet,
+              curve: AppMotion.easeOut,
+            ),
+      leading: const _AccountMark(Icons.person_outline_rounded),
+      title: Text(s.account_section_title, style: _accountTitle),
+      subtitle: Text(
+        '\u2066${profile.email}\u2069',
+        key: const ValueKey('account-email'),
+        style: _accountSubtitle,
       ),
+      children: [
+        Divider(height: 1, color: AppColors.border),
+        if (hasSubscriptions) const _SubscriptionSpotlight(),
+        StaggeredEntrance(
+          beginOffset: const Offset(0, 1.4),
+          builder: (_, actions) => Column(children: actions),
+          children: [
+            if (profile.hasPassword)
+              SettingsRow(
+                key: const ValueKey('account-change-password'),
+                icon: Icons.password_rounded,
+                label: s.account_change_password,
+                trailing: chevron,
+                onTap: () => pushAuthPage(
+                  context,
+                  ChangePasswordPage.routeName,
+                  (_) => ChangePasswordPage.buildPage(),
+                ),
+              ),
+            SettingsRow(
+              key: const ValueKey('account-sign-out'),
+              icon: Icons.logout_rounded,
+              label: s.account_sign_out,
+              trailing: null,
+              onTap: () => onSignOut(false),
+            ),
+            SettingsRow(
+              key: const ValueKey('account-sign-out-everywhere'),
+              icon: Icons.devices_other_rounded,
+              label: s.account_sign_out_everywhere,
+              trailing: null,
+              onTap: () => onSignOut(true),
+            ),
+            SettingsRow(
+              key: const ValueKey('account-delete'),
+              icon: Icons.delete_outline_rounded,
+              label: s.account_delete,
+              tint: AppColors.red,
+              trailing: chevron,
+              onTap: () => pushAuthPage(
+                context,
+                DeleteAccountPage.routeName,
+                (_) => DeleteAccountPage.buildPage(profile: profile),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
 
-/// The subscription, lit up at the top of a signed-in account: what the
-/// person has now, one tap from the subscription page.
 class _SubscriptionSpotlight extends StatelessWidget {
   const _SubscriptionSpotlight();
 
@@ -105,220 +286,20 @@ class _SubscriptionSpotlight extends StatelessWidget {
     return StreamBuilder<void>(
       stream: subscription.changes,
       builder: (context, _) {
-        final active = subscription.isPremiumActive;
-        return Padding(
-          padding: const EdgeInsets.only(top: 10, bottom: 4),
-          child: _Spotlight(
-            tapKey: const ValueKey('account-subscription'),
-            heroTag: AuthHero.subscriptionTag,
-            icon: active
-                ? Icons.workspace_premium_rounded
-                : Icons.star_outline_rounded,
-            title: s.account_subscription,
-            body: active ? s.mysub_premium : s.account_subscription_none,
-            bodyLit: active,
-            onTap: () => pushAuthPage(
-              context,
-              SubscriptionPage.routeName,
-              (_) => SubscriptionPage.buildPage(),
-            ),
+        if (!subscription.isPremiumActive) return const SizedBox.shrink();
+        return _AccountLink(
+          key: const ValueKey('account-subscription'),
+          heroTag: AuthHero.subscriptionTag,
+          icon: Icons.workspace_premium_rounded,
+          title: s.account_subscription,
+          body: s.mysub_premium,
+          onTap: () => pushAuthPage(
+            context,
+            SubscriptionPage.routeName,
+            (_) => SubscriptionPage.buildPage(),
           ),
         );
       },
     );
-  }
-}
-
-/// A warm, tappable card: icon, title, one line of why, and an arrow that
-/// leans towards where it leads. Its icon is the screen's glyph in
-/// miniature: tapping grows it into the large one on the screen it opens
-/// (see [AuthHero]).
-class _Spotlight extends StatelessWidget {
-  const _Spotlight({
-    required this.tapKey,
-    required this.heroTag,
-    required this.icon,
-    required this.title,
-    required this.body,
-    required this.onTap,
-    this.bodyLit = false,
-  });
-
-  final Key tapKey;
-  final Object heroTag;
-  final IconData icon;
-  final String title;
-  final String body;
-  final bool bodyLit;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final amber = AppColors.amber;
-    final radius = BorderRadius.circular(14);
-    return PressableScale(
-      key: tapKey,
-      onTap: onTap,
-      borderRadius: radius,
-      child: Container(
-        padding: const EdgeInsetsDirectional.fromSTEB(14, 14, 10, 14),
-        decoration: BoxDecoration(
-          borderRadius: radius,
-          gradient: LinearGradient(
-            begin: AlignmentDirectional.topStart,
-            end: AlignmentDirectional.bottomEnd,
-            colors: [
-              Color.alphaBlend(amber.withValues(alpha: 0.12), AppColors.card),
-              AppColors.card,
-            ],
-          ),
-          border: Border.all(color: amber.withValues(alpha: 0.35)),
-        ),
-        child: Row(
-          children: [
-            AuthHero(
-              tag: heroTag,
-              icon: icon,
-              color: amber,
-              look: AuthHeroLook.badge(amber),
-              child: Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: amber.withValues(alpha: 0.16),
-                ),
-                child: Icon(icon, color: amber, size: 20),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    body,
-                    style: TextStyle(
-                      color: bodyLit ? amber : AppColors.textSecondary,
-                      fontSize: 12,
-                      height: 1.5,
-                      fontWeight: bodyLit ? FontWeight.w800 : null,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            NudgingChevron(color: AppColors.background, background: amber),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SignedIn extends StatelessWidget {
-  const _SignedIn({required this.profile, required this.session, super.key});
-
-  final AccountProfile profile;
-  final AccountSession session;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = context.getString;
-    final chevron = Icon(
-      Icons.chevron_right_rounded,
-      color: AppColors.textSecondary,
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (GetIt.instance.isRegistered<SubscriptionService>())
-          const _SubscriptionSpotlight(),
-        SettingsRow(
-          key: const ValueKey('account-email'),
-          icon: Icons.alternate_email_rounded,
-          label: s.account_email_label,
-          subtitle: '\u2066${profile.email}\u2069',
-          trailing: Icon(
-            Icons.verified_rounded,
-            color: AppColors.green,
-            size: 20,
-          ),
-        ),
-        if (profile.hasPassword)
-          SettingsRow(
-            key: const ValueKey('account-change-password'),
-            icon: Icons.password_rounded,
-            label: s.account_change_password,
-            trailing: chevron,
-            onTap: () => pushAuthPage(
-              context,
-              ChangePasswordPage.routeName,
-              (_) => ChangePasswordPage.buildPage(),
-            ),
-          ),
-        SettingsRow(
-          key: const ValueKey('account-sign-out'),
-          icon: Icons.logout_rounded,
-          label: s.account_sign_out,
-          trailing: null,
-          onTap: () => unawaited(_signOut(context, everywhere: false)),
-        ),
-        SettingsRow(
-          key: const ValueKey('account-sign-out-everywhere'),
-          icon: Icons.devices_other_rounded,
-          label: s.account_sign_out_everywhere,
-          trailing: null,
-          onTap: () => unawaited(_signOut(context, everywhere: true)),
-        ),
-        SettingsRow(
-          key: const ValueKey('account-delete'),
-          icon: Icons.delete_outline_rounded,
-          label: s.account_delete,
-          tint: AppColors.red,
-          trailing: chevron,
-          onTap: () => pushAuthPage(
-            context,
-            DeleteAccountPage.routeName,
-            (_) => DeleteAccountPage.buildPage(profile: profile),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _signOut(
-    BuildContext context, {
-    required bool everywhere,
-  }) async {
-    final s = context.getString;
-    final confirmed = everywhere
-        ? await showConfirmSheet(
-            context,
-            title: s.account_sign_out_everywhere,
-            body: s.account_sign_out_everywhere_body,
-            action: s.account_sign_out_everywhere,
-            icon: Icons.devices_other_rounded,
-          )
-        : await showConfirmSheet(
-            context,
-            title: s.account_sign_out,
-            body: s.account_sign_out_body,
-            action: s.account_sign_out,
-            icon: Icons.logout_rounded,
-          );
-    if (!confirmed) return;
-    await session.signOut(everywhere: everywhere);
-    if (context.mounted) showAuthToast(context, s.account_signed_out_toast);
   }
 }

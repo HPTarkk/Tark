@@ -19,6 +19,7 @@ import 'package:tark/feature/room/domain/entity/room_invite_link.dart';
 import 'package:tark/feature/room/domain/repository/room_repository.dart';
 import 'package:tark/feature/room/presentation/bluetooth_invite_host.dart';
 import 'package:tark/feature/transfer/api/hotspot_invite_api.dart';
+import 'package:tark/feature/transfer/api/pre_live_hotspot_bootstrap.dart';
 import 'package:tark/feature/transfer/domain/entity/connection_health.dart';
 import 'package:tark/feature/transfer/domain/entity/live_link.dart';
 import 'package:tark/feature/transfer/domain/entity/session_role.dart';
@@ -296,6 +297,50 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('a location-blocked hotspot retries on return from Settings', (
+    tester,
+  ) async {
+    var locationEnabled = false;
+    var attempts = 0;
+    final host = await pumpEntry(
+      tester,
+      prepareHost: () async {
+        attempts++;
+        if (!locationEnabled) throw const HotspotLocationRequired();
+        return creds;
+      },
+    );
+    await tapInvite(tester);
+    final settings = find.byKey(
+      const Key('one-scan-room-invite-location-settings'),
+    );
+    final code = find.byKey(const Key('one-scan-room-invite-qr'));
+    expect(find.text('Turn on Location'), findsOneWidget);
+    expect(code, findsNothing);
+
+    Future<void> visitSettings() async {
+      await tester.ensureVisible(settings);
+      await tester.tap(settings);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await settle(tester);
+    }
+
+    await visitSettings();
+    expect(host.fixSettingsCode, HotspotLocationRequired.errorCode);
+    expect(attempts, 2);
+    expect(settings, findsOneWidget);
+    expect(code, findsNothing);
+
+    locationEnabled = true;
+    await visitSettings();
+    expect(attempts, 3);
+    expect(settings, findsNothing);
+    expect(code, findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await finish(tester);
+  });
+
   testWidgets(
     'a hotspot still on the air comes down even after the host role was '
     'cleared',
@@ -477,6 +522,7 @@ class _FakeTransfer implements TransferRepository {
 
 class _FakeHost implements HotspotHost {
   int stops = 0;
+  String? fixSettingsCode;
 
   /// An access point this app raised is on the air.
   bool hosting = false;
@@ -494,6 +540,11 @@ class _FakeHost implements HotspotHost {
 
   @override
   Future<void> stop() async => stops++;
+
+  @override
+  Future<void> openFixSettings(String errorCode) async {
+    fixSettingsCode = errorCode;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

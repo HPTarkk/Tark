@@ -138,10 +138,10 @@ func codeContent(locale string, d CodeMail) content {
 func RegisterCode(locale, to string, d CodeMail) Message {
 	c := codeContent(locale, d)
 	if locale == "fa" {
-		c.Subject = fmt.Sprintf("کد تأیید ترک: %s", d.Code)
+		c.Subject = fmt.Sprintf("کد تایید ترک: %s", d.Code)
 		c.Preheader = "برای تکمیل ثبت‌نام، این کد را در ترک وارد کنید."
 		c.Heading = "به ترک خوش آمدید"
-		c.Intro = []string{"کد تأیید ایمیل شما:"}
+		c.Intro = []string{"کد تایید ایمیل شما:"}
 		c.LinkIntro = "یا روی این پیوند در همان گوشی بزنید تا ترک باز شود و ثبت‌نام کامل شود:"
 		c.ButtonLabel = "تکمیل ثبت‌نام"
 	} else {
@@ -205,12 +205,12 @@ func ResetCode(locale, to string, d CodeMail) Message {
 func EmailChangeCode(locale, to string, d CodeMail) Message {
 	c := codeContent(locale, d)
 	if locale == "fa" {
-		c.Subject = fmt.Sprintf("کد تأیید ایمیل جدید ترک: %s", d.Code)
-		c.Preheader = "برای تأیید ایمیل جدید، این کد را در ترک وارد کنید."
-		c.Heading = "تأیید ایمیل جدید"
+		c.Subject = fmt.Sprintf("کد تایید ایمیل جدید ترک: %s", d.Code)
+		c.Preheader = "برای تایید ایمیل جدید، این کد را در ترک وارد کنید."
+		c.Heading = "تایید ایمیل جدید"
 		c.Intro = []string{"برای اینکه این ایمیل، ایمیل حساب ترک شما شود، این کد را وارد کنید:"}
 		c.LinkIntro = "یا روی این پیوند در همان گوشی بزنید:"
-		c.ButtonLabel = "تأیید ایمیل"
+		c.ButtonLabel = "تایید ایمیل"
 	} else {
 		c.Subject = fmt.Sprintf("Confirm your new Tarkk email: %s", d.Code)
 		c.Preheader = "Enter this code in Tarkk to confirm your new email."
@@ -304,17 +304,17 @@ func DeleteLink(locale, to, link string, minutes int) Message {
 	c := content{Locale: locale, ButtonURL: link}
 	if locale == "fa" {
 		c.Subject = "پیوند حذف حساب ترک"
-		c.Preheader = "برای حذف حساب ترک، روی این پیوند بزنید و تأیید کنید."
+		c.Preheader = "برای حذف حساب ترک، روی این پیوند بزنید و تایید کنید."
 		c.Heading = "حذف حساب ترک"
 		c.Intro = []string{
 			"کسی (احتمالاً خود شما) در وب‌سایت ترک خواست حسابی را که با این ایمیل ساخته شده حذف کند.",
-			"این پیوند صفحه‌ای را باز می‌کند که نشان می‌دهد چه چیزهایی پاک می‌شود. حساب فقط وقتی حذف می‌شود که آنجا تأیید کنید.",
+			"این پیوند صفحه‌ای را باز می‌کند که نشان می‌دهد چه چیزهایی پاک می‌شود. حساب فقط وقتی حذف می‌شود که آنجا تایید کنید.",
 		}
 		c.LinkIntro = "برای ادامه، این پیوند را باز کنید:"
 		c.ButtonLabel = "ادامه‌ی حذف حساب"
 		c.ButtonHint = "این پیوند یک‌بار مصرف است و در هر مرورگری باز می‌شود."
 		c.Expiry = fmt.Sprintf("این پیوند تا %d دقیقه معتبر است.", minutes)
-		c.Footer = "اگر شما این درخواست را نداده‌اید، این ایمیل را نادیده بگیرید؛ بدون باز کردن این پیوند و تأیید شما، حسابتان دست نمی‌خورد."
+		c.Footer = "اگر شما این درخواست را نداده‌اید، این ایمیل را نادیده بگیرید؛ بدون باز کردن این پیوند و تایید شما، حسابتان دست نمی‌خورد."
 	} else {
 		c.Subject = "Your Tarkk account deletion link"
 		c.Preheader = "Open this link and confirm to delete your Tarkk account."

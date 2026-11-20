@@ -832,7 +832,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         await _releaseOwnHotspot();
         if (!mounted || at != _inviteToken) return null;
         _roleStore?.setRole(SessionRole.host);
-        final credentials = await _prepareHost();
+        final credentials = await _prepareHost(surfaceLocationOff: true);
         if (!mounted || at != _inviteToken) return null;
         return credentials == null ? null : HotspotInviteLink(credentials);
       }
@@ -914,11 +914,13 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         // that held in the field is the one raised with Wi-Fi already off.
         await _offerWifiOff();
         if (!mounted || token != _inviteToken) return;
-        link = _prepareHost().then(
+        link = _prepareHost(surfaceLocationOff: true).then(
           (credentials) =>
               credentials == null ? null : HotspotInviteLink(credentials),
         );
       }
+      // The sheet checks invite authority before it starts listening.
+      link.ignore();
       Logger.diagnostic(
         'room_invite: link=${bluetooth ? 'bluetooth' : 'hotspot'} preparing',
       );
@@ -1347,11 +1349,16 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   static const _prepareTimeout = Duration(seconds: 60);
 
   /// Brings this phone's hotspot up, or gives up after [_prepareTimeout].
-  Future<HotspotCredentials?> _prepareHost() async {
+  Future<HotspotCredentials?> _prepareHost({
+    bool surfaceLocationOff = false,
+  }) async {
     await _offerWifiOff();
     if (!mounted) return null;
     final prepare =
-        widget.prepareHost ?? () => PreLiveHotspotBootstrap().prepareHost();
+        widget.prepareHost ??
+        () => PreLiveHotspotBootstrap().prepareHost(
+          surfaceLocationOff: surfaceLocationOff,
+        );
     try {
       return await prepare().timeout(_prepareTimeout);
     } on TimeoutException {

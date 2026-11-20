@@ -49,7 +49,7 @@ var errorMessages = map[string]text{
 	"account_disabled": {"This account is on hold. Write to us at {email} and we'll sort it out.",
 		"این حساب فعلاً متوقف شده. به {email} ایمیل بزن تا درستش کنیم."},
 	"reauth_unavailable": {"We can't confirm it's you on this phone. Write to us at {email} and we'll help.",
-		"روی این گوشی نمی‌تونیم تأیید کنیم که خودتی. به {email} ایمیل بزن تا کمکت کنیم."},
+		"روی این گوشی نمی‌تونیم تایید کنیم که خودتی. به {email} ایمیل بزن تا کمکت کنیم."},
 
 	// Email and password
 	"invalid_credentials": {"That email and password don't match an account.",
@@ -98,7 +98,7 @@ var errorMessages = map[string]text{
 	"google_token_invalid": {"Google sign-in didn't finish. Please try again.",
 		"ورود با گوگل کامل نشد. دوباره امتحان کن."},
 	"google_email_unverified": {"Google hasn't confirmed this Google account's email yet. Confirm it with Google, or use email and password.",
-		"گوگل هنوز ایمیل این حساب گوگل رو تأیید نکرده. توی گوگل تأییدش کن، یا با ایمیل و رمز وارد شو."},
+		"گوگل هنوز ایمیل این حساب گوگل رو تایید نکرده. توی گوگل تاییدش کن، یا با ایمیل و رمز وارد شو."},
 	"google_email_unsupported": {"This Google account's email can't be used with Tarkk. Try another account, or email and password.",
 		"ایمیل این حساب گوگل با تَرک قابل استفاده نیست. یه حساب دیگه یا ایمیل و رمز رو امتحان کن."},
 	"account_conflict": {"This address is linked to a different Google account. Sign in with that one, or with your password.",
@@ -120,7 +120,7 @@ var errorMessages = map[string]text{
 	"purchase_invalid": {"Bazaar doesn't recognise this purchase. If you were charged, write to us at {email}.",
 		"بازار این خرید رو نمی‌شناسه. اگه پولی ازت کم شده، به {email} ایمیل بزن."},
 	"purchase_not_found_yet": {"Bazaar hasn't confirmed this purchase yet. We'll keep checking.",
-		"بازار هنوز این خرید رو تأیید نکرده. ما دوباره بررسی می‌کنیم."},
+		"بازار هنوز این خرید رو تایید نکرده. ما دوباره بررسی می‌کنیم."},
 	"purchase_owned_elsewhere": {"This Bazaar purchase is already linked to a different Tarkk account. Sign in with that account to use it, or write to us and we'll sort it out together.",
 		"این خرید بازار قبلاً به یه حساب دیگه‌ی ترک وصل شده. با همون حساب وارد شو، یا بهمون پیام بده تا با هم درستش کنیم."},
 	"bazaar_unavailable": {"We couldn't reach Bazaar just now. Please try again in a little while.",

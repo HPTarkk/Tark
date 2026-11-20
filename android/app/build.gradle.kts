@@ -34,8 +34,10 @@ val dartDefines = providers.gradleProperty("dart-defines").orNull
         require(separator > 0) { "Invalid Flutter dart-define" }
         entry.substring(0, separator) to entry.substring(separator + 1)
     }
-val bazaarBillingEnabled = dartDefines["TARK_MONETIZED"] == "true" ||
-    dartDefines["TARK_LOCK_PREMIUM"] == "true"
+val accountsEnabled = dartDefines["TARK_ACCOUNTS"]?.toBooleanStrictOrNull() ?: true
+val bazaarBillingEnabled = accountsEnabled && (
+    dartDefines["TARK_MONETIZED"] == "true" || dartDefines["TARK_LOCK_PREMIUM"] == "true"
+)
 
 
 android {

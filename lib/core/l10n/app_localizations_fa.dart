@@ -751,6 +751,12 @@ class AppLocalizationsFa extends AppLocalizations {
   String get hotspot_open_settings => 'باز کردن تنظیمات';
 
   @override
+  String get rcv_invite_location_title => 'موقعیت مکانی رو روشن کن';
+
+  @override
+  String get rcv_invite_location_settings => 'تنظیمات موقعیت مکانی';
+
+  @override
   String get hotspot_try_joining => 'به جاش به گوشی دیگه وصل شو';
 
   @override
@@ -782,7 +788,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get hotspot_joining =>
-      'دارم به شبکه وصل می‌شم… به سؤال اندروید که می‌پرسه به این شبکه وصل بشه یا نه، «آره» بگو — تو بعضی گوشی‌ها به جای صفحه، تو اعلان‌ها میاد.';
+      'دارم به شبکه وصل می‌شم… به سوال اندروید که می‌پرسه به این شبکه وصل بشه یا نه، «آره» بگو — تو بعضی گوشی‌ها به جای صفحه، تو اعلان‌ها میاد.';
 
   @override
   String get hotspot_joined => 'رو شبکه‌ای!';
@@ -994,7 +1000,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get usage_tips_3_body =>
-      'میکروفون همیشه حواسش به توئه و برنامه صداهای مزاحم رو پاک می‌کنه، پس فقط حرف بزن. هر وقت خواستی هر دو رو توی تنظیمات دستکاری کن.';
+      'میکروفون همیشه حواسش به تو هست و برنامه صداهای مزاحم رو پاک می‌کنه، پس فقط حرف بزن. هر وقت خواستی هر دو رو توی تنظیمات دستکاری کن.';
 
   @override
   String get usage_tips_4_title => 'کانالت رو بذار روی صفحه اصلی';
@@ -1063,17 +1069,29 @@ class AppLocalizationsFa extends AppLocalizations {
   String get profile_title => 'پروفایل';
 
   @override
+  String get profile_edit => 'ویرایش پروفایل';
+
+  @override
+  String get profile_save => 'ذخیره‌ی تغییرات';
+
+  @override
   String get profile_name_label => 'اسم بیسیم';
 
   @override
-  String get profile_avatar_label => 'قیافه‌ات';
+  String get profile_name_required => 'یه اسم برای بیسیمت بنویس.';
+
+  @override
+  String get profile_avatar_label => 'آواتارت رو انتخاب کن';
+
+  @override
+  String get profile_save_error => 'بعضی تغییرات ذخیره نشدن. دوباره امتحان کن.';
 
   @override
   String get onboarding_mode_title => 'چطور وصل می‌شی؟';
 
   @override
   String get onboarding_mode_help =>
-      'وای‌فای/هات‌اسپات برای اتصال پیشنهاد می‌شه. بلوتوث هم گزینهٔ رایگانه؛ بعداً می‌تونی روش اتصال رو عوض کنی.';
+      'وای‌فای/هات‌اسپات برای اتصال پیشنهاد می‌شه. بلوتوث هم گزینه‌ی رایگانه؛ بعداً می‌تونی روش اتصال رو عوض کنی.';
 
   @override
   String get onboarding_mode_auto_desc =>
@@ -1282,7 +1300,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get issue_alone_body =>
-      'هنوز کسی نیومده. مطمئن شو گوشی بعدی رو همین شبکه‌ست و رفته تو کانال.';
+      'هنوز کسی نیومده. مطمین شو گوشی بعدی رو همین شبکه‌ست و رفته تو کانال.';
 
   @override
   String get fix_allow_mic => 'اجازه بده';
@@ -1366,7 +1384,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get paywall_none_store_body =>
-      'اشتراک از طریق بازار خریده می‌شه. مطمئن شو برنامه‌ی بازار نصبه و توش وارد حسابت شدی، بعد دوباره امتحان کن.';
+      'اشتراک از طریق بازار خریده می‌شه. مطمین شو برنامه‌ی بازار نصبه و توش وارد حسابت شدی، بعد دوباره امتحان کن.';
 
   @override
   String get paywall_none_prices_title => 'قیمت‌ها هنوز آماده نیست';
@@ -1467,12 +1485,12 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String sub_stale_body_offline(String date) {
-    return 'آخرین بار روز $date اشتراکت رو تأیید کردیم و وقت یه به‌روزرسانی کوتاهه. یه لحظه به اینترنت وصل شو، بقیه‌ش با ما.';
+    return 'آخرین بار روز $date اشتراکت رو تایید کردیم و وقت یه به‌روزرسانی کوتاهه. یه لحظه به اینترنت وصل شو، بقیه‌ش با ما.';
   }
 
   @override
   String sub_stale_body_trouble(String date) {
-    return 'آخرین بار روز $date اشتراکت رو تأیید کردیم و وقت یه به‌روزرسانی کوتاهه. الان نتونستیم به سرورهامون وصل بشیم. مشکل از طرف ماست، نه تو. لطفاً چند دقیقه دیگه دوباره امتحان کن.';
+    return 'آخرین بار روز $date اشتراکت رو تایید کردیم و وقت یه به‌روزرسانی کوتاهه. الان نتونستیم به سرورهامون وصل بشیم. مشکل از طرف ماست، نه تو. لطفاً چند دقیقه دیگه دوباره امتحان کن.';
   }
 
   @override
@@ -1528,7 +1546,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get settings_log_empty => 'هنوز چیزی ثبت نشده';
 
   @override
-  String get settings_log_share_failed => 'صفحهٔ اشتراک‌گذاری باز نشد';
+  String get settings_log_share_failed => 'صفحه‌ی اشتراک‌گذاری باز نشد';
 
   @override
   String get settings_log_cleared => 'گزارش پاک شد';
@@ -1678,7 +1696,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get preflight_peer_unconfirmed =>
-      'منتظریم تأیید کنه که صدات رو می‌شنوه';
+      'منتظریم تایید کنه که صدات رو می‌شنوه';
 
   @override
   String get preflight_peer_confirmed => 'صدات رو می‌شنوه';
@@ -1750,7 +1768,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get lobby_connecting_hint =>
-      'گوشی‌ها رو نزدیک هم نگه دار. اگه گوشی برای وصل شدن به شبکه سؤال کرد، «اتصال» رو بزن.';
+      'گوشی‌ها رو نزدیک هم نگه دار. اگه گوشی برای وصل شدن به شبکه سوال کرد، «اتصال» رو بزن.';
 
   @override
   String get lobby_invite_people => 'دعوت به اتاق';
@@ -1765,7 +1783,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get room_start_nobody_answered =>
-      'به هیچ‌کدوم از اعضای اتاق نرسیدیم. مطمئن شو نزدیکن و «تَرک» روی گوشیشون بازه، بعد دوباره امتحان کن.';
+      'به هیچ‌کدوم از اعضای اتاق نرسیدیم. مطمین شو نزدیکن و «تَرک» روی گوشیشون بازه، بعد دوباره امتحان کن.';
 
   @override
   String get room_start_failed =>
@@ -2420,22 +2438,22 @@ class AppLocalizationsFa extends AppLocalizations {
   String get entry_my_rooms => 'اتاق‌های من';
 
   @override
-  String get issuer_title => 'تأیید درخواست همراه';
+  String get issuer_title => 'تایید درخواست همراه';
 
   @override
   String get issuer_scan_hint =>
-      'QR درخواست عضویت روی گوشی همراه رو اسکن کن. فقط دعوت معتبر و استفاده‌نشده تأیید می‌شه.';
+      'QR درخواست عضویت روی گوشی همراه رو اسکن کن. فقط دعوت معتبر و استفاده‌نشده تایید می‌شه.';
 
   @override
   String get issuer_verify_failed => 'درخواست بررسی نشد. دوباره اسکن کن.';
 
   @override
   String get issuer_accepted =>
-      'درخواست تأیید شد. همراه باید این QR پاسخ رو اسکن کنه تا عضویت روی گوشی خودش ذخیره بشه.';
+      'درخواست تایید شد. همراه باید این QR پاسخ رو اسکن کنه تا عضویت روی گوشی خودش ذخیره بشه.';
 
   @override
   String get issuer_rejected =>
-      'درخواست تأیید نشد. این پاسخ فقط نتیجه‌ی رد رو می‌رسونه.';
+      'درخواست تایید نشد. این پاسخ فقط نتیجه‌ی رد رو می‌رسونه.';
 
   @override
   String get issuer_done => 'تمام';
@@ -2591,11 +2609,11 @@ class AppLocalizationsFa extends AppLocalizations {
   String get update_open_failed => 'بازار باز نشد. یه بار دیگه امتحان کن.';
 
   @override
-  String get account_section_title => 'حساب';
+  String get account_section_title => 'حساب تَرک';
 
   @override
   String get account_signed_out_body =>
-      'حساب فقط برای اشتراک لازمه. بقیه‌ی تَرک بدون حساب هم کار می‌کنه.';
+      'برای استفاده از بیسیم نیازی به ورود به حساب نیست.';
 
   @override
   String get account_sign_in_row => 'ورود یا ساخت حساب';
@@ -2775,7 +2793,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get register_body =>
-      'یه کد ۶ رقمی به ایمیلت می‌فرستیم تا آدرس تأیید بشه.';
+      'یه کد ۶ رقمی به ایمیلت می‌فرستیم تا آدرس تایید بشه.';
 
   @override
   String get register_action => 'ساخت حساب';
@@ -2875,11 +2893,11 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String delete_type_email(String email) {
-    return 'برای تأیید، ایمیل حسابت رو بنویس: $email';
+    return 'برای تایید، ایمیل حسابت رو بنویس: $email';
   }
 
   @override
-  String get delete_google_note => 'با حساب گوگلت تأیید می‌کنی که خودتی.';
+  String get delete_google_note => 'با حساب گوگلت تایید می‌کنی که خودتی.';
 
   @override
   String get delete_sub_title => 'اشتراک بازارت هنوز فعاله';
@@ -2899,7 +2917,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get delete_action => 'حسابم رو پاک کن';
 
   @override
-  String get delete_action_google => 'تأیید با گوگل و پاک کردن';
+  String get delete_action_google => 'تایید با گوگل و پاک کردن';
 
   @override
   String get delete_confirm_title => 'حسابت برای همیشه پاک بشه؟';
@@ -3011,7 +3029,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get auth_error_google_unverified =>
-      'گوگل هنوز ایمیل این حساب گوگل رو تأیید نکرده. توی گوگل تأییدش کن، یا با ایمیل و رمز وارد شو.';
+      'گوگل هنوز ایمیل این حساب گوگل رو تایید نکرده. توی گوگل تاییدش کن، یا با ایمیل و رمز وارد شو.';
 
   @override
   String get auth_error_google_unsupported =>
@@ -3035,7 +3053,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String auth_error_reauth(String email) {
-    return 'روی این گوشی نمی‌تونیم تأیید کنیم که خودتی. به $email ایمیل بزن تا کمکت کنیم.';
+    return 'روی این گوشی نمی‌تونیم تایید کنیم که خودتی. به $email ایمیل بزن تا کمکت کنیم.';
   }
 
   @override
@@ -3153,7 +3171,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get bt_signal_search_hint =>
-      'دنبال گوشی‌ای می‌گردیم که آمادهٔ اتصال باشد.';
+      'دنبال گوشی‌ای می‌گردیم که آماده‌ی اتصال باشد.';
 
   @override
   String get bt_signal_link_hint =>
@@ -3208,7 +3226,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get beta_guest_intro_steadier =>
-      'برای سفرهای مهم، وای‌فای/هات‌اسپات یا بلوتوث مطمئن‌ترن';
+      'برای سفرهای مهم، وای‌فای/هات‌اسپات یا بلوتوث مطمین‌ترن';
 
   @override
   String get beta_guest_notice =>
@@ -3256,7 +3274,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get journey_handshake_detail =>
-      'دارم مطمئن می‌شم اون طرف، گروه خودته.';
+      'دارم مطمین می‌شم اون طرف، گروه خودته.';
 
   @override
   String get journey_bluetooth_title => 'اتصال بلوتوث آماده‌ست';
@@ -3385,7 +3403,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get carriermove_verifying_detail =>
-      'مطمئن می‌شیم پایداره، بعد کانال باز می‌شه.';
+      'مطمین می‌شیم پایداره، بعد کانال باز می‌شه.';
 
   @override
   String get carriermove_established_title => 'مستقیم وصل شدید';
@@ -3613,7 +3631,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get rcv_reason_bt_permission =>
-      'برای وصل شدن، اجازهٔ «دستگاه‌های نزدیک» لازمه. اجازه بده و دوباره امتحان کن.';
+      'برای وصل شدن، اجازه‌ی «دستگاه‌های نزدیک» لازمه. اجازه بده و دوباره امتحان کن.';
 
   @override
   String get rcv_reason_bt_off =>
@@ -3776,7 +3794,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String btmove_verifying_title(String name) {
-    return 'مطمئن می‌شیم خود $nameه';
+    return 'مطمین می‌شیم خود $nameه';
   }
 
   @override
@@ -3816,7 +3834,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get btmove_failed_permission_detail =>
-      '«تَرک» برای پیدا کردن اون یکی گوشی به اجازهٔ «دستگاه‌های نزدیک» نیاز داره.';
+      '«تَرک» برای پیدا کردن اون یکی گوشی به اجازه‌ی «دستگاه‌های نزدیک» نیاز داره.';
 
   @override
   String get btmove_failed_location_detail =>
@@ -3824,7 +3842,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String btmove_failed_check_detail(String name) {
-    return 'گوشی‌ها به هم وصل شدن، ولی گوشی $name تأیید نکرد که توی همین اتاقه. دوباره امتحان کن.';
+    return 'گوشی‌ها به هم وصل شدن، ولی گوشی $name تایید نکرد که توی همین اتاقه. دوباره امتحان کن.';
   }
 
   @override

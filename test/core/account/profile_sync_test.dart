@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/core/account/profile_sync.dart';
@@ -157,6 +159,37 @@ void main() {
     await settle();
     await settle();
 
+    expect(h.client.to('/profile').last.body!['name'], 'Hawk');
+    expect(await h.store.isProfileDirty(), isFalse);
+  });
+
+  test('an edit is pending before a slow upload answers and retries', () async {
+    await h.signIn(
+      session: sessionJson(
+        profile: profileJson(name: 'Falcon', avatarId: '8'),
+      ),
+    );
+    final response = Completer<ApiResponse>();
+    final uploadStarted = Completer<void>();
+    h.client.handler = (_) {
+      uploadStarted.complete();
+      return response.future;
+    };
+    await sync.start();
+
+    await settings.setMyName('Hawk');
+    await uploadStarted.future;
+    expect(await settings.getMyName(), 'Hawk');
+    expect(await h.store.isProfileDirty(), isTrue);
+
+    response.complete(const ApiTransportFailure(NetworkUnreachable('offline')));
+    await settle();
+    expect(h.session.isSignedIn, isTrue);
+    expect(await h.store.isProfileDirty(), isTrue);
+
+    h.client.handler = (r) async => ApiOk(200, echo(r));
+    await sync.retryPending();
+    await settle();
     expect(h.client.to('/profile').last.body!['name'], 'Hawk');
     expect(await h.store.isProfileDirty(), isFalse);
   });

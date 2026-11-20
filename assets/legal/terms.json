@@ -292,7 +292,7 @@
           "type": "p",
           "text": {
             "en": "Use an email address that is yours and that you can read — verification codes and password resets are sent there — and keep your password to yourself.",
-            "fa": "از نشانی ایمیلی استفاده کن که مال خودته و بهش دسترسی داری — کدهای تأیید و بازنشانی رمز عبور اونجا فرستاده می‌شن — و رمز عبورت رو پیش خودت نگه دار."
+            "fa": "از نشانی ایمیلی استفاده کن که مال خودته و بهش دسترسی داری — کدهای تایید و بازنشانی رمز عبور اونجا فرستاده می‌شن — و رمز عبورت رو پیش خودت نگه دار."
           }
         },
         {
@@ -322,18 +322,18 @@
       "id": "use",
       "tocTitle": {
         "en": "Using Tarkk responsibly",
-        "fa": "استفاده‌ی مسئولانه"
+        "fa": "استفاده‌ی مسوولانه"
       },
       "title": {
         "en": "Using Tarkk responsibly",
-        "fa": "استفاده‌ی مسئولانه از تَرک"
+        "fa": "استفاده‌ی مسوولانه از تَرک"
       },
       "blocks": [
         {
           "type": "p",
           "text": {
             "en": "What you say over a channel is yours, and so is the responsibility for it. Do not use Tarkk to:",
-            "fa": "چیزی که توی کانال می‌گی مال خودته، و مسئولیتش هم همین‌طور. از تَرک برای این کارها استفاده نکن:"
+            "fa": "چیزی که توی کانال می‌گی مال خودته، و مسوولیتش هم همین‌طور. از تَرک برای این کارها استفاده نکن:"
           }
         },
         {
@@ -357,7 +357,7 @@
             },
             {
               "en": "Share music or other audio through the app in a way that infringes somebody’s rights in it. What you cast is your call and your responsibility.",
-              "fa": "پخش آهنگ یا صدای دیگه از طریق برنامه به شکلی که حقوق کسی رو نقض کنه. چیزی که پخش می‌کنی انتخاب خودته و مسئولیتش هم با خودته."
+              "fa": "پخش آهنگ یا صدای دیگه از طریق برنامه به شکلی که حقوق کسی رو نقض کنه. چیزی که پخش می‌کنی انتخاب خودته و مسوولیتش هم با خودته."
             },
             {
               "en": "Choose a display name that pretends to be someone else or is meant to offend.",
@@ -447,14 +447,14 @@
           "type": "p",
           "text": {
             "en": "Tarkk is provided as it is, with no warranty of any kind — not of fitness for a particular purpose, not of merchantability, and not of uninterrupted or error-free operation. That is the AGPL’s position too, and it is stated here in the same words a court would expect rather than hidden in a licence file.",
-            "fa": "تَرک همون‌طور که هست ارائه می‌شه، بدون هیچ‌گونه ضمانتی — نه ضمانت مناسب بودن برای یه هدف خاص، نه قابلیت فروش، و نه کارکرد بی‌وقفه یا بدون خطا. موضع AGPL هم همینه، و اینجا با همون عباراتی گفته شده که یه دادگاه انتظارش رو داره، به‌جای اینکه لای یه فایل پروانه پنهون بمونه."
+            "fa": "تَرک همون‌طور که هست ارایه می‌شه، بدون هیچ‌گونه ضمانتی — نه ضمانت مناسب بودن برای یه هدف خاص، نه قابلیت فروش، و نه کارکرد بی‌وقفه یا بدون خطا. موضع AGPL هم همینه، و اینجا با همون عباراتی گفته شده که یه دادگاه انتظارش رو داره، به‌جای اینکه لای یه فایل پروانه پنهون بمونه."
           }
         },
         {
           "type": "p",
           "text": {
             "en": "Concretely, and from experience rather than caution: some phones kill background audio however carefully the app asks them not to; some Wi-Fi networks block the traffic between two clients entirely; some Bluetooth stacks refuse a link that works fine on the next handset over; and a strict NAT can leave a browser guest unable to connect at all. None of that is something we can guarantee our way out of.",
-            "fa": "مشخص‌تر بگیم، از روی تجربه و نه از سر احتیاط: بعضی گوشی‌ها صدای پس‌زمینه رو می‌کشن، هر چقدرم برنامه مؤدبانه ازشون خواهش کنه؛ بعضی شبکه‌های وای‌فای اصلاً ترافیک بین دو کلاینت رو مسدود می‌کنن؛ بعضی پشته‌های بلوتوث اتصالی رو رد می‌کنن که روی گوشی بغلی بدون مشکل کار می‌کنه؛ و یه NAT سخت‌گیر می‌تونه مهمان مرورگری رو کاملاً بی‌اتصال بذاره. هیچ‌کدوم از این‌ها چیزی نیست که بشه با ضمانت از پسش بربیایم."
+            "fa": "مشخص‌تر بگیم، از روی تجربه و نه از سر احتیاط: بعضی گوشی‌ها صدای پس‌زمینه رو می‌کشن، هر چقدرم برنامه مودبانه ازشون خواهش کنه؛ بعضی شبکه‌های وای‌فای اصلاً ترافیک بین دو کلاینت رو مسدود می‌کنن؛ بعضی پشته‌های بلوتوث اتصالی رو رد می‌کنن که روی گوشی بغلی بدون مشکل کار می‌کنه؛ و یه NAT سخت‌گیر می‌تونه مهمان مرورگری رو کاملاً بی‌اتصال بذاره. هیچ‌کدوم از این‌ها چیزی نیست که بشه با ضمانت از پسش بربیایم."
           }
         },
         {
@@ -470,25 +470,25 @@
       "id": "liability",
       "tocTitle": {
         "en": "Limits on liability",
-        "fa": "حدود مسئولیت"
+        "fa": "حدود مسوولیت"
       },
       "title": {
         "en": "Limits on liability",
-        "fa": "حدود مسئولیت"
+        "fa": "حدود مسوولیت"
       },
       "blocks": [
         {
           "type": "p",
           "text": {
             "en": "To the fullest extent the law allows, Tarkk and the people behind it are not liable for loss or damage arising from your use of it — including a message that did not arrive, a connection that dropped at a bad moment, a conversation somebody overheard, or anything that happened while you were paying attention to a channel instead of to the road.",
-            "fa": "تا جایی که قانون اجازه می‌ده، تَرک و آدمای پشتش مسئول ضرر یا خسارتی که از استفاده‌ی تو ازش ناشی می‌شه نیستن — از جمله پیامی که نرسیده، اتصالی که سر بدترین لحظه قطع شده، گفت‌وگویی که کسی شنیده، یا هر اتفاقی که وقتی حواست به کانال بوده و نه به جاده افتاده."
+            "fa": "تا جایی که قانون اجازه می‌ده، تَرک و آدمای پشتش مسوول ضرر یا خسارتی که از استفاده‌ی تو ازش ناشی می‌شه نیستن — از جمله پیامی که نرسیده، اتصالی که سر بدترین لحظه قطع شده، گفت‌وگویی که کسی شنیده، یا هر اتفاقی که وقتی حواست به کانال بوده و نه به جاده افتاده."
           }
         },
         {
           "type": "p",
           "text": {
             "en": "Some jurisdictions do not allow certain limits to be excluded. Where that is the case, this section applies as far as it lawfully can and no further, and nothing here is intended to exclude liability for death or personal injury caused by negligence, or for fraud.",
-            "fa": "بعضی حوزه‌های قضایی اجازه نمی‌دن بعضی از این محدودیت‌ها کنار گذاشته بشن. هر جا که این‌طور باشه، این بخش تا همون‌جایی که قانوناً می‌تونه اعمال می‌شه و نه بیشتر، و هیچ‌چیزی اینجا قرار نیست مسئولیت مرگ یا آسیب جسمی ناشی از سهل‌انگاری، یا تقلب رو کنار بذاره."
+            "fa": "بعضی حوزه‌های قضایی اجازه نمی‌دن بعضی از این محدودیت‌ها کنار گذاشته بشن. هر جا که این‌طور باشه، این بخش تا همون‌جایی که قانوناً می‌تونه اعمال می‌شه و نه بیشتر، و هیچ‌چیزی اینجا قرار نیست مسوولیت مرگ یا آسیب جسمی ناشی از سهل‌انگاری، یا تقلب رو کنار بذاره."
           }
         }
       ]
@@ -589,7 +589,7 @@
           "type": "p",
           "text": {
             "en": "Questions about these terms, a subscription, a commercial licence, or anything you think is missing from them go to the address below.",
-            "fa": "سؤال درباره‌ی این شرایط، اشتراک، پروانه‌ی تجاری، یا هر چیزی که فکر می‌کنی اینجا جاش خالیه، به نشانی زیر بفرست."
+            "fa": "سوال درباره‌ی این شرایط، اشتراک، پروانه‌ی تجاری، یا هر چیزی که فکر می‌کنی اینجا جاش خالیه، به نشانی زیر بفرست."
           }
         },
         {

@@ -140,8 +140,8 @@ enum RoomTopic {
 /// ("safar", "rafigha") too. The name is folded before matching, so the
 /// spellings a keyboard can produce for the same word all read the same:
 ///
-///  * Arabic letter forms fold to Persian ones (ي ى ئ → ی, ك → ک, ة ۀ → ه,
-///    أ إ آ → ا, ؤ → و) and harakat, tatweel and the hamza above go.
+///  * Arabic letter forms fold to Persian ones (yeh, kaf, heh, alef, waw).
+///    Harakat, tatweel and the combining hamza above are removed.
 ///  * A ZWNJ (نیم‌فاصله) reads as a space, so «هم‌سفر», «هم سفر» and «همسفر»
 ///    are one word to the patterns.
 ///  * Persian and Arabic digits read as ASCII, so «۱۱۵» is the emergency
@@ -222,19 +222,19 @@ abstract final class RoomTopicMatcher {
     // Persian (۰–۹) and Arabic-Indic (٠–٩) digits.
     if (rune >= 0x06F0 && rune <= 0x06F9) return 0x30 + rune - 0x06F0;
     if (rune >= 0x0660 && rune <= 0x0669) return 0x30 + rune - 0x0660;
-    // Harakat, the hamza above (ٔ), the superscript alef, tatweel.
+    // Harakat, the hamza above, the superscript alef, tatweel.
     if (rune >= 0x064B && rune <= 0x065F) return null;
     if (rune == 0x0670 || rune == 0x0640) return null;
     switch (rune) {
-      case 0x064A || 0x0649 || 0x0626: // ي ى ئ
+      case 0x064A || 0x0649 || 0x0626:
         return 0x06CC; // ی
       case 0x0643: // ك
         return 0x06A9; // ک
-      case 0x0629 || 0x06C0: // ة ۀ
+      case 0x0629 || 0x06C0:
         return 0x0647; // ه
-      case 0x0623 || 0x0625 || 0x0622 || 0x0671: // أ إ آ ٱ
+      case 0x0623 || 0x0625 || 0x0622 || 0x0671:
         return 0x0627; // ا
-      case 0x0624: // ؤ
+      case 0x0624:
         return 0x0648; // و
       case 0x200C: // ZWNJ: a half-space reads as a space.
         return separators ? 0x20 : rune;
@@ -505,8 +505,8 @@ abstract final class RoomTopicMatcher {
         'حرم',
         'زیارت',
         'زیارتی',
-        'زائر',
-        'زائران',
+        'زایر',
+        'زایران',
         'زوار',
         'کربلا',
         'اربعین',
@@ -526,7 +526,7 @@ abstract final class RoomTopicMatcher {
         'دعای ندبه',
         'عزاداری',
         'عزاداران',
-        'هیئت(?! ?مدیره)',
+        'هییت(?! ?مدیره)',
         'هیات(?! ?مدیره)',
       ],
     ),
@@ -664,7 +664,7 @@ abstract final class RoomTopicMatcher {
         'چلسی',
         'آرسنال',
         'یوونتوس',
-        'رئال مادرید',
+        'ریال مادرید',
         'دربی',
         'هوادار',
         'هواداران',
@@ -1168,8 +1168,8 @@ abstract final class RoomTopicMatcher {
         'چابهار',
         'بندرعباس',
         'خزر',
-        // «جادهٔ شمال» is the drive there, read as a car.
-        '(?<!جاده ?)شمال',
+        // «جاده‌ی شمال» is the drive there, read as a car.
+        '(?<!جاده ?(?:ی )?)شمال',
         'رامسر',
         'چالوس',
         'انزلی',
@@ -1378,7 +1378,7 @@ abstract final class RoomTopicMatcher {
         'کاروان',
         'کاروان خودرویی',
         'سفر جاده ای',
-        'جاده ?(?:شمال|چالوس|هراز|فیروزکوه)',
+        'جاده ?(?:ی )?(?:شمال|چالوس|هراز|فیروزکوه)',
         'سفر با ماشین',
         'پژو',
         'پراید',
@@ -1507,7 +1507,7 @@ abstract final class RoomTopicMatcher {
         'اقامت',
         'ویلا',
         'ویلایی',
-        'سوئیت',
+        'سوییت',
         'مهمانسرا',
         'بوم ?گردی',
         'مسافرخانه',
@@ -1607,7 +1607,7 @@ abstract final class RoomTopicMatcher {
         'اتاق ?فرار',
         'کوییز',
         'جرات ?حقیقت',
-        'جرئت ?حقیقت',
+        'جریت ?حقیقت',
         'ورق',
         'ورق بازی',
         'دومینو',
@@ -1634,8 +1634,8 @@ abstract final class RoomTopicMatcher {
         'tiatr',
       ],
       fa: [
-        'تئاتر',
-        'تئاتری',
+        'تیاتر',
+        'تیاتری',
         'نمایش',
         'نمایشی',
         'نمایشنامه',
@@ -1842,7 +1842,7 @@ abstract final class RoomTopicMatcher {
         'هیپ ?هاپ',
         'راک',
         'متال',
-        'کارائوکه',
+        'کارایوکه',
         'آواز',
         'ترانه',
         'سرود',
@@ -2197,7 +2197,7 @@ abstract final class RoomTopicMatcher {
         'پروژه',
         'مدیران',
         'مدیریت',
-        'هیئت مدیره',
+        'هییت مدیره',
         'شیفت',
         'شیفت کاری',
         'فروش',
@@ -3056,8 +3056,8 @@ abstract final class RoomTopicMatcher {
         'آذرخش',
         'برق',
         'برقی',
-        'نئون',
-        'نئونی',
+        'نیون',
+        'نیونی',
         'جرقه',
         'انرژی',
         'تندر',

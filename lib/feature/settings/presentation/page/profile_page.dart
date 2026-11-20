@@ -9,18 +9,13 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/profile_hero.dart';
-import '../../../../core/widget/avatar_picker_grid.dart';
-import '../../../../core/widget/localized_counter.dart';
 import '../../../walkie/api/walkie_api.dart';
 import '../manager/settings_cubit.dart';
 import '../widget/account_section.dart';
-import '../../../../core/utils/localized_digits_formatter.dart';
+import 'profile_editor_page.dart';
 
-/// The person's profile: one card with their face and radio name, both
-/// editable in place (faces in a sideways row), and — on builds with
-/// sign-in — the account right under it, in view without scrolling.
+/// The person's radio identity and account.
 ///
 /// Like Advanced settings, [buildPage] takes the running [WalkieTalkieCubit]
 /// (if any) through go_router's `extra`, so a change made mid-channel reaches
@@ -57,27 +52,30 @@ class ProfilePage extends StatelessWidget {
             style: TextStyle(
               color: AppColors.textPrimary,
               fontWeight: FontWeight.w700,
-              fontSize: 16,
+              fontSize: 19,
             ),
           ),
         ),
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            // The identity card is not part of the staggered entrance: its
-            // face and name fly in from Home (see [ProfileHero]), and a hero
-            // has to land on a card that is already where it will stay.
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: 16,
-              children: [
-                const _IdentityCard(),
-                if (AccountSection.visible)
-                  const StaggeredEntrance(
-                    builder: _single,
-                    children: [AccountSection()],
-                  ),
-              ],
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  spacing: 14,
+                  children: [
+                    const _IdentityCard(),
+                    if (AccountSection.visible)
+                      StaggeredEntrance(
+                        beginOffset: const Offset(0, 0.6),
+                        builder: (_, children) => children.single,
+                        children: const [AccountSection()],
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -86,11 +84,14 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-Widget _single(BuildContext context, List<Widget> cards) => cards.single;
+TextStyle _sectionLabel(BuildContext context) => TextStyle(
+  color: AppColors.textSecondary,
+  fontSize: 12,
+  fontWeight: FontWeight.w700,
+  letterSpacing: Directionality.of(context) == TextDirection.rtl ? 0 : 1.4,
+);
 
-/// Who this person is to everyone else: the face in a glowing ring beside
-/// the editable name (and a PREMIUM badge while a subscription runs), then
-/// every face to choose from.
+/// The radio identity shown to the people in your channel.
 class _IdentityCard extends StatelessWidget {
   const _IdentityCard();
 
@@ -98,24 +99,16 @@ class _IdentityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.getString;
     final amber = AppColors.amber;
-    final rtl = Directionality.of(context) == TextDirection.rtl;
-    TextStyle label() => TextStyle(
-      color: AppColors.textSecondary,
-      fontSize: 11,
-      fontWeight: FontWeight.w800,
-      // Persian is a joined script: spacing its letters pulls every word
-      // apart.
-      letterSpacing: rtl ? 0 : 1.6,
-    );
     return Container(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.border),
-        gradient: LinearGradient(
-          begin: AlignmentDirectional.topStart,
-          end: AlignmentDirectional.bottomEnd,
+        gradient: RadialGradient(
+          center: const AlignmentDirectional(-0.75, -0.15),
+          radius: 1.3,
           colors: [
-            Color.alphaBlend(amber.withValues(alpha: 0.08), AppColors.card),
+            Color.alphaBlend(amber.withValues(alpha: 0.14), AppColors.card),
             AppColors.card,
           ],
         ),
@@ -129,21 +122,45 @@ class _IdentityCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 16,
         children: [
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(16, 18, 16, 6),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          BlocBuilder<SettingsCubit, SettingsState>(
+            buildWhen: (before, after) =>
+                before.myName != after.myName ||
+                before.myAvatarId != after.myAvatarId,
+            builder: (context, state) => Row(
+              spacing: 16,
               children: [
-                const _Face(),
-                const SizedBox(width: 16),
+                ProfileHero.avatar(
+                  name: state.myName,
+                  avatarId: state.myAvatarId,
+                  child: ProfileAvatar(
+                    name: state.myName,
+                    avatarId: state.myAvatarId,
+                  ),
+                ),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: 4,
                     children: [
-                      Text(s.profile_name_label, style: label()),
-                      const SizedBox(height: 6),
-                      const _NameField(),
+                      Text(s.profile_name_label, style: _sectionLabel(context)),
+                      ProfileHero.name(
+                        name: state.myName,
+                        child: Text(
+                          state.myName.trim().isEmpty
+                              ? s.people_unnamed
+                              : state.myName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            height: 1.18,
+                          ),
+                        ),
+                      ),
                       const _PremiumBadge(),
                     ],
                   ),
@@ -151,24 +168,18 @@ class _IdentityCard extends StatelessWidget {
               ],
             ),
           ),
-          Divider(color: AppColors.border, height: 1),
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 16, 8),
-            child: Text(s.profile_avatar_label, style: label()),
-          ),
-          // Every face at once: a sideways row hid most of them.
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(16, 2, 16, 16),
-            child: BlocBuilder<SettingsCubit, SettingsState>(
-              buildWhen: (p, c) => p.myAvatarId != c.myAvatarId,
-              builder: (context, state) => AvatarPickerGrid(
-                selectedId: state.myAvatarId,
-                accent: amber,
-                idleRing: AppColors.border,
-                columns: 5,
-                spacing: 10,
-                onSelected: context.read<SettingsCubit>().setMyAvatarId,
-              ),
+          FilledButton.tonalIcon(
+            key: const ValueKey('profile-edit'),
+            onPressed: () =>
+                openProfileEditor(context, context.read<SettingsCubit>()),
+            icon: const Icon(Icons.edit_outlined, size: 17),
+            label: Text(s.profile_edit),
+            style: FilledButton.styleFrom(
+              backgroundColor: amber.withValues(alpha: 0.13),
+              foregroundColor: amber,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              textStyle: Theme.of(context).textTheme.labelLarge
+                  ?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -176,57 +187,6 @@ class _IdentityCard extends StatelessWidget {
     );
   }
 }
-
-/// The chosen face in a glowing ring; swaps with a small pop when a new one
-/// is picked.
-class _Face extends StatelessWidget {
-  const _Face();
-
-  @override
-  Widget build(BuildContext context) {
-    final reduced = AppMotion.reduced(context);
-    final amber = AppColors.amber;
-    return BlocBuilder<SettingsCubit, SettingsState>(
-      buildWhen: (p, c) => p.myAvatarId != c.myAvatarId || p.myName != c.myName,
-      builder: (context, state) => ProfileHero.avatar(
-        name: state.myName,
-        avatarId: state.myAvatarId,
-        child: Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: amber.withValues(alpha: 0.6), width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: amber.withValues(alpha: 0.22),
-                blurRadius: 20,
-                spreadRadius: 1,
-              ),
-            ],
-          ),
-          child: AnimatedSwitcher(
-            duration: reduced ? Duration.zero : AppMotion.sheet,
-            switchInCurve: AppMotion.easeOut,
-            switchOutCurve: AppMotion.leaving,
-            transitionBuilder: (child, animation) => ScaleTransition(
-              scale: Tween<double>(begin: 0.85, end: 1).animate(animation),
-              child: FadeTransition(opacity: animation, child: child),
-            ),
-            child: AppAvatar(
-              key: ValueKey(state.myAvatarId),
-              name: state.myName,
-              avatarId: state.myAvatarId,
-              size: _faceSize,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The face's size in the identity card.
-const double _faceSize = 76;
 
 /// PREMIUM under the name while a subscription runs; nothing otherwise, or
 /// on builds that sell nothing. Follows the subscription as it changes.
@@ -244,168 +204,47 @@ class _PremiumBadge extends StatelessWidget {
       builder: (context, _) {
         final active = subscription.isPremiumActive;
         final amber = AppColors.amber;
+        final badge = !active
+            ? const SizedBox(width: double.infinity)
+            : Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Container(
+                  key: const ValueKey('profile-premium'),
+                  padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 10, 4),
+                  decoration: BoxDecoration(
+                    color: amber.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: amber.withValues(alpha: 0.45)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.star_rounded, size: 14, color: amber),
+                      const SizedBox(width: 4),
+                      Text(
+                        context.getString.mysub_premium,
+                        style: TextStyle(
+                          color: amber,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing:
+                              Directionality.of(context) == TextDirection.rtl
+                              ? 0
+                              : 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+        if (AppMotion.reduced(context)) return badge;
         return AnimatedSize(
           duration: AppMotion.card,
           curve: AppMotion.easeOut,
           alignment: AlignmentDirectional.topStart,
-          child: !active
-              ? const SizedBox(width: double.infinity)
-              : Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Container(
-                    key: const ValueKey('profile-premium'),
-                    padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 10, 4),
-                    decoration: BoxDecoration(
-                      color: amber.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: amber.withValues(alpha: 0.45)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.star_rounded, size: 14, color: amber),
-                        const SizedBox(width: 4),
-                        Text(
-                          context.getString.mysub_premium,
-                          style: TextStyle(
-                            color: amber,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing:
-                                Directionality.of(context) == TextDirection.rtl
-                                ? 0
-                                : 1.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+          child: badge,
         );
       },
     );
   }
 }
-
-/// The radio name, edited in place. Saved on "done" and when the field loses
-/// focus (leaving the page included), and never saved blank.
-class _NameField extends StatefulWidget {
-  const _NameField();
-
-  @override
-  State<_NameField> createState() => _NameFieldState();
-}
-
-class _NameFieldState extends State<_NameField> {
-  final _controller = TextEditingController();
-  final _focus = FocusNode();
-  late final SettingsCubit _cubit = context.read<SettingsCubit>();
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.text = _cubit.state.myName;
-    _focus.addListener(() {
-      if (!_focus.hasFocus) _save();
-    });
-  }
-
-  void _save() {
-    final value = _controller.text.trim();
-    if (value.isEmpty) {
-      // Put the saved name back rather than leave a blank field that looks
-      // as though it took.
-      _controller.text = _cubit.state.myName;
-      return;
-    }
-    if (value != _cubit.state.myName) _cubit.setMyName(value);
-  }
-
-  @override
-  void dispose() {
-    _save();
-    _focus.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final s = context.getString;
-    return BlocListener<SettingsCubit, SettingsState>(
-      // The name arrives asynchronously on first open; fill it in unless the
-      // person has already started typing.
-      listenWhen: (p, c) => p.myName != c.myName,
-      listener: (_, state) {
-        if (!_focus.hasFocus) _controller.text = state.myName;
-      },
-      child: ProfileHero.name(
-        name: _controller.text.isEmpty
-            ? context.read<SettingsCubit>().state.myName
-            : _controller.text,
-        child: TextField(
-          key: const ValueKey('profile-name-field'),
-          controller: _controller,
-          focusNode: _focus,
-          maxLength: 20,
-          inputFormatters: [LocaleDigitsFormatter.of(context)],
-          textInputAction: TextInputAction.done,
-          // The count only matters while typing; hidden otherwise so the
-          // card stays short.
-          buildCounter: _counterWhileTyping(
-            localizedCounter(
-              style: TextStyle(color: AppColors.textSecondary.withAlpha(120)),
-            ),
-          ),
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-          ),
-          decoration: InputDecoration(
-            hintText: s.name_hint,
-            hintStyle: TextStyle(color: AppColors.textSecondary.withAlpha(160)),
-            isDense: true,
-            contentPadding: const EdgeInsetsDirectional.fromSTEB(14, 12, 8, 12),
-            filled: true,
-            fillColor: AppColors.surface,
-            suffixIcon: const Icon(Icons.edit_rounded, size: 18),
-            suffixIconColor: WidgetStateColor.resolveWith(
-              (states) => states.contains(WidgetState.focused)
-                  ? AppColors.amber
-                  : AppColors.textSecondary,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: AppColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: AppColors.amber, width: 1.6),
-            ),
-          ),
-          onSubmitted: (_) => _focus.unfocus(),
-        ),
-      ),
-    );
-  }
-}
-
-InputCounterWidgetBuilder _counterWhileTyping(InputCounterWidgetBuilder base) =>
-    (
-      BuildContext context, {
-      required int currentLength,
-      required int? maxLength,
-      required bool isFocused,
-    }) => isFocused
-    ? base(
-        context,
-        currentLength: currentLength,
-        maxLength: maxLength,
-        isFocused: isFocused,
-      )
-    : null;

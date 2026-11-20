@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 
 import '../core/account/account_session.dart';
 import '../core/account/email_link.dart';
+import '../core/account/profile_sync.dart';
 import '../core/diagnostics/tap_log.dart';
 import '../core/home_widget/home_widget_launch.dart';
 import '../core/home_widget/home_widget_service.dart';
@@ -38,6 +39,7 @@ class _MyAppState extends State<MyApp> {
   StreamSubscription<WidgetControlAction>? _controlSub;
   StreamSubscription<EmailLink>? _linkSub;
   StreamSubscription<EmailLink>? _unclaimedSub;
+  AppLifecycleListener? _profileSyncLifecycle;
 
   /// The update check's answer, for the announcements waiting behind it.
   final _updateOffered = ValueNotifier<bool?>(null);
@@ -84,6 +86,14 @@ class _MyAppState extends State<MyApp> {
       }
     });
     _listenForEmailLinks();
+    final services = GetIt.instance;
+    if (services<AccountSession>().available &&
+        services.isRegistered<ProfileSync>()) {
+      final sync = services<ProfileSync>();
+      _profileSyncLifecycle = AppLifecycleListener(
+        onResume: () => unawaited(sync.retryPending()),
+      );
+    }
   }
 
   /// Verification links from the account emails
@@ -135,6 +145,7 @@ class _MyAppState extends State<MyApp> {
     _controlSub?.cancel();
     _linkSub?.cancel();
     _unclaimedSub?.cancel();
+    _profileSyncLifecycle?.dispose();
     _updateOffered.dispose();
     GetIt.instance<AudioIo>().dispose();
     super.dispose();

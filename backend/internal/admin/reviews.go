@@ -464,8 +464,8 @@ func (v *reviewsView) build(now time.Time) {
 		return reviewTab{Key: key, URL: q.url(false), Count: count, On: rq.Status == key}
 	}
 	v.Tabs = []reviewTab{
-		tab(reviews.StatusNeeds, st.Needs), tab(reviews.StatusAwaiting, st.Awaiting),
-		tab(reviews.StatusAnswered, max(st.Total-st.Needs-st.Awaiting, 0)), tab(reviews.StatusAll, st.Total),
+		tab(reviews.StatusAll, st.Total), tab(reviews.StatusNeeds, st.Needs),
+		tab(reviews.StatusAwaiting, st.Awaiting), tab(reviews.StatusAnswered, max(st.Total-st.Needs-st.Awaiting, 0)),
 	}
 	for i := range 5 {
 		v.StarMax = max(v.StarMax, st.ByRate[i])

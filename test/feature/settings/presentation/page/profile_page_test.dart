@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/core/account/account_session.dart';
 import 'package:tark/core/account/auth_repository.dart';
+import 'package:tark/core/account/profile_sync.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
+import 'package:tark/core/network/api_failure.dart';
 import 'package:tark/core/network/service_api.dart';
 import 'package:tark/core/profile/local_profile.dart';
 import 'package:tark/core/settings/settings_keys.dart';
@@ -34,15 +38,25 @@ void main() {
     LocalProfile.avatarId = null;
   });
 
-  Future<void> pumpPage(WidgetTester tester) async {
-    tester.view.physicalSize = const Size(400, 1400);
+  Future<void> pumpPage(
+    WidgetTester tester, {
+    Locale locale = const Locale('en'),
+    Size size = const Size(400, 1400),
+    bool reducedMotion = false,
+  }) async {
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MaterialApp(
-        locale: const Locale('en'),
+        locale: locale,
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(disableAnimations: reducedMotion),
+          child: child!,
+        ),
         home: ProfilePage.buildPage(),
       ),
     );
@@ -53,42 +67,123 @@ void main() {
       .widgetList<AppAvatar>(find.byType(AppAvatar))
       .firstWhere((a) => a.size == 76);
 
+  final edit = find.byKey(const ValueKey('profile-edit'));
+  final editor = find.byKey(const ValueKey('profile-editor'));
+  final nameField = find.byKey(const ValueKey('profile-name-field'));
+  final avatar = find.byKey(const ValueKey('avatar-8'));
+  final save = find.byKey(const ValueKey('profile-save'));
+
+  Future<void> openEditor(WidgetTester tester) async {
+    await tester.tap(edit);
+    await tester.pumpAndSettle();
+    expect(editor, findsOneWidget);
+    expect(edit, findsNothing);
+  }
+
   testWidgets('shows the saved name and face', (tester) async {
     await pumpPage(tester);
     expect(find.text('PROFILE'), findsOneWidget);
-    expect(find.text('Pedi'), findsWidgets);
+    expect(find.text('Pedi'), findsOneWidget);
     expect(hero(tester).avatarId, 3);
+    expect(edit, findsOneWidget);
+    expect(nameField, findsNothing);
+    expect(avatar, findsNothing);
   });
 
-  testWidgets('picking a face saves it and updates the preview', (
+  testWidgets('the open profile reflects a name synced from the account', (
     tester,
   ) async {
     await pumpPage(tester);
-    // The faces scroll sideways, so bring this one into view first.
-    final face = find.byKey(const ValueKey('avatar-8'));
-    await tester.ensureVisible(face);
-    await tester.pumpAndSettle();
-    await tester.tap(face);
+    await GetIt.instance<SettingsRepository>().setMyName('Account name');
     await tester.pumpAndSettle();
 
-    expect(hero(tester).avatarId, 8);
-    expect(prefs.getInt(SettingsKeys.avatarId), 8);
-    expect(LocalProfile.avatarId, 8, reason: 'what presence will carry');
+    expect(find.text('Account name'), findsOneWidget);
+    await openEditor(tester);
+    expect(
+      tester.widget<TextField>(nameField).controller!.text,
+      'Account name',
+    );
   });
 
-  testWidgets('a new name is saved, a blank one is not', (tester) async {
-    await pumpPage(tester);
-    final field = find.byKey(const ValueKey('profile-name-field'));
+  testWidgets(
+    'the editor previews the avatar and saves both changes together',
+    (tester) async {
+      await pumpPage(tester);
+      await openEditor(tester);
+      await tester.ensureVisible(avatar);
+      await tester.pumpAndSettle();
+      await tester.tap(avatar);
+      await tester.enterText(nameField, 'Falcon42');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
 
-    await tester.enterText(field, '   ');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
-    expect(prefs.getString(SettingsKeys.userName), 'Pedi');
+      final preview = find.descendant(
+        of: editor,
+        matching: find.byType(AppAvatar),
+      );
+      expect(tester.widget<AppAvatar>(preview).avatarId, 8);
+      expect(prefs.getInt(SettingsKeys.avatarId), 3);
+      expect(prefs.getString(SettingsKeys.userName), 'Pedi');
 
-    await tester.enterText(field, 'Falcon42');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+
+      expect(editor, findsNothing);
+      expect(hero(tester).avatarId, 8);
+      expect(find.text('Falcon42'), findsOneWidget);
+      expect(prefs.getString(SettingsKeys.userName), 'Falcon42');
+      expect(prefs.getInt(SettingsKeys.avatarId), 8);
+      expect(LocalProfile.avatarId, 8, reason: 'what presence will carry');
+    },
+  );
+
+  testWidgets(
+    'closing discards the draft and a blank name keeps the editor open',
+    (tester) async {
+      await pumpPage(tester);
+      await openEditor(tester);
+
+      await tester.enterText(nameField, '   ');
+      await tester.pump();
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(prefs.getString(SettingsKeys.userName), 'Pedi');
+      expect(find.text('Enter a radio name.'), findsOneWidget);
+      expect(editor, findsOneWidget);
+
+      await tester.enterText(nameField, 'Draft name');
+      await tester.ensureVisible(avatar);
+      await tester.pumpAndSettle();
+      await tester.tap(avatar);
+      await tester.tap(find.byKey(const ValueKey('profile-editor-close')));
+      await tester.pumpAndSettle();
+      expect(editor, findsNothing);
+      expect(find.text('Pedi'), findsOneWidget);
+      expect(hero(tester).avatarId, 3);
+      expect(prefs.getString(SettingsKeys.userName), 'Pedi');
+      expect(prefs.getInt(SettingsKeys.avatarId), 3);
+    },
+  );
+
+  testWidgets('save stays reachable on a narrow RTL screen with the keyboard', (
+    tester,
+  ) async {
+    await pumpPage(
+      tester,
+      locale: const Locale('fa'),
+      size: const Size(320, 600),
+      reducedMotion: true,
+    );
+    await openEditor(tester);
+    await tester.enterText(nameField, 'شاهین');
+    tester.view.viewInsets = const FakeViewPadding(bottom: 260);
+    addTearDown(tester.view.resetViewInsets);
     await tester.pumpAndSettle();
-    expect(prefs.getString(SettingsKeys.userName), 'Falcon42');
+    expect(tester.getBottomLeft(save).dy, lessThanOrEqualTo(340));
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(editor, findsNothing);
+    expect(find.text('شاهین'), findsOneWidget);
   });
 
   testWidgets('no account card on builds without sign-in', (tester) async {
@@ -106,9 +201,48 @@ void main() {
         ..registerSingleton<AuthRepository>(account.repository);
     });
 
+    testWidgets('editing the radio profile never waits for the account API', (
+      tester,
+    ) async {
+      await account.signIn(
+        session: sessionJson(
+          profile: profileJson(name: 'Pedi', avatarId: '3'),
+        ),
+      );
+      final response = Completer<ApiResponse>();
+      account.client.handler = (_) => response.future;
+      final sync = ProfileSync(
+        session: account.session,
+        store: account.store,
+        settings: GetIt.instance<SettingsRepository>(),
+      );
+      addTearDown(sync.dispose);
+      await sync.start();
+      await pumpPage(tester);
+
+      await openEditor(tester);
+      await tester.enterText(nameField, 'Falcon');
+      await tester.pump();
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+
+      expect(editor, findsNothing);
+      expect(find.text('Falcon'), findsOneWidget);
+      expect(account.client.to('/profile'), hasLength(1));
+      expect(await account.store.isProfileDirty(), isTrue);
+
+      response.complete(
+        const ApiTransportFailure(NetworkUnreachable('offline')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Falcon'), findsOneWidget);
+      expect(account.session.isSignedIn, isTrue);
+    });
+
     testWidgets('signed out: one optional sign-in entry', (tester) async {
       await pumpPage(tester);
       expect(find.byKey(const ValueKey('account-sign-in')), findsOneWidget);
+      expect(find.text('You can use the radio without signing in.'), findsOne);
       expect(find.byKey(const ValueKey('account-delete')), findsNothing);
 
       await tester.tap(find.byKey(const ValueKey('account-sign-in')));
@@ -124,8 +258,13 @@ void main() {
       await pumpPage(tester);
 
       expect(find.textContaining('pedi@example.com'), findsOneWidget);
+      expect(find.byKey(const ValueKey('account-delete')), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('account-email')));
+      await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('account-change-password')), findsOne);
       expect(find.byKey(const ValueKey('account-delete')), findsOneWidget);
+      expect(find.byKey(const ValueKey('account-subscription')), findsNothing);
 
       // Signing out asks first; backing out keeps the account.
       await tester.tap(find.byKey(const ValueKey('account-sign-out')));
@@ -152,10 +291,36 @@ void main() {
         session: sessionJson(profile: profileJson(methods: ['google'])),
       );
       await pumpPage(tester);
+      await tester.tap(find.byKey(const ValueKey('account-email')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('account-sign-out')), findsOneWidget);
       expect(
         find.byKey(const ValueKey('account-change-password')),
         findsNothing,
       );
+    });
+
+    testWidgets('account expands with reduced motion on a narrow RTL screen', (
+      tester,
+    ) async {
+      await account.signIn();
+      await pumpPage(
+        tester,
+        locale: const Locale('fa'),
+        size: const Size(320, 640),
+        reducedMotion: true,
+      );
+
+      final email = find.byKey(const ValueKey('account-email'));
+      final delete = find.byKey(const ValueKey('account-delete'));
+      await tester.tap(email);
+      await tester.pumpAndSettle();
+      expect(delete, findsOneWidget);
+
+      await tester.tap(email);
+      await tester.pumpAndSettle();
+      expect(delete, findsNothing);
+      expect(tester.takeException(), isNull);
     });
   });
 }

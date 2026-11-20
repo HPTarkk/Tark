@@ -13,7 +13,7 @@ import 'account_store.dart';
 /// The local profile (SettingsRepository) stays the source of truth: it is
 /// what the radio uses, and it works with no account and no network. While
 /// signed in, every local change is pushed with PUT /profile; a change made
-/// offline is remembered and pushed at the next launch.
+/// offline is kept locally and retried when the app comes to the foreground.
 ///
 /// Signing in is the one moment the account wins: a name and avatar the
 /// account already has are pulled down onto this phone, and never
@@ -31,6 +31,7 @@ class ProfileSync {
   final SettingsRepository _settings;
   final _subs = <StreamSubscription<Object?>>[];
   Future<void>? _pushing;
+  Future<void> _dirtyWrite = Future<void>.value();
   bool _again = false;
 
   /// True while a sign-in writes the account's profile onto this phone.
@@ -45,15 +46,24 @@ class ProfileSync {
       ..add(_settings.myNameChanges.listen((_) => _localChanged()))
       ..add(_settings.myAvatarIdChanges.listen((_) => _localChanged()))
       ..add(_session.signedIn.listen((p) => unawaited(_onSignedIn(p))));
-    if (_session.isSignedIn && await _store.isProfileDirty()) {
-      unawaited(push());
-    }
+    await retryPending();
+  }
+
+  /// Starts a pending upload without making the caller wait for the network.
+  Future<void> retryPending() async {
+    if (!_session.isSignedIn || _pushing != null) return;
+    await _dirtyWrite;
+    if (await _store.isProfileDirty() && _pushing == null) unawaited(push());
   }
 
   void _localChanged() {
     if (!_session.isSignedIn || _adopting) return;
+    unawaited(_markDirty(true));
     unawaited(push());
   }
+
+  Future<void> _markDirty(bool dirty) =>
+      _dirtyWrite = _dirtyWrite.then((_) => _store.setProfileDirty(dirty));
 
   Future<void> _onSignedIn(AccountProfile remote) async {
     final remoteName = remote.name.trim();
@@ -97,18 +107,24 @@ class ProfileSync {
   }
 
   Future<void> _pushOnce() async {
-    if (!_session.isSignedIn) return;
+    final accountId = _session.current?.id;
+    if (accountId == null || _adopting) return;
     final name = (await _settings.getMyName()).trim();
     if (name.isEmpty) return;
     final avatar = await _settings.getMyAvatarId();
     final current = _session.current;
+    if (current?.id != accountId || _adopting) return;
     final avatarString = avatar?.toString();
     if (current != null &&
         current.name == name &&
         current.avatarId == avatarString) {
-      await _store.setProfileDirty(false);
+      if (!_again) await _markDirty(false);
       return;
     }
+    // Record the pending edit before the request. Closing the app while the
+    // server is still answering must not lose the chance to retry.
+    await _markDirty(true);
+    if (_session.current?.id != accountId || _adopting) return;
     final response = await _session.api.send(
       ApiRequest(
         ApiMethod.put,
@@ -116,21 +132,23 @@ class ProfileSync {
         body: {'name': name, 'avatarId': avatarString},
       ),
     );
+    if (_session.current?.id != accountId || _adopting) return;
     switch (response) {
       case ApiOk(:final body):
         final profile = AccountProfile.fromJson(body);
         if (profile != null) await _session.updateProfile(profile);
-        await _store.setProfileDirty(false);
+        if (!_again && _session.current?.id == accountId) {
+          await _markDirty(false);
+        }
       case ApiSignedOut():
         break;
       case ApiProblem(statusCode: 400):
         // The server refuses this name (a character it cannot show). The
         // local name stays; trying again with the same value cannot help.
         Logger.log('Account: profile refused (${response.code})');
-        await _store.setProfileDirty(false);
+        if (!_again) await _markDirty(false);
       case ApiProblem() || ApiTransportFailure():
         Logger.log('Account: profile not synced yet ($response)');
-        await _store.setProfileDirty(true);
     }
   }
 

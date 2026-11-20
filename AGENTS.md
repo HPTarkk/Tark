@@ -21,3 +21,7 @@
 - Treat the graph as an index, never as source of truth: open and verify the exact returned source before edits or definitive claims.
 - After code modifications, refresh with `graphify extract . --code-only`; this intentionally avoids semantic LLM passes during routine development.
 - Keep generated `graphify-out/` artifacts local and uncommitted. Do not run docs/PDF/image/video semantic extraction unless the task explicitly needs it.
+
+## Persian copy
+
+- Never use any form of hamza in authored Persian copy. Use unmarked Persian spellings and write the ezafe after heh with a zero-width non-joiner and Persian yeh. The copy check covers app, backend, and website text. Keep support for existing spelling in user input.

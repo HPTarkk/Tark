@@ -1010,32 +1010,32 @@ button.go .i { transition: translate .35s var(--spring); }
 [dir="rtl"] button.go .i { scale: -1 1; }
 button.go:hover .i { translate: 3px 0; }
 [dir="rtl"] button.go:hover .i { translate: -3px 0; }
-/* A button that sent its form keeps its size and colour and cannot be
-   pressed twice. Its words say what is happening ("Checking…", from
-   data-busy) and, on go buttons, the arrow gives way to three small
-   square lights that step along, like the panel's status LEDs. */
+/* Keep the busy label and the orbit inside the button during submission. */
 button.busy { position: relative; cursor: progress; pointer-events: none; }
 button.busy > span { display: inline-block; }
 button.go.busy .i { display: none; }
 button.go.busy { overflow: hidden; }
-/* One light glides back and forth over three dim ones: a single moving
-   thing, not three blinking ones. */
-button.go.busy::after { content: ""; width: 21px; height: 5px; flex-shrink: 0; margin-inline-end: 0;
-  --dim: color-mix(in srgb, currentColor 28%, transparent); --lit: var(--accent-2);
+button.go.busy::after {
+  content: "";
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  --orbit-track: color-mix(in srgb, currentColor 18%, transparent);
   background:
-    linear-gradient(var(--lit), var(--lit)) 0 0 / 5px 5px no-repeat,
-    linear-gradient(var(--dim), var(--dim)) 0 0 / 5px 5px no-repeat,
-    linear-gradient(var(--dim), var(--dim)) 8px 0 / 5px 5px no-repeat,
-    linear-gradient(var(--dim), var(--dim)) 16px 0 / 5px 5px no-repeat;
-  animation: leds-in .26s .1s ease both, glide .62s .1s cubic-bezier(.65, 0, .35, 1) infinite alternate; }
-[dir="rtl"] button.go.busy::after { animation-name: leds-in, glide-rtl; }
-@keyframes glide {
-  from { background-position: 0 0, 0 0, 8px 0, 16px 0; }
-  to { background-position: 16px 0, 0 0, 8px 0, 16px 0; } }
-@keyframes glide-rtl {
-  from { background-position: 16px 0, 0 0, 8px 0, 16px 0; }
-  to { background-position: 0 0, 0 0, 8px 0, 16px 0; } }
-@keyframes leds-in { from { opacity: 0; translate: 0 6px; } }
+    radial-gradient(circle, currentColor 2px, transparent 2px),
+    conic-gradient(
+      var(--orbit-track), currentColor 2%, var(--orbit-track) 34%,
+      var(--orbit-track) 53%, color-mix(in srgb, currentColor 70%, transparent) 55%,
+      var(--orbit-track) 81%
+    );
+  mask:
+    radial-gradient(circle, #000 1px, transparent 2px),
+    radial-gradient(circle, transparent 6.5px, #000 7.5px);
+  animation: orbit-in .26s .1s ease both, auth-orbit 1.1s linear infinite;
+}
+@keyframes orbit-in { from { opacity: 0; translate: 0 6px; } }
+@keyframes auth-orbit { to { rotate: 1turn; } }
 /* Other buttons only dim a touch while their page is on its way. */
 button.busy:not(.go) { opacity: .7; }
 form.sending > button.go.busy, form.sending .go.busy { opacity: 1; }

@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
-
+import '../account/account_config.dart';
 import 'premium_feature.dart';
 import 'subscription_service.dart';
 
@@ -23,11 +21,9 @@ abstract final class Monetization {
   /// Defaults to false, so a normal build can never ship locked by accident.
   static const bool forceLocked = bool.fromEnvironment('TARK_LOCK_PREMIUM');
 
-  /// Bazaar is Android-only, so Android is the only platform with a purchase
-  /// path. Gating anywhere else would be a locked door with no key — desktop,
-  /// iOS and web builds run fully unlocked by decision, not by oversight.
-  static final bool active =
-      (_enabled || forceLocked) && !kIsWeb && Platform.isAndroid;
+  /// Bazaar purchases belong to an account, so checkout requires Android
+  /// account support as well as an explicit subscription opt-in.
+  static final bool active = (_enabled || forceLocked) && AccountConfig.enabled;
 }
 
 /// The single question the rest of the app is allowed to ask about money:

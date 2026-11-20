@@ -351,7 +351,7 @@ func ValidEmail(e string) bool {
 // folder maps the letters that look alike in Persian and Arabic to one form,
 // and the Persian and Arabic digits to Latin ones.
 var folder = strings.NewReplacer(
-	"ي", "ی", "ى", "ی", "ئ", "ی", "ك", "ک", "ة", "ه", "ۀ", "ه", "أ", "ا", "إ", "ا", "آ", "ا", "ؤ", "و",
+	"ي", "ی", "ى", "ی", "\u0626", "ی", "ك", "ک", "ة", "ه", "\u06C0", "ه", "\u0623", "ا", "\u0625", "ا", "آ", "ا", "\u0624", "و",
 	"۰", "0", "۱", "1", "۲", "2", "۳", "3", "۴", "4", "۵", "5", "۶", "6", "۷", "7", "۸", "8", "۹", "9",
 	"٠", "0", "١", "1", "٢", "2", "٣", "3", "٤", "4", "٥", "5", "٦", "6", "٧", "7", "٨", "8", "٩", "9",
 )
@@ -365,7 +365,7 @@ func Fold(s string) string {
 	space := false
 	for _, r := range s {
 		switch {
-		case r == '‌' || r == '‍' || r == 'ـ' || (r >= 'ً' && r <= 'ٟ') || r == 'ٰ':
+		case r == '‌' || r == '‍' || r == 'ـ' || (r >= 'ً' && r <= '\u065F') || r == 'ٰ':
 			continue
 		case unicode.IsSpace(r):
 			if !space && b.Len() > 0 {

@@ -1448,6 +1448,18 @@ abstract class AppLocalizations {
   /// **'باز کردن تنظیمات'**
   String get hotspot_open_settings;
 
+  /// No description provided for @rcv_invite_location_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'موقعیت مکانی رو روشن کن'**
+  String get rcv_invite_location_title;
+
+  /// No description provided for @rcv_invite_location_settings.
+  ///
+  /// In fa, this message translates to:
+  /// **'تنظیمات موقعیت مکانی'**
+  String get rcv_invite_location_settings;
+
   /// No description provided for @hotspot_try_joining.
   ///
   /// In fa, this message translates to:
@@ -1505,7 +1517,7 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_joining.
   ///
   /// In fa, this message translates to:
-  /// **'دارم به شبکه وصل می‌شم… به سؤال اندروید که می‌پرسه به این شبکه وصل بشه یا نه، «آره» بگو — تو بعضی گوشی‌ها به جای صفحه، تو اعلان‌ها میاد.'**
+  /// **'دارم به شبکه وصل می‌شم… به سوال اندروید که می‌پرسه به این شبکه وصل بشه یا نه، «آره» بگو — تو بعضی گوشی‌ها به جای صفحه، تو اعلان‌ها میاد.'**
   String get hotspot_joining;
 
   /// No description provided for @hotspot_joined.
@@ -1883,7 +1895,7 @@ abstract class AppLocalizations {
   /// No description provided for @usage_tips_3_body.
   ///
   /// In fa, this message translates to:
-  /// **'میکروفون همیشه حواسش به توئه و برنامه صداهای مزاحم رو پاک می‌کنه، پس فقط حرف بزن. هر وقت خواستی هر دو رو توی تنظیمات دستکاری کن.'**
+  /// **'میکروفون همیشه حواسش به تو هست و برنامه صداهای مزاحم رو پاک می‌کنه، پس فقط حرف بزن. هر وقت خواستی هر دو رو توی تنظیمات دستکاری کن.'**
   String get usage_tips_3_body;
 
   /// No description provided for @usage_tips_4_title.
@@ -2006,17 +2018,41 @@ abstract class AppLocalizations {
   /// **'پروفایل'**
   String get profile_title;
 
+  /// No description provided for @profile_edit.
+  ///
+  /// In fa, this message translates to:
+  /// **'ویرایش پروفایل'**
+  String get profile_edit;
+
+  /// No description provided for @profile_save.
+  ///
+  /// In fa, this message translates to:
+  /// **'ذخیره‌ی تغییرات'**
+  String get profile_save;
+
   /// No description provided for @profile_name_label.
   ///
   /// In fa, this message translates to:
   /// **'اسم بیسیم'**
   String get profile_name_label;
 
+  /// No description provided for @profile_name_required.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه اسم برای بیسیمت بنویس.'**
+  String get profile_name_required;
+
   /// No description provided for @profile_avatar_label.
   ///
   /// In fa, this message translates to:
-  /// **'قیافه‌ات'**
+  /// **'آواتارت رو انتخاب کن'**
   String get profile_avatar_label;
+
+  /// No description provided for @profile_save_error.
+  ///
+  /// In fa, this message translates to:
+  /// **'بعضی تغییرات ذخیره نشدن. دوباره امتحان کن.'**
+  String get profile_save_error;
 
   /// No description provided for @onboarding_mode_title.
   ///
@@ -2027,7 +2063,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboarding_mode_help.
   ///
   /// In fa, this message translates to:
-  /// **'وای‌فای/هات‌اسپات برای اتصال پیشنهاد می‌شه. بلوتوث هم گزینهٔ رایگانه؛ بعداً می‌تونی روش اتصال رو عوض کنی.'**
+  /// **'وای‌فای/هات‌اسپات برای اتصال پیشنهاد می‌شه. بلوتوث هم گزینه‌ی رایگانه؛ بعداً می‌تونی روش اتصال رو عوض کنی.'**
   String get onboarding_mode_help;
 
   /// No description provided for @onboarding_mode_auto_desc.
@@ -2399,7 +2435,7 @@ abstract class AppLocalizations {
   /// No description provided for @issue_alone_body.
   ///
   /// In fa, this message translates to:
-  /// **'هنوز کسی نیومده. مطمئن شو گوشی بعدی رو همین شبکه‌ست و رفته تو کانال.'**
+  /// **'هنوز کسی نیومده. مطمین شو گوشی بعدی رو همین شبکه‌ست و رفته تو کانال.'**
   String get issue_alone_body;
 
   /// No description provided for @fix_allow_mic.
@@ -2561,7 +2597,7 @@ abstract class AppLocalizations {
   /// No description provided for @paywall_none_store_body.
   ///
   /// In fa, this message translates to:
-  /// **'اشتراک از طریق بازار خریده می‌شه. مطمئن شو برنامه‌ی بازار نصبه و توش وارد حسابت شدی، بعد دوباره امتحان کن.'**
+  /// **'اشتراک از طریق بازار خریده می‌شه. مطمین شو برنامه‌ی بازار نصبه و توش وارد حسابت شدی، بعد دوباره امتحان کن.'**
   String get paywall_none_store_body;
 
   /// No description provided for @paywall_none_prices_title.
@@ -2729,13 +2765,13 @@ abstract class AppLocalizations {
   /// No description provided for @sub_stale_body_offline.
   ///
   /// In fa, this message translates to:
-  /// **'آخرین بار روز {date} اشتراکت رو تأیید کردیم و وقت یه به‌روزرسانی کوتاهه. یه لحظه به اینترنت وصل شو، بقیه‌ش با ما.'**
+  /// **'آخرین بار روز {date} اشتراکت رو تایید کردیم و وقت یه به‌روزرسانی کوتاهه. یه لحظه به اینترنت وصل شو، بقیه‌ش با ما.'**
   String sub_stale_body_offline(String date);
 
   /// No description provided for @sub_stale_body_trouble.
   ///
   /// In fa, this message translates to:
-  /// **'آخرین بار روز {date} اشتراکت رو تأیید کردیم و وقت یه به‌روزرسانی کوتاهه. الان نتونستیم به سرورهامون وصل بشیم. مشکل از طرف ماست، نه تو. لطفاً چند دقیقه دیگه دوباره امتحان کن.'**
+  /// **'آخرین بار روز {date} اشتراکت رو تایید کردیم و وقت یه به‌روزرسانی کوتاهه. الان نتونستیم به سرورهامون وصل بشیم. مشکل از طرف ماست، نه تو. لطفاً چند دقیقه دیگه دوباره امتحان کن.'**
   String sub_stale_body_trouble(String date);
 
   /// No description provided for @sub_renew_title.
@@ -2831,7 +2867,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_log_share_failed.
   ///
   /// In fa, this message translates to:
-  /// **'صفحهٔ اشتراک‌گذاری باز نشد'**
+  /// **'صفحه‌ی اشتراک‌گذاری باز نشد'**
   String get settings_log_share_failed;
 
   /// No description provided for @settings_log_cleared.
@@ -3107,7 +3143,7 @@ abstract class AppLocalizations {
   /// No description provided for @preflight_peer_unconfirmed.
   ///
   /// In fa, this message translates to:
-  /// **'منتظریم تأیید کنه که صدات رو می‌شنوه'**
+  /// **'منتظریم تایید کنه که صدات رو می‌شنوه'**
   String get preflight_peer_unconfirmed;
 
   /// No description provided for @preflight_peer_confirmed.
@@ -3239,7 +3275,7 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_connecting_hint.
   ///
   /// In fa, this message translates to:
-  /// **'گوشی‌ها رو نزدیک هم نگه دار. اگه گوشی برای وصل شدن به شبکه سؤال کرد، «اتصال» رو بزن.'**
+  /// **'گوشی‌ها رو نزدیک هم نگه دار. اگه گوشی برای وصل شدن به شبکه سوال کرد، «اتصال» رو بزن.'**
   String get lobby_connecting_hint;
 
   /// No description provided for @lobby_invite_people.
@@ -3263,7 +3299,7 @@ abstract class AppLocalizations {
   /// No description provided for @room_start_nobody_answered.
   ///
   /// In fa, this message translates to:
-  /// **'به هیچ‌کدوم از اعضای اتاق نرسیدیم. مطمئن شو نزدیکن و «تَرک» روی گوشیشون بازه، بعد دوباره امتحان کن.'**
+  /// **'به هیچ‌کدوم از اعضای اتاق نرسیدیم. مطمین شو نزدیکن و «تَرک» روی گوشیشون بازه، بعد دوباره امتحان کن.'**
   String get room_start_nobody_answered;
 
   /// No description provided for @room_start_failed.
@@ -4379,13 +4415,13 @@ abstract class AppLocalizations {
   /// No description provided for @issuer_title.
   ///
   /// In fa, this message translates to:
-  /// **'تأیید درخواست همراه'**
+  /// **'تایید درخواست همراه'**
   String get issuer_title;
 
   /// No description provided for @issuer_scan_hint.
   ///
   /// In fa, this message translates to:
-  /// **'QR درخواست عضویت روی گوشی همراه رو اسکن کن. فقط دعوت معتبر و استفاده‌نشده تأیید می‌شه.'**
+  /// **'QR درخواست عضویت روی گوشی همراه رو اسکن کن. فقط دعوت معتبر و استفاده‌نشده تایید می‌شه.'**
   String get issuer_scan_hint;
 
   /// No description provided for @issuer_verify_failed.
@@ -4397,13 +4433,13 @@ abstract class AppLocalizations {
   /// No description provided for @issuer_accepted.
   ///
   /// In fa, this message translates to:
-  /// **'درخواست تأیید شد. همراه باید این QR پاسخ رو اسکن کنه تا عضویت روی گوشی خودش ذخیره بشه.'**
+  /// **'درخواست تایید شد. همراه باید این QR پاسخ رو اسکن کنه تا عضویت روی گوشی خودش ذخیره بشه.'**
   String get issuer_accepted;
 
   /// No description provided for @issuer_rejected.
   ///
   /// In fa, this message translates to:
-  /// **'درخواست تأیید نشد. این پاسخ فقط نتیجه‌ی رد رو می‌رسونه.'**
+  /// **'درخواست تایید نشد. این پاسخ فقط نتیجه‌ی رد رو می‌رسونه.'**
   String get issuer_rejected;
 
   /// No description provided for @issuer_done.
@@ -4673,13 +4709,13 @@ abstract class AppLocalizations {
   /// No description provided for @account_section_title.
   ///
   /// In fa, this message translates to:
-  /// **'حساب'**
+  /// **'حساب تَرک'**
   String get account_section_title;
 
   /// No description provided for @account_signed_out_body.
   ///
   /// In fa, this message translates to:
-  /// **'حساب فقط برای اشتراک لازمه. بقیه‌ی تَرک بدون حساب هم کار می‌کنه.'**
+  /// **'برای استفاده از بیسیم نیازی به ورود به حساب نیست.'**
   String get account_signed_out_body;
 
   /// No description provided for @account_sign_in_row.
@@ -4997,7 +5033,7 @@ abstract class AppLocalizations {
   /// No description provided for @register_body.
   ///
   /// In fa, this message translates to:
-  /// **'یه کد ۶ رقمی به ایمیلت می‌فرستیم تا آدرس تأیید بشه.'**
+  /// **'یه کد ۶ رقمی به ایمیلت می‌فرستیم تا آدرس تایید بشه.'**
   String get register_body;
 
   /// No description provided for @register_action.
@@ -5171,13 +5207,13 @@ abstract class AppLocalizations {
   /// No description provided for @delete_type_email.
   ///
   /// In fa, this message translates to:
-  /// **'برای تأیید، ایمیل حسابت رو بنویس: {email}'**
+  /// **'برای تایید، ایمیل حسابت رو بنویس: {email}'**
   String delete_type_email(String email);
 
   /// No description provided for @delete_google_note.
   ///
   /// In fa, this message translates to:
-  /// **'با حساب گوگلت تأیید می‌کنی که خودتی.'**
+  /// **'با حساب گوگلت تایید می‌کنی که خودتی.'**
   String get delete_google_note;
 
   /// No description provided for @delete_sub_title.
@@ -5213,7 +5249,7 @@ abstract class AppLocalizations {
   /// No description provided for @delete_action_google.
   ///
   /// In fa, this message translates to:
-  /// **'تأیید با گوگل و پاک کردن'**
+  /// **'تایید با گوگل و پاک کردن'**
   String get delete_action_google;
 
   /// No description provided for @delete_confirm_title.
@@ -5393,7 +5429,7 @@ abstract class AppLocalizations {
   /// No description provided for @auth_error_google_unverified.
   ///
   /// In fa, this message translates to:
-  /// **'گوگل هنوز ایمیل این حساب گوگل رو تأیید نکرده. توی گوگل تأییدش کن، یا با ایمیل و رمز وارد شو.'**
+  /// **'گوگل هنوز ایمیل این حساب گوگل رو تایید نکرده. توی گوگل تاییدش کن، یا با ایمیل و رمز وارد شو.'**
   String get auth_error_google_unverified;
 
   /// No description provided for @auth_error_google_unsupported.
@@ -5429,7 +5465,7 @@ abstract class AppLocalizations {
   /// No description provided for @auth_error_reauth.
   ///
   /// In fa, this message translates to:
-  /// **'روی این گوشی نمی‌تونیم تأیید کنیم که خودتی. به {email} ایمیل بزن تا کمکت کنیم.'**
+  /// **'روی این گوشی نمی‌تونیم تایید کنیم که خودتی. به {email} ایمیل بزن تا کمکت کنیم.'**
   String auth_error_reauth(String email);
 
   /// No description provided for @sub_signin_action.
@@ -5615,7 +5651,7 @@ abstract class AppLocalizations {
   /// No description provided for @bt_signal_search_hint.
   ///
   /// In fa, this message translates to:
-  /// **'دنبال گوشی‌ای می‌گردیم که آمادهٔ اتصال باشد.'**
+  /// **'دنبال گوشی‌ای می‌گردیم که آماده‌ی اتصال باشد.'**
   String get bt_signal_search_hint;
 
   /// No description provided for @bt_signal_link_hint.
@@ -5711,7 +5747,7 @@ abstract class AppLocalizations {
   /// No description provided for @beta_guest_intro_steadier.
   ///
   /// In fa, this message translates to:
-  /// **'برای سفرهای مهم، وای‌فای/هات‌اسپات یا بلوتوث مطمئن‌ترن'**
+  /// **'برای سفرهای مهم، وای‌فای/هات‌اسپات یا بلوتوث مطمین‌ترن'**
   String get beta_guest_intro_steadier;
 
   /// No description provided for @beta_guest_notice.
@@ -5795,7 +5831,7 @@ abstract class AppLocalizations {
   /// No description provided for @journey_handshake_detail.
   ///
   /// In fa, this message translates to:
-  /// **'دارم مطمئن می‌شم اون طرف، گروه خودته.'**
+  /// **'دارم مطمین می‌شم اون طرف، گروه خودته.'**
   String get journey_handshake_detail;
 
   /// No description provided for @journey_bluetooth_title.
@@ -5999,7 +6035,7 @@ abstract class AppLocalizations {
   /// No description provided for @carriermove_verifying_detail.
   ///
   /// In fa, this message translates to:
-  /// **'مطمئن می‌شیم پایداره، بعد کانال باز می‌شه.'**
+  /// **'مطمین می‌شیم پایداره، بعد کانال باز می‌شه.'**
   String get carriermove_verifying_detail;
 
   /// No description provided for @carriermove_established_title.
@@ -6395,7 +6431,7 @@ abstract class AppLocalizations {
   /// No description provided for @rcv_reason_bt_permission.
   ///
   /// In fa, this message translates to:
-  /// **'برای وصل شدن، اجازهٔ «دستگاه‌های نزدیک» لازمه. اجازه بده و دوباره امتحان کن.'**
+  /// **'برای وصل شدن، اجازه‌ی «دستگاه‌های نزدیک» لازمه. اجازه بده و دوباره امتحان کن.'**
   String get rcv_reason_bt_permission;
 
   /// No description provided for @rcv_reason_bt_off.
@@ -6647,7 +6683,7 @@ abstract class AppLocalizations {
   /// No description provided for @btmove_verifying_title.
   ///
   /// In fa, this message translates to:
-  /// **'مطمئن می‌شیم خود {name}ه'**
+  /// **'مطمین می‌شیم خود {name}ه'**
   String btmove_verifying_title(String name);
 
   /// No description provided for @btmove_verifying_detail.
@@ -6713,7 +6749,7 @@ abstract class AppLocalizations {
   /// No description provided for @btmove_failed_permission_detail.
   ///
   /// In fa, this message translates to:
-  /// **'«تَرک» برای پیدا کردن اون یکی گوشی به اجازهٔ «دستگاه‌های نزدیک» نیاز داره.'**
+  /// **'«تَرک» برای پیدا کردن اون یکی گوشی به اجازه‌ی «دستگاه‌های نزدیک» نیاز داره.'**
   String get btmove_failed_permission_detail;
 
   /// No description provided for @btmove_failed_location_detail.
@@ -6725,7 +6761,7 @@ abstract class AppLocalizations {
   /// No description provided for @btmove_failed_check_detail.
   ///
   /// In fa, this message translates to:
-  /// **'گوشی‌ها به هم وصل شدن، ولی گوشی {name} تأیید نکرد که توی همین اتاقه. دوباره امتحان کن.'**
+  /// **'گوشی‌ها به هم وصل شدن، ولی گوشی {name} تایید نکرد که توی همین اتاقه. دوباره امتحان کن.'**
   String btmove_failed_check_detail(String name);
 
   /// No description provided for @btmove_pair_manually.

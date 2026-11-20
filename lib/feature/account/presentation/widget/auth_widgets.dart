@@ -623,7 +623,7 @@ class AuthPrimaryButton extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          AuthWaveLights(color: ink),
+          AuthOrbitIndicator(color: ink),
         ],
       );
     } else {
@@ -700,78 +700,72 @@ class AuthPrimaryButton extends StatelessWidget {
   }
 }
 
-/// Three small dim squares after a busy label, and one bright square that
-/// glides quickly back and forth over them: a single moving thing, not
-/// three that take turns. The same lights as the admin panel's sign-in.
-/// It travels in reading order (right to left in Persian), eased at the
-/// turns so it never jerks. Under reduced motion it rests on the first.
-class AuthWaveLights extends StatefulWidget {
-  const AuthWaveLights({required this.color, super.key});
+/// The orbit beside the busy label, shared across account actions.
+class AuthOrbitIndicator extends StatefulWidget {
+  const AuthOrbitIndicator({required this.color, super.key});
 
   final Color color;
 
-  /// One pass across the three squares; it then comes straight back.
-  static const sweep = Duration(milliseconds: 620);
-  static const double square = 6;
-  static const double gap = 4;
-
   @override
-  State<AuthWaveLights> createState() => _AuthWaveLightsState();
+  State<AuthOrbitIndicator> createState() => _AuthOrbitIndicatorState();
 }
 
-class _AuthWaveLightsState extends State<AuthWaveLights>
+class _AuthOrbitIndicatorState extends State<AuthOrbitIndicator>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _glide = AnimationController(
+  late final AnimationController _orbit = AnimationController(
     vsync: this,
-    duration: AuthWaveLights.sweep,
+    duration: const Duration(milliseconds: 1100),
   );
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _glide.loopUnlessReduced(context, reverse: true);
+    _orbit.loopUnlessReduced(context);
   }
 
   @override
   void dispose() {
-    _glide.dispose();
+    _orbit.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    const size = AuthWaveLights.square;
-    const step = size + AuthWaveLights.gap;
-    Widget square(double alpha, {Key? key}) => Container(
-      key: key,
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: widget.color.withValues(alpha: alpha),
-        borderRadius: BorderRadius.circular(1.5),
+  Widget build(BuildContext context) => ExcludeSemantics(
+    child: RotationTransition(
+      turns: _orbit,
+      child: CustomPaint(
+        size: const Size.square(18),
+        painter: _AuthOrbitPainter(widget.color),
       ),
-    );
-    return ExcludeSemantics(
-      child: SizedBox(
-        width: size * 3 + AuthWaveLights.gap * 2,
-        height: size,
-        child: Stack(
-          children: [
-            for (var i = 0; i < 3; i++)
-              PositionedDirectional(start: i * step, child: square(0.28)),
-            AnimatedBuilder(
-              animation: _glide,
-              builder: (context, child) => PositionedDirectional(
-                start: Curves.easeInOutCubic.transform(_glide.value) * 2 * step,
-                child: child!,
-              ),
-              child: square(1, key: const ValueKey('auth-glider')),
-            ),
-          ],
-        ),
-      ),
-    );
+    ),
+  );
+}
+
+class _AuthOrbitPainter extends CustomPainter {
+  const _AuthOrbitPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final bounds = Offset.zero & size;
+    final dim = color.withValues(alpha: 0.18);
+    final ring = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..shader = SweepGradient(
+        transform: const GradientRotation(-math.pi / 2),
+        colors: [dim, color, dim, dim, color.withValues(alpha: 0.7), dim, dim],
+        stops: const [0, 0.02, 0.34, 0.53, 0.55, 0.81, 1],
+      ).createShader(bounds);
+    canvas.drawCircle(center, size.shortestSide / 2 - 1, ring);
+    canvas.drawCircle(center, 1.5, Paint()..color = color);
   }
+
+  @override
+  bool shouldRepaint(_AuthOrbitPainter oldDelegate) =>
+      color != oldDelegate.color;
 }
 
 /// A secondary action: outlined, same height as [AuthPrimaryButton].

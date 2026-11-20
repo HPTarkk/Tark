@@ -11,6 +11,13 @@ import '../domain/service/hotspot_link_keeper.dart';
 import '../domain/service/session_role_store.dart';
 import '../presentation/manager/wifi_hotspot_cubit.dart';
 
+/// Android requires the system Location switch to be on to host on this phone.
+final class HotspotLocationRequired implements Exception {
+  const HotspotLocationRequired();
+
+  static const errorCode = 'location_off';
+}
+
 /// Prepares Tarkk's temporary hotspot for a Room invite without exposing the
 /// host/join bridge UI to the user.
 ///
@@ -26,13 +33,12 @@ import '../presentation/manager/wifi_hotspot_cubit.dart';
 /// here and therefore cannot make two authorised members both create an AP.
 class PreLiveHotspotBootstrap {
   PreLiveHotspotBootstrap({
-    Future<HotspotCredentials?> Function()? starter,
+    this._starter,
     Future<HotspotJoinResult> Function(HotspotCredentials)? joiner,
     this.hostTimeout = defaultHostTimeout,
-  }) : _starter = starter ?? _startWithTransferBridge,
-       _joiner = joiner ?? _joinWithTransferBridge;
+  }) : _joiner = joiner ?? _joinWithTransferBridge;
 
-  final Future<HotspotCredentials?> Function() _starter;
+  final Future<HotspotCredentials?> Function()? _starter;
   final Future<HotspotJoinResult> Function(HotspotCredentials) _joiner;
 
   /// How long [prepareHost] waits for the access point before giving up.
@@ -56,21 +62,24 @@ class PreLiveHotspotBootstrap {
   // Re-typed through `then` first: a starter written as `() async => creds`
   // returns a Future<HotspotCredentials>, whose `timeout` cannot take a
   // null-returning fallback.
-  Future<HotspotCredentials?> prepareHost() => _starter()
-      .then<HotspotCredentials?>((credentials) => credentials)
-      .timeout(
-        hostTimeout,
-        onTimeout: () {
-          Logger.diagnostic(
-            'room_transport: hotspot start timed out after '
-            '${hostTimeout.inSeconds}s',
+  /// With [surfaceLocationOff], throws [HotspotLocationRequired] if Android
+  /// blocks the host because the system Location switch is off.
+  Future<HotspotCredentials?> prepareHost({bool surfaceLocationOff = false}) =>
+      (_starter?.call() ?? _startWithTransferBridge(surfaceLocationOff))
+          .then<HotspotCredentials?>((credentials) => credentials)
+          .timeout(
+            hostTimeout,
+            onTimeout: () {
+              Logger.diagnostic(
+                'room_transport: hotspot start timed out after '
+                '${hostTimeout.inSeconds}s',
+              );
+              final bridge = _startingBridge;
+              _startingBridge = null;
+              if (bridge != null) unawaited(_abandonStart(bridge));
+              return null;
+            },
           );
-          final bridge = _startingBridge;
-          _startingBridge = null;
-          if (bridge != null) unawaited(_abandonStart(bridge));
-          return null;
-        },
-      );
 
   /// Joins [credentials] through the same bridge funnel the manual hotspot
   /// join has always used.
@@ -105,7 +114,9 @@ class PreLiveHotspotBootstrap {
     return hosting ? remembered : null;
   }
 
-  static Future<HotspotCredentials?> _startWithTransferBridge() async {
+  static Future<HotspotCredentials?> _startWithTransferBridge(
+    bool surfaceLocationOff,
+  ) async {
     final getIt = GetIt.instance;
     if (!getIt.isRegistered<SessionRoleStore>() ||
         !getIt.isRegistered<HotspotLinkKeeper>() ||
@@ -140,6 +151,10 @@ class PreLiveHotspotBootstrap {
       await bridge.chooseRole(HotspotRole.host);
       // A timeout already gave up on this start and is tearing it down.
       if (!identical(_startingBridge, bridge)) return null;
+      if (surfaceLocationOff &&
+          bridge.state.errorCode == HotspotLocationRequired.errorCode) {
+        throw const HotspotLocationRequired();
+      }
       if (bridge.state.phase != HotspotPhase.ready) return null;
       final credentials = bridge.state.credentials;
       if (credentials == null) return null;

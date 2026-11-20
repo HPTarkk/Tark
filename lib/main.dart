@@ -109,11 +109,9 @@ void main() async {
           : const <String>[],
     );
   };
-  // The signed-in state, from secure storage only: no network before the
-  // first frame. Then pushes a profile edit made offline last time, if any.
-  // Both are no-ops on builds without sign-in.
+  // Restore the cached account before drawing its controls. A missing
+  // profile can be fetched in the background without holding up launch.
   await GetIt.instance<AccountSession>().load();
-  unawaited(GetIt.instance<ProfileSync>().start());
   // Starts the "has Tarkk settled in yet?" clock the rating ask waits on.
   unawaited(RatingPrompt.registered?.noteLaunch());
   // Strictly before the mode store below: that one asks LicenseGate whether
@@ -182,4 +180,5 @@ void main() async {
   );
 
   runApp(const MyApp());
+  unawaited(GetIt.instance<ProfileSync>().start());
 }

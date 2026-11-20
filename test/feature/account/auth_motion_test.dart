@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -212,45 +210,43 @@ void main() {
       expect(find.text('SIGN IN'), findsNothing);
       expect(find.text('SIGNING IN'), findsOneWidget);
       expect(find.text('SIGNING IN...'), findsNothing);
-      expect(find.byType(AuthWaveLights), findsOneWidget);
+      expect(find.byType(AuthOrbitIndicator), findsOneWidget);
       expect(width(tester), 300);
 
       await tester.pumpWidget(app(button(busy: false, done: true)));
       await tester.pumpAndSettle();
-      expect(find.byType(AuthWaveLights), findsNothing);
+      expect(find.byType(AuthOrbitIndicator), findsNothing);
       expect(find.byIcon(Icons.check_rounded), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('one light glides quickly back and forth, never jumping', (
+    Finder orbitRotation() => find.descendant(
+      of: find.byType(AuthOrbitIndicator),
+      matching: find.byType(RotationTransition),
+    );
+
+    testWidgets('the orbit turns continuously through a full loop', (
       tester,
     ) async {
       await tester.pumpWidget(app(button(busy: true)));
-      await tester.pump(const Duration(milliseconds: 400));
-      final glider = find.byKey(const ValueKey('auth-glider'));
-      double x() => tester.getCenter(glider).dx;
-      final seen = <double>[];
-      var before = x();
-      // Two full sweeps, sampled at 60fps.
-      for (var i = 0; i < 78; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-        final now = x();
-        expect((now - before).abs(), lessThan(3.5), reason: 'no jumps');
-        seen.add(now);
-        before = now;
+      final turns = tester.widget<RotationTransition>(orbitRotation()).turns;
+      final start = turns.value;
+
+      for (var i = 0; i < 4; i++) {
+        final before = turns.value;
+        await tester.pump(const Duration(milliseconds: 275));
+        expect((turns.value - before) % 1, closeTo(0.25, 0.001));
       }
-      // It crosses the whole row within one sweep, both ways.
-      final span = seen.reduce(math.max) - seen.reduce(math.min);
-      expect(span, greaterThan(15));
-      expect(AuthWaveLights.sweep, lessThan(const Duration(milliseconds: 700)));
+      expect(turns.value, closeTo(start, 0.001));
     });
 
-    testWidgets('reduced motion: words still change, lights hold still', (
+    testWidgets('reduced motion: words still change, orbit holds still', (
       tester,
     ) async {
       await tester.pumpWidget(app(button(busy: true), reduced: true));
       await tester.pumpAndSettle();
       expect(find.text('SIGNING IN'), findsOneWidget);
+      expect(tester.widget<RotationTransition>(orbitRotation()).turns.value, 0);
       expect(width(tester), 300);
     });
   });

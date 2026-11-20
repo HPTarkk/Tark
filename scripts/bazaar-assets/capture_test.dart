@@ -180,9 +180,9 @@ Future<Uint8List> _save(
     final boundary =
         key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
     final image = await boundary.toImage(pixelRatio: ratio);
-    final data = (await image.toByteData(
-      format: ui.ImageByteFormat.png,
-    ))!.buffer.asUint8List();
+    final data = (await image.toByteData(format: ui.ImageByteFormat.png))!
+        .buffer
+        .asUint8List();
     image.dispose();
     await File(path).writeAsBytes(data);
     return data;
@@ -312,7 +312,7 @@ void main() {
         (
           '06-light',
           'روشن یا تاریک؛',
-          'به سلیقهٔ تو',
+          'به سلیقه‌ی تو',
           'رابط فارسی با دو ظاهر متفاوت',
           LandingPage.buildPage,
         ),

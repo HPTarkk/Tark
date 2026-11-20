@@ -9,8 +9,8 @@ import 'app_avatar.dart';
 /// into the page instead of a new screen sliding over it.
 ///
 /// Two pieces fly: the face, which grows from the chip's small avatar into the
-/// large one, and the name, which grows into the editable field and picks up
-/// the field's surface on the way. Both go back the same way on close.
+/// large one, and the name, which grows into the profile's display name.
+/// Both go back the same way on close.
 abstract final class ProfileHero {
   static const avatarTag = 'profile-avatar';
   static const nameTag = 'profile-name';
@@ -41,7 +41,7 @@ abstract final class ProfileHero {
   );
 
   /// The name. [child] is the widget drawn when the name is not flying: the
-  /// chip's label on Home, the editable field on Profile.
+  /// chip's label on Home or the display name on Profile.
   static Widget name({required String name, required Widget child}) => _still(
     _ProfileHero(
       tag: nameTag,
@@ -142,9 +142,7 @@ class _AvatarFlight extends StatelessWidget {
   );
 }
 
-/// The name in flight: plain chip text at one end, the profile's name field
-/// at the other. The field's surface, border and padding fade in around the
-/// text as it grows, so the label visibly turns into the field.
+/// The name in flight grows from the chip into the profile's display type.
 class _NameFlight extends StatelessWidget {
   const _NameFlight({required this.name, required this.animation});
 
@@ -160,21 +158,8 @@ class _NameFlight extends StatelessWidget {
         // The route's animation: 0 at Home, 1 at Profile, in both
         // directions.
         final t = Curves.easeInOut.transform(animation.value);
-        final field = t.clamp(0.0, 1.0);
-        return Container(
+        return Align(
           alignment: AlignmentDirectional.centerStart,
-          padding: EdgeInsetsDirectional.lerp(
-            EdgeInsetsDirectional.zero,
-            const EdgeInsetsDirectional.fromSTEB(14, 0, 8, 0),
-            field,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.surface.withValues(alpha: field),
-            borderRadius: BorderRadius.circular(14 * field),
-            border: Border.all(
-              color: AppColors.border.withValues(alpha: field),
-            ),
-          ),
           child: Text(
             name,
             maxLines: 1,
@@ -182,12 +167,9 @@ class _NameFlight extends StatelessWidget {
             overflow: TextOverflow.fade,
             style: TextStyle(
               color: AppColors.textPrimary,
-              fontSize: 13.5 + (17 - 13.5) * field,
-              fontWeight: FontWeight.lerp(
-                FontWeight.w700,
-                FontWeight.w800,
-                field,
-              ),
+              fontSize: 13.5 + (24 - 13.5) * t,
+              fontWeight: FontWeight.lerp(FontWeight.w700, FontWeight.w800, t),
+              height: 1.18,
             ),
           ),
         );

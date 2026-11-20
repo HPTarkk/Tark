@@ -81,6 +81,7 @@ export function startup(lang, faPath) {
 }
 export function loaderMarkup(lang) {
   return translateMarkup(readFileSync(new URL('./website-loader.html', import.meta.url), 'utf8'), lang)
+    .replace(/\r\n/g, '\n')
     .replace(/<output id="loadPercent">.*?<\/output>/, `<output id="loadPercent">${lang === 'fa' ? '۰٪' : '0%'}</output>`);
 }
 export function loaderFontCss(lang) {

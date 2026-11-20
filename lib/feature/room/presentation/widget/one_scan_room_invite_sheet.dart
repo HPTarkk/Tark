@@ -306,7 +306,8 @@ class OneScanRoomInviteSheet extends StatefulWidget {
   State<OneScanRoomInviteSheet> createState() => _OneScanRoomInviteSheetState();
 }
 
-class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
+class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet>
+    with WidgetsBindingObserver {
   RoomRepository get _repository =>
       widget.repository ?? GetIt.instance<RoomRepository>();
 
@@ -361,6 +362,8 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   RoomInviteLink? _hosted;
   bool _hostingPending = false;
   bool _hostingFailed = false;
+  bool _locationRequired = false;
+  int? _locationSettingsAttempt;
   bool _shownReported = false;
   StreamSubscription<HotspotLinkState>? _stateSub;
   StreamSubscription<HotspotCredentials>? _credentialsSub;
@@ -403,6 +406,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       _arrivalLost = false;
       _hosted = null;
       _hostingFailed = false;
+      _locationRequired = false;
       _hostingPending = true;
       // The next code is a new one for the opener to wait on.
       _shownReported = false;
@@ -452,6 +456,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final keeper = _keeper;
     if (keeper != null) {
       _syncKeeper(keeper);
@@ -482,8 +487,11 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
     int attempt,
   ) async {
     RoomInviteLink? link;
+    var locationRequired = false;
     try {
       link = await pending;
+    } on HotspotLocationRequired {
+      locationRequired = true;
     } catch (_) {
       link = null;
     }
@@ -492,6 +500,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       _hostingPending = false;
       _hosted = link;
       _hostingFailed = link == null;
+      _locationRequired = locationRequired;
     });
     _reportShown();
   }
@@ -522,11 +531,43 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       if (reissue) _loading = true;
       if (relink) {
         _hostingFailed = false;
+        _locationRequired = false;
         _hostingPending = true;
       }
     });
     if (relink) unawaited(_awaitHosting(_relink(), attempt));
     if (reissue) unawaited(_issue());
+  }
+
+  VoidCallback? get _locationSettingsAction {
+    final services = GetIt.instance;
+    if (!_locationRequired || !services.isRegistered<HotspotHost>()) {
+      return null;
+    }
+    return () => unawaited(_openLocationSettings(services<HotspotHost>()));
+  }
+
+  Future<void> _openLocationSettings(HotspotHost host) async {
+    if (_locationSettingsAttempt == _linkAttempt) return;
+    final attempt = _locationSettingsAttempt = _linkAttempt;
+    HapticFeedback.selectionClick();
+    try {
+      await host.openFixSettings(HotspotLocationRequired.errorCode);
+    } catch (_) {
+      if (_locationSettingsAttempt == attempt) _locationSettingsAttempt = null;
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    final attempt = _locationSettingsAttempt;
+    _locationSettingsAttempt = null;
+    if (attempt == _linkAttempt &&
+        _locationRequired &&
+        ModalRoute.of(context)?.isCurrent == true) {
+      _retry();
+    }
   }
 
   /// A fresh link from the opener, which owns the radios: the sheet only
@@ -597,6 +638,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     widget.invitee?.removeListener(_onInvitee);
     unawaited(_stateSub?.cancel());
     unawaited(_credentialsSub?.cancel());
@@ -761,6 +803,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   String _failureReason(BuildContext context) {
     final s = context.getString;
     if (_error case final error?) return error;
+    if (_locationRequired) return s.hotspot_error_location;
     if (_hostingFailed) {
       return _linkKind == LinkPreparingKind.bluetooth
           ? s.rcv_invite_bluetooth_failed
@@ -820,6 +863,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
     final preparing = _preparing;
     final payload = preparing ? null : _payload;
     final failed = !preparing && payload == null;
+    final locationRequired = failed && _locationRequired && _error == null;
     if (payload != null && _invitee != RoomInviteeProgress.waiting) {
       return _arrivalBody(context);
     }
@@ -875,6 +919,9 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
                   kind: _error != null ? LinkPreparingKind.code : _linkKind,
                   qrSize: qrSize,
                   failed: failed,
+                  failureIcon: locationRequired
+                      ? Icons.location_off_rounded
+                      : null,
                   ready: payload == null
                       ? null
                       // A flip of the grant is a different code, and the swap
@@ -921,6 +968,8 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
                   key: const Key('one-scan-room-invite-unavailable'),
                   title: _error != null
                       ? context.getString.people_invite_title
+                      : locationRequired
+                      ? context.getString.rcv_invite_location_title
                       : context.getString.rcv_invite_failed_title,
                   reason: _failureReason(context),
                 )
@@ -969,6 +1018,9 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
           const SizedBox(height: 18),
           _FailureActions(
             onRetry: _canRetry ? _retry : null,
+            onLocationSettings: locationRequired
+                ? _locationSettingsAction
+                : null,
             onScanInstead: widget.onScanInstead == null || _error != null
                 ? null
                 : _scanInstead,
@@ -1018,15 +1070,21 @@ class _FailureCaption extends StatelessWidget {
 
 /// Try again, big and first; the swap and the way out under it.
 class _FailureActions extends StatelessWidget {
-  const _FailureActions({required this.onRetry, required this.onScanInstead});
+  const _FailureActions({
+    required this.onRetry,
+    required this.onLocationSettings,
+    required this.onScanInstead,
+  });
 
   final VoidCallback? onRetry;
+  final VoidCallback? onLocationSettings;
   final VoidCallback? onScanInstead;
 
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    final retry = onRetry;
+    final location = onLocationSettings;
+    final primary = location ?? onRetry;
     final scan = onScanInstead;
     return StaggeredEntrance(
       builder: (context, children) => Column(
@@ -1039,19 +1097,27 @@ class _FailureActions extends StatelessWidget {
         ],
       ),
       children: [
-        if (retry != null)
+        if (primary != null)
           FilledButton.icon(
-            key: const Key('one-scan-room-invite-retry'),
-            onPressed: retry,
+            key: location == null
+                ? const Key('one-scan-room-invite-retry')
+                : const Key('one-scan-room-invite-location-settings'),
+            onPressed: primary,
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            icon: const Icon(Icons.refresh_rounded),
+            icon: Icon(
+              location == null
+                  ? Icons.refresh_rounded
+                  : Icons.location_on_rounded,
+            ),
             label: Text(
-              s.reconnect_retry,
+              location == null
+                  ? s.reconnect_retry
+                  : s.rcv_invite_location_settings,
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
             ),
           ),

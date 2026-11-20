@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -24,10 +25,11 @@ class _FakeChecker extends UpdateChecker {
   _FakeChecker(this.offer, SharedPreferences prefs) : super(_NoApi(), prefs);
 
   final UpdateOffer? offer;
+  Future<UpdateOffer?>? pending;
   int snoozes = 0;
 
   @override
-  Future<UpdateOffer?> check() async => offer;
+  Future<UpdateOffer?> check() => pending ?? Future.value(offer);
 
   @override
   Future<void> snooze(UpdateOffer offer) async => snoozes++;
@@ -143,8 +145,10 @@ void main() {
     String lang = 'en',
     bool reduced = false,
     ValueChanged<bool>? onAnswered,
+    Future<UpdateOffer?>? pending,
+    Widget? home,
   }) async {
-    final checker = _FakeChecker(offer, prefs);
+    final checker = _FakeChecker(offer, prefs)..pending = pending;
     launcher = _FakeLauncher(storeOpens);
     GetIt.instance
       ..registerSingleton<UpdateChecker>(checker)
@@ -168,7 +172,7 @@ void main() {
             ),
           ),
         ),
-        home: const Scaffold(body: Center(child: Text('app'))),
+        home: home ?? const Scaffold(body: Center(child: Text('app'))),
       ),
     );
     return checker;
@@ -206,6 +210,35 @@ void main() {
     await settle(tester);
     expect(find.text('app'), findsOneWidget);
     expect(find.byKey(const Key('update-action')), findsNothing);
+  });
+
+  testWidgets('a stalled update check leaves the app interactive', (
+    tester,
+  ) async {
+    final response = Completer<UpdateOffer?>();
+    var taps = 0;
+    await pumpGate(
+      tester,
+      null,
+      pending: response.future,
+      home: Scaffold(
+        body: Center(
+          child: TextButton(
+            onPressed: () => taps++,
+            child: const Text('Open radio'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open radio'));
+    expect(taps, 1);
+    expect(find.byKey(const Key('update-action')), findsNothing);
+
+    response.complete(null);
+    await tester.pump();
+    await tester.tap(find.text('Open radio'));
+    expect(taps, 2);
   });
 
   testWidgets('optional: shows on home, and Not now snoozes it', (

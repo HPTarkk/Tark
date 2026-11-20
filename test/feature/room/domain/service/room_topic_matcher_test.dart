@@ -90,6 +90,7 @@ void main() {
         'کاروان نیمه‌شب': RoomTopic.car,
         'سفر جاده‌ای': RoomTopic.car,
         'جادهٔ شمال': RoomTopic.car,
+        'جاده‌ی شمال': RoomTopic.car,
         'شمال': RoomTopic.beach,
         'سفر': RoomTopic.travel,
         'سفرهای تابستونی': RoomTopic.travel,

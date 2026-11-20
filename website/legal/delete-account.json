@@ -39,7 +39,7 @@
     },
     "lede": {
       "en": "The quickest way is inside the app. If you can’t use the app, you can do it right here: we email a one-time link to the account’s address, and you confirm on the page it opens. Either way it takes effect at once.",
-      "fa": "سریع‌ترین راه از داخل خود برنامه‌ست. اگه به برنامه دسترسی نداری، همین‌جا می‌تونی: یه لینک یک‌بارمصرف به ایمیل حسابت می‌فرستیم و توی صفحه‌ای که باز می‌کنه تأیید می‌کنی. هر دو راه همون لحظه انجام می‌شن."
+      "fa": "سریع‌ترین راه از داخل خود برنامه‌ست. اگه به برنامه دسترسی نداری، همین‌جا می‌تونی: یه لینک یک‌بارمصرف به ایمیل حسابت می‌فرستیم و توی صفحه‌ای که باز می‌کنه تایید می‌کنی. هر دو راه همون لحظه انجام می‌شن."
     },
     "inEffectSince": {
       "en": "Last updated",
@@ -143,7 +143,7 @@
             },
             {
               "en": "Confirm it’s you: type the account’s email and your password — or, for a Google account, sign in with Google again.",
-              "fa": "تأیید کن که خودتی: ایمیل حساب و رمز عبورت رو وارد کن — یا اگه حسابت گوگلیه، دوباره با گوگل وارد شو."
+              "fa": "تایید کن که خودتی: ایمیل حساب و رمز عبورت رو وارد کن — یا اگه حسابت گوگلیه، دوباره با گوگل وارد شو."
             },
             {
               "en": "If a subscription is still running, the app reminds you that deleting the account doesn’t cancel it.",
@@ -151,7 +151,7 @@
             },
             {
               "en": "Confirm once more. The account is deleted, and every phone signed in to it is signed out.",
-              "fa": "یه بار دیگه تأیید کن. حساب پاک می‌شه و همه‌ی گوشی‌هایی که واردش بودن ازش خارج می‌شن."
+              "fa": "یه بار دیگه تایید کن. حساب پاک می‌شه و همه‌ی گوشی‌هایی که واردش بودن ازش خارج می‌شن."
             }
           ]
         },
@@ -183,7 +183,7 @@
           "type": "p",
           "text": {
             "en": "No phone, a forgotten password, or a Google account you no longer use? Enter the account’s email below. If it belongs to a Tarkk account, we email it a one-time link that works for 15 minutes. The link opens a page that shows what will be deleted and asks you to confirm.",
-            "fa": "گوشی دستت نیست، رمزت یادت رفته، یا دیگه به حساب گوگلت دسترسی نداری؟ ایمیل حسابت رو این پایین وارد کن. اگه مال یه حساب تَرک باشه، یه لینک یک‌بارمصرف براش می‌فرستیم که ۱۵ دقیقه کار می‌کنه. اون لینک صفحه‌ای رو باز می‌کنه که نشون می‌ده چی پاک می‌شه و ازت تأیید می‌گیره."
+            "fa": "گوشی دستت نیست، رمزت یادت رفته، یا دیگه به حساب گوگلت دسترسی نداری؟ ایمیل حسابت رو این پایین وارد کن. اگه مال یه حساب تَرک باشه، یه لینک یک‌بارمصرف براش می‌فرستیم که ۱۵ دقیقه کار می‌کنه. اون لینک صفحه‌ای رو باز می‌کنه که نشون می‌ده چی پاک می‌شه و ازت تایید می‌گیره."
           }
         },
         {
@@ -301,7 +301,7 @@
           "type": "p",
           "text": {
             "en": "Security records — for example a failed sign-in, or the fact that an account was deleted — stay for up to a year so we can look into abuse. Your account id is removed from them, and an IP address is only ever stored as a one-way hash. Cafe Bazaar keeps its own record of a payment, under Bazaar’s policy; we can’t delete that for you.",
-            "fa": "سوابق امنیتی — مثلاً یه ورود ناموفق، یا این‌که حسابی پاک شده — تا یک سال می‌مونن تا اگه سوءاستفاده‌ای شد بتونیم بررسیش کنیم. شناسه‌ی حسابت ازشون پاک می‌شه و نشانی IP هیچ‌وقت جز به شکل هش یک‌طرفه ذخیره نمی‌شه. کافه‌بازار هم سابقه‌ی پرداخت رو طبق سیاست خودش نگه می‌داره؛ اون رو ما نمی‌تونیم پاک کنیم."
+            "fa": "سوابق امنیتی — مثلاً یه ورود ناموفق، یا این‌که حسابی پاک شده — تا یک سال می‌مونن تا اگه سواستفاده‌ای شد بتونیم بررسیش کنیم. شناسه‌ی حسابت ازشون پاک می‌شه و نشانی IP هیچ‌وقت جز به شکل هش یک‌طرفه ذخیره نمی‌شه. کافه‌بازار هم سابقه‌ی پرداخت رو طبق سیاست خودش نگه می‌داره؛ اون رو ما نمی‌تونیم پاک کنیم."
           }
         },
         {
@@ -359,7 +359,7 @@
           "type": "p",
           "text": {
             "en": "Questions about deleting your account, or about what we keep, go to the address below.",
-            "fa": "سؤال درباره‌ی پاک کردن حساب، یا چیزهایی که نگه می‌داریم، به نشانی زیر بفرست."
+            "fa": "سوال درباره‌ی پاک کردن حساب، یا چیزهایی که نگه می‌داریم، به نشانی زیر بفرست."
           }
         },
         {
@@ -370,7 +370,7 @@
               "href": "mailto:tarkk.hp@gmail.com",
               "text": {
                 "en": "Account deletion requests, privacy questions, and everything else.",
-                "fa": "درخواست پاک کردن حساب، سؤالات حریم خصوصی، و هر چیز دیگه‌ای."
+                "fa": "درخواست پاک کردن حساب، سوالات حریم خصوصی، و هر چیز دیگه‌ای."
               }
             }
           ]

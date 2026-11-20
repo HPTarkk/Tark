@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../utils/logger.dart';
 import 'api_failure.dart';
+import 'http_deadline.dart';
 import 'service_api.dart';
 
 /// [TarkServiceClient] over `package:http`, with the same rules as
@@ -45,73 +46,9 @@ class HttpTarkServiceClient implements TarkServiceClient {
     final url = _base.replace(path: '$basePath${request.path}');
 
     try {
-      final outgoing = http.Request(method, url)
-        ..headers['Accept'] = 'application/json';
-      final common = _commonHeaders;
-      if (common != null) {
-        try {
-          outgoing.headers.addAll(await common());
-        } catch (error) {
-          // A header we could not compute (the install key, say) is left
-          // off: every such header is optional for the calls that allow it.
-          Logger.log('API: common headers unavailable ($error)');
-        }
-      }
-      outgoing.headers.addAll(request.headers);
-      final key = request.idempotencyKey;
-      if (key != null) outgoing.headers['Idempotency-Key'] = key;
-      final body = request.body;
-      if (body != null) {
-        outgoing.headers['Content-Type'] = 'application/json';
-        outgoing.body = jsonEncode(body);
-      }
-
-      final response = await _client.send(outgoing).timeout(_timeout);
-      final declared = response.contentLength;
-      if (declared != null && declared > _maxBytes) {
-        return ApiTransportFailure(
-          ResponseTooLarge('$label declared $declared bytes'),
-        );
-      }
-      final bytes = <int>[];
-      await for (final chunk in response.stream.timeout(_timeout)) {
-        bytes.addAll(chunk);
-        if (bytes.length > _maxBytes) {
-          return ApiTransportFailure(
-            ResponseTooLarge('$label exceeded $_maxBytes bytes'),
-          );
-        }
-      }
-
-      final status = response.statusCode;
-      Logger.log('API: $label → $status');
-      final decoded = bytes.isEmpty ? null : _tryDecode(bytes);
-
-      if (status >= 200 && status < 300) {
-        if (bytes.isEmpty) {
-          return ApiOk(status, const {}, headers: response.headers);
-        }
-        if (decoded is! Map<String, dynamic>) {
-          return ApiTransportFailure(
-            MalformedResponse('$label returned a non-object body'),
-          );
-        }
-        return ApiOk(status, decoded, headers: response.headers);
-      }
-
-      // A failure. The Problem shape when the server wrote one; a proxy or
-      // gateway page otherwise, which gets a synthetic code so callers still
-      // branch on status alone.
-      final problem = decoded is Map<String, dynamic> ? decoded : null;
-      final code = problem?['code'];
-      final fields = <String, dynamic>{...?problem}
-        ..remove('code')
-        ..remove('detail');
-      return ApiProblem(
-        status,
-        code is String && code.isNotEmpty ? code : 'http_$status',
-        fields: fields,
-        retryAfter: _retryAfter(problem, response.headers),
+      return await withHttpDeadline(
+        _timeout,
+        (abort) => _exchange(request, method, url, label, abort),
       );
     } on TimeoutException catch (e) {
       Logger.log('API: $label timed out');
@@ -122,6 +59,90 @@ class HttpTarkServiceClient implements TarkServiceClient {
       Logger.log('API: $label failed (${e.runtimeType})');
       return ApiTransportFailure(NetworkUnreachable('$label failed: $e'));
     }
+  }
+
+  Future<ApiResponse> _exchange(
+    ApiRequest request,
+    String method,
+    Uri url,
+    String label,
+    Completer<void> abort,
+  ) async {
+    final outgoing = http.AbortableRequest(
+      method,
+      url,
+      abortTrigger: abort.future,
+    )..headers['Accept'] = 'application/json';
+    final common = _commonHeaders;
+    if (common != null) {
+      try {
+        outgoing.headers.addAll(await common());
+      } catch (error) {
+        // A header we could not compute (the install key, say) is left
+        // off: every such header is optional for the calls that allow it.
+        Logger.log('API: common headers unavailable ($error)');
+      }
+    }
+    outgoing.headers.addAll(request.headers);
+    final key = request.idempotencyKey;
+    if (key != null) outgoing.headers['Idempotency-Key'] = key;
+    final body = request.body;
+    if (body != null) {
+      outgoing.headers['Content-Type'] = 'application/json';
+      outgoing.body = jsonEncode(body);
+    }
+
+    if (abort.isCompleted) {
+      throw TimeoutException('$label timed out preparing headers');
+    }
+    final response = await _client.send(outgoing);
+    final declared = response.contentLength;
+    if (declared != null && declared > _maxBytes) {
+      await discardHttpBody(response);
+      return ApiTransportFailure(
+        ResponseTooLarge('$label declared $declared bytes'),
+      );
+    }
+    final bytes = <int>[];
+    await for (final chunk in response.stream) {
+      bytes.addAll(chunk);
+      if (bytes.length > _maxBytes) {
+        return ApiTransportFailure(
+          ResponseTooLarge('$label exceeded $_maxBytes bytes'),
+        );
+      }
+    }
+
+    final status = response.statusCode;
+    Logger.log('API: $label → $status');
+    final decoded = bytes.isEmpty ? null : _tryDecode(bytes);
+
+    if (status >= 200 && status < 300) {
+      if (bytes.isEmpty) {
+        return ApiOk(status, const {}, headers: response.headers);
+      }
+      if (decoded is! Map<String, dynamic>) {
+        return ApiTransportFailure(
+          MalformedResponse('$label returned a non-object body'),
+        );
+      }
+      return ApiOk(status, decoded, headers: response.headers);
+    }
+
+    // A failure. The Problem shape when the server wrote one; a proxy or
+    // gateway page otherwise, which gets a synthetic code so callers still
+    // branch on status alone.
+    final problem = decoded is Map<String, dynamic> ? decoded : null;
+    final code = problem?['code'];
+    final fields = <String, dynamic>{...?problem}
+      ..remove('code')
+      ..remove('detail');
+    return ApiProblem(
+      status,
+      code is String && code.isNotEmpty ? code : 'http_$status',
+      fields: fields,
+      retryAfter: _retryAfter(problem, response.headers),
+    );
   }
 
   static Object? _tryDecode(List<int> bytes) {
