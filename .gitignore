@@ -189,3 +189,6 @@ client_secret_*.json
 # Local Cloudflare deployment state.
 .wrangler/
 .security
+
+# Local SSH destination for website and guest app releases.
+/.SERVER

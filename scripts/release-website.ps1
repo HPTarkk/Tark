@@ -2,8 +2,8 @@
 # to the Tarkk server, which serves it at tarkk.ir (backend/deploy/vps).
 [CmdletBinding()]
 param(
-    # user@host of the server. Default: $env:TARK_SERVER, else root@94.184.25.235.
-    [string]$Server = $(if ($env:TARK_SERVER) { $env:TARK_SERVER } else { 'root@94.184.25.235' }),
+    # SSH destination (user@host). Defaults to TARK_SERVER or .SERVER.
+    [string]$Server = $env:TARK_SERVER,
     [int]$SshPort = 22,
     [string]$SshKey = '',
     [ValidateSet('patch', 'minor', 'major')]
@@ -18,6 +18,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'release-server.ps1')
+$Server = Resolve-ReleaseServer $repoRoot $Server ($PSBoundParameters.ContainsKey('Server'))
 $packagePath = Join-Path $repoRoot 'website/package.json'
 $manifestPath = Join-Path $repoRoot 'website/site-version.json'
 $publishScript = Join-Path $repoRoot 'backend/deploy/vps/publish-sites.ps1'

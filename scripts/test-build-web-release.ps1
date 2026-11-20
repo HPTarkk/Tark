@@ -49,6 +49,7 @@ try {
     }
     $fixtureRelease = Join-Path $fixtureRoot 'scripts/build-web-release.ps1'
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'build-web-release.ps1') -Destination $fixtureRelease
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'release-server.ps1') -Destination (Join-Path $fixtureRoot 'scripts')
     [IO.File]::WriteAllText((Join-Path $fixtureRoot 'pubspec.yaml'), 'version: 1.2.3+42', $utf8)
     [IO.File]::WriteAllText((Join-Path $fixtureRoot 'bin/flutter.ps1'), @'
 $root = Split-Path -Parent $PSScriptRoot
@@ -104,6 +105,7 @@ exec '$pwshPath' -NoLogo -NoProfile -NonInteractive -File "`$(dirname "`$0")/$co
 
     $serverDefault = $options.Clone()
     $serverDefault.Remove('Server')
+    [IO.File]::WriteAllText((Join-Path $fixtureRoot '.SERVER'), "root@local.invalid`n", $utf8)
     & $fixtureRelease @serverDefault -DryRun
     $upload = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'publish-args.json') | ConvertFrom-Json
     Assert-Release ($upload.Server -eq 'root@fixture.invalid') 'use the server from TARK_SERVER by default'

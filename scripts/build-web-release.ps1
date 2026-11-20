@@ -11,8 +11,8 @@ param(
     [switch]$DryRun,
     [switch]$BuildOnly,
     [switch]$NonInteractive = $true,
-    # user@host of the server. Default: $env:TARK_SERVER, else root@94.184.25.235.
-    [string]$Server = $(if ($env:TARK_SERVER) { $env:TARK_SERVER } else { 'root@94.184.25.235' }),
+    # SSH destination (user@host). Defaults to TARK_SERVER or .SERVER.
+    [string]$Server = $env:TARK_SERVER,
     [int]$SshPort = 22,
     [string]$SshKey = '',
     [string]$GuestUrl = 'https://app.tarkk.ir',
@@ -23,6 +23,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'release-server.ps1')
+$serverSpecified = $PSBoundParameters.ContainsKey('Server')
 $utf8 = [Text.UTF8Encoding]::new($false)
 if ($Auto) { $Deploy = $true; $NonInteractive = $true }
 if ($BuildOnly -and ($Deploy -or $DryRun)) { throw '-BuildOnly cannot be combined with -Deploy or -DryRun.' }
@@ -58,10 +60,10 @@ function Read-DeploymentSettings {
     if ($guestUri.Host -ne 'app.tarkk.ir') {
         throw "The guest URL must match the guest host the server serves, app.tarkk.ir (TARK_GUEST_DOMAIN), not $($guestUri.Host). Use -BuildOnly to build for another host."
     }
-    if ($Server -notmatch '^[A-Za-z0-9._-]+@[A-Za-z0-9.:_-]+$') { throw "-Server does not look like user@host: $Server" }
+    $destination = Resolve-ReleaseServer $repoRoot $Server $serverSpecified
     $script = Join-Path $repoRoot 'backend/deploy/vps/publish-sites.ps1'
     if (-not (Test-Path -LiteralPath $script -PathType Leaf)) { throw "$script was not found." }
-    return [pscustomobject]@{ Script = $script }
+    return [pscustomobject]@{ Script = $script; Server = $destination }
 }
 
 Push-Location -LiteralPath $repoRoot
@@ -130,10 +132,11 @@ try {
 
     $publish = $Deploy -or $DryRun
     if (-not $publish -and -not $BuildOnly) {
-        $publish = AskYesNo "Publish this guest app to $Server now?" $false
+        $publish = AskYesNo 'Publish this guest app now?' $false
     }
     if ($publish) {
         if ($null -eq $deployment) { $deployment = Read-DeploymentSettings }
+        $Server = $deployment.Server
         $tag = "web-v$($appVersion.Replace('+', '-'))"
         $publishArgs = @{ Server = $Server; Site = 'guest'; GuestDir = $outDir; SshPort = $SshPort }
         if ($SshKey) { $publishArgs.SshKey = $SshKey }

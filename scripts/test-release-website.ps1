@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $fixtureRoot = Join-Path $repoRoot ('build/website-release-test-' + [Guid]::NewGuid().ToString('N'))
 $savedServer = $env:TARK_SERVER
-$env:TARK_SERVER = 'root@fixture.invalid'
+$env:TARK_SERVER = $null
 $utf8 = [Text.UTF8Encoding]::new($false)
 function Assert-Release($Condition, [string]$Description) {
     if (-not $Condition) { throw "Release regression: $Description" }
@@ -17,6 +17,7 @@ try {
         New-Item -ItemType Directory -Path (Join-Path $fixtureRoot $dir) -Force | Out-Null
     }
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'release-website.ps1') -Destination (Join-Path $fixtureRoot 'scripts/release-website.ps1')
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'release-server.ps1') -Destination (Join-Path $fixtureRoot 'scripts')
     foreach ($name in @('build-website-i18n.mjs', 'build-legal-pages.mjs', 'check-website.mjs')) {
         [IO.File]::WriteAllText((Join-Path $fixtureRoot "scripts/$name"), '// fixture generator', $utf8)
     }
@@ -36,6 +37,7 @@ if (Test-Path -LiteralPath (Join-Path $root 'fail-upload')) { exit 9 }
     & git -C $fixtureRoot -c user.name=ReleaseTest -c user.email=release-test@example.invalid commit --quiet -m fixture
     Assert-Release ($LASTEXITCODE -eq 0) 'fixture commit'
     $original = [Convert]::ToBase64String([IO.File]::ReadAllBytes($fixturePackage))
+    [IO.File]::WriteAllText((Join-Path $fixtureRoot '.SERVER'), "root@fixture.invalid`n", $utf8)
 
     & $fixtureRelease -DryRun -Bump minor
     Assert-Release ($original -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($fixturePackage))) 'dry run must restore package bytes'

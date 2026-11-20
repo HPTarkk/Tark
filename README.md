@@ -164,9 +164,10 @@ verifies the live web app with no prompts:
 
 Publishing goes through `backend/deploy/vps/publish-sites.ps1 -Site guest`: it
 packs `build/web`, copies it over SSH and switches the server to it in one step
-(`publish-sites.ps1 -Site guest -Rollback` goes back). The server is
-`$env:TARK_SERVER`, or `root@94.184.25.235` when that is not set; the SSH key
-login is the one `deploy.ps1` uses. The server's Caddy serves the app with
+(`publish-sites.ps1 -Site guest -Rollback` goes back). For both web release
+scripts, put one `user@host` line in `.SERVER` at the repository root. Git
+ignores this local file. `TARK_SERVER` overrides `.SERVER`, and `-Server`
+overrides both. The SSH key login is the one `deploy.ps1` uses. The server's Caddy serves the app with
 single-page routing (`backend/deploy/vps/Caddyfile`). Use PowerShell 7;
 builds need only Flutter and Git, publishing also the OpenSSH client.
 The script restores the caller's `CI` environment afterward. Add
@@ -201,7 +202,7 @@ The site is served by the Tarkk server (Caddy, `backend/deploy/vps/Caddyfile`, w
 ./scripts/release-website.ps1 -Version 2.0.0 -Message 'Website redesign'
 ```
 
-Node.js, Git and the OpenSSH client are required; the script publishes through `backend/deploy/vps/publish-sites.ps1 -Site website` to `$env:TARK_SERVER`, or `root@94.184.25.235` when that is not set (`-Server` picks another). `website/package.json` holds the website's version, independent of the Android version. Each successful release has a public `/site-version.json` marker with the version, source commit, working-tree state and build time. Once the live marker checks out, the script commits just those two version files as `Website X.Y.Z` and pushes them to the current branch (`-NoPush` keeps the commit local); if that step fails it says so and names the files to commit by hand. A dry run or failed upload restores those files; a published release retains them even if the public verification fails. This script does not create Git tags or releases. It uploads the entire `website/` directory, including `update.json`, `legal/` and `.well-known/`, and the server switches to it in one step (`publish-sites.ps1 -Site website -Rollback` goes back). The browser guest app is published separately.
+Node.js, Git and the OpenSSH client are required; the script publishes through `backend/deploy/vps/publish-sites.ps1 -Site website` to the server configured in `.SERVER` (overridden by `TARK_SERVER` or `-Server`). `website/package.json` holds the website's version, independent of the Android version. Each successful release has a public `/site-version.json` marker with the version, source commit, working-tree state and build time. Once the live marker checks out, the script commits just those two version files as `Website X.Y.Z` and pushes them to the current branch (`-NoPush` keeps the commit local); if that step fails it says so and names the files to commit by hand. A dry run or failed upload restores those files; a published release retains them even if the public verification fails. This script does not create Git tags or releases. It uploads the entire `website/` directory, including `update.json`, `legal/` and `.well-known/`, and the server switches to it in one step (`publish-sites.ps1 -Site website -Rollback` goes back). The browser guest app is published separately.
 
 The forest palette and application handoff are documented in `docs/website-design.md`. Local font files, icons and GSAP include their licenses. The branded loading sequence runs on the first visit in a tab; subsequent document navigation shares the horizontal curtain used for language changes. Same-page anchors retain smooth scrolling. Email-token fallback routes use CSS-only entrance motion.
 
