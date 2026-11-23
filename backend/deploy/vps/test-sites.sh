@@ -26,6 +26,8 @@ echo 'console.log(1)' > "$work/sites/guest/main.dart.js"
 TARK_DOMAIN="http://api.localhost:$port" \
 TARK_ADMIN_DOMAIN="http://admin.localhost:$port" \
 TARK_SITE_ADDRESS="http://site.localhost:$port" \
+TARK_SITE_ALIAS_ADDRESS="http://www.site.localhost:$port" \
+TARK_SITE_CANONICAL="https://tarkk.ir" \
 TARK_GUEST_ADDRESS="http://guest.localhost:$port" \
 TARK_SITES_ROOT="$work/sites" \
 XDG_DATA_HOME="$work/data" XDG_CONFIG_HOME="$work/config" \
@@ -59,9 +61,9 @@ site "$base/fa/";               expect_status /fa/ 200; expect_same /fa/ "$repo/
 site "$base/fa";                expect_status /fa 308; expect_header /fa Location /fa/
 site "$base/privacy";           expect_status /privacy 200; expect_same /privacy "$repo/website/privacy.html"
 site "$base/fa/privacy";        expect_status /fa/privacy 200; expect_same /fa/privacy "$repo/website/fa/privacy.html"
-site "$base/privacy.html";      expect_status /privacy.html 307; expect_header /privacy.html Location /privacy
-site "$base/index.html";        expect_status /index.html 307; expect_header /index.html Location /
-site "$base/fa/index.html";     expect_status /fa/index.html 307; expect_header /fa/index.html Location /fa/
+site "$base/privacy.html";      expect_status /privacy.html 308; expect_header /privacy.html Location /privacy
+site "$base/index.html";        expect_status /index.html 308; expect_header /index.html Location /
+site "$base/fa/index.html";     expect_status /fa/index.html 308; expect_header /fa/index.html Location /fa/
 site "$base/delete-account";    expect_status /delete-account 200
 site "$base/no-such-page";      expect_status /no-such-page 404
 site "$base/_headers";          expect_status /_headers 404
@@ -96,10 +98,14 @@ for p in /confirm-delete /fa/confirm-delete ; do
                                 expect_header "$p" Referrer-Policy no-referrer
   case "$(header Content-Security-Policy)" in "default-src 'none'; script-src 'self';"*"connect-src 'self';"*"frame-ancestors 'none'") ok "$p: Content-Security-Policy" ;; *) bad "$p: Content-Security-Policy is '$(header Content-Security-Policy)'" ;; esac
 done
-# The website's three deletion routes reach the API (not running here, so
-# 502); nothing else of the API is reachable through the website's host.
+# The website's three deletion routes reach the proxy. The API is offline
+# here, so Caddy returns 502 or 503 depending on upstream health state.
 for p in request inspect confirm ; do
-  site -X POST "$base/api/v1/account/web-delete/$p"; expect_status "POST /api/v1/account/web-delete/$p (proxied)" 502
+  site -X POST "$base/api/v1/account/web-delete/$p"
+  case "$(status)" in
+    502|503) ok "POST /api/v1/account/web-delete/$p (proxied)" ;;
+    *) bad "POST /api/v1/account/web-delete/$p: status $(status), want 502 or 503" ;;
+  esac
 done
 site -X POST "$base/api/v1/auth/login";  expect_status "POST /api/v1/auth/login (not proxied)" 404
 site "$base/api/v1/profile";             expect_status "/api/v1/profile (not proxied)" 404
@@ -114,6 +120,14 @@ guest "$base/";                 expect_status / 200; expect_same / "$work/sites/
                                 [ -z "$(header Server)" ] && ok "/: no Server header" || bad "/: Server header is '$(header Server)'"
 guest "$base/main.dart.js";     expect_status /main.dart.js 200; expect_same /main.dart.js "$work/sites/guest/main.dart.js"
 guest "$base/room/ABC123";      expect_status "/room/ABC123 (in-app route)" 200; expect_same /room/ABC123 "$work/sites/guest/index.html"
+guest "$base/robots.txt";       expect_status "guest /robots.txt" 200
+                                expect_header "guest /robots.txt" Content-Type "text/plain; charset=utf-8"
+                                grep -qx 'Allow: /' "$work/body" && ok "guest /robots.txt allows crawling" || bad "guest /robots.txt does not allow crawling"
+guest "$base/sitemap.xml";      expect_status "guest /sitemap.xml" 404
+
+curl -sS -o "$work/body" -D "$work/head" -H "Host: www.site.localhost:$port" "$base/fa/?ref=search"
+expect_status "www /fa/" 308
+expect_header "www /fa/" Location "https://tarkk.ir/fa/?ref=search"
 
 echo "the two sites stay apart"
 site "$base/main.dart.js";      expect_status "website /main.dart.js" 404

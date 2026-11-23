@@ -82,9 +82,9 @@
 	# A page lives at its clean address: /privacy.html answers at /privacy and
 	# /fa/index.html at /fa/, as before.
 	@indexhtml path_regexp indexhtml ^(.*/)index\.html$
-	redir @indexhtml {re.indexhtml.1} 307
+	redir @indexhtml {re.indexhtml.1} 308
 	@dothtml path_regexp dothtml ^(.+)\.html$
-	redir @dothtml {re.dothtml.1} 307
+	redir @dothtml {re.dothtml.1} 308
 
 	# Account-email links, https://<site>/v/<register|reset|email>#<token>.
 	# On a phone with Tarkk they open the app and never arrive here; anywhere
@@ -159,6 +159,12 @@
 	}
 }
 
+# The optional www host redirects to the website, preserving path and query.
+{$TARK_SITE_ALIAS_ADDRESS:http://www.site.localhost} {
+	import hardened
+	redir {$TARK_SITE_CANONICAL:https://tarkk.ir}{uri} 308
+}
+
 # The browser guest app (a Flutter web build). It is one page that routes
 # inside the browser, so an address that is not a file gets index.html.
 {$TARK_GUEST_ADDRESS:http://guest.localhost} {
@@ -167,6 +173,14 @@
 	import pages
 	encode zstd gzip
 	header Cache-Control "public, max-age=0, must-revalidate"
-	try_files {path} /index.html
-	file_server
+	route {
+		# Crawlers must be able to read the app shell's noindex directive.
+		respond /robots.txt <<ROBOTS
+			User-agent: *
+			Allow: /
+			ROBOTS
+		respond /sitemap.xml 404
+		try_files {path} /index.html
+		file_server
+	}
 }

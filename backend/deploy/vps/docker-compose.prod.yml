@@ -82,6 +82,8 @@ services:
       # plain HTTP under stand-in names only, so no certificate is asked for
       # before DNS points here (see the Caddyfile).
       TARK_SITE_ADDRESS: ${TARK_SITE_DOMAIN:-http://site.localhost}
+      TARK_SITE_ALIAS_ADDRESS: ${TARK_SITE_ALIAS_DOMAIN:-http://www.site.localhost}
+      TARK_SITE_CANONICAL: https://${TARK_SITE_DOMAIN:-site.localhost}
       TARK_GUEST_ADDRESS: ${TARK_GUEST_DOMAIN:-http://guest.localhost}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro

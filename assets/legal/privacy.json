@@ -23,7 +23,7 @@
     },
     "description": {
       "en": "What Tarkk collects, what it never collects, and why. Your voice never reaches a server; the optional account you need to subscribe is described here in full.",
-      "fa": "تَرک چی جمع می‌کنه، چی رو هیچ‌وقت جمع نمی‌کنه، و چرا. صداتون هیچ‌وقت به هیچ سروری نمی‌رسه؛ حساب اختیاری‌ای هم که برای خرید اشتراک لازمه، اینجا کامل توضیح داده شده."
+      "fa": "سیاست حریم خصوصی تَرک توضیح می‌ده چه اطلاعاتی برای حساب کاربری ذخیره می‌شن و چرا صدای مکالمه‌های محلی به سرور نمی‌رسه."
     },
     "twitterDescription": {
       "en": "Voice goes phone to phone and never reaches a server. Accounts are optional and only needed to subscribe. The full list of what leaves your phone — and what never does.",
@@ -139,8 +139,8 @@
         {
           "type": "p",
           "text": {
-            "en": "Every claim on this page is checkable. Tarkk is open source under the AGPL-3.0, so the code that does — or does not — collect something is public, and you are welcome to read it instead of taking our word for any of this.",
-            "fa": "هر ادعایی توی این صفحه قابل بررسیه. تَرک متن‌بازه و با پروانه‌ی AGPL-3.0 منتشر شده، پس کدی که چیزی رو جمع می‌کنه — یا نمی‌کنه — عمومیه و می‌تونی به‌جای اعتماد به حرف ما، خودت بخونیش."
+            "en": "Tarkk’s source code is publicly available under PolyForm Noncommercial 1.0.0. You can inspect the code to see how Tarkk handles the data described on this page.",
+            "fa": "کد منبع تَرک با پروانه‌ی PolyForm Noncommercial 1.0.0 در دسترس عمومه. می‌تونی کد رو بخونی و ببینی تَرک با داده‌هایی که توی این صفحه توضیح دادیم چطور کار می‌کنه."
           }
         }
       ]

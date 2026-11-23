@@ -22,8 +22,8 @@
       "fa": "شرایط و ضوابط — تَرک"
     },
     "description": {
-      "en": "What you can expect from Tarkk and what it cannot promise. Bluetooth is free; a subscription adds Wi-Fi, hotspot and guest connections, self-mute and music. Open source under the AGPL-3.0.",
-      "fa": "چیزی که می‌تونی از تَرک انتظار داشته باشی و چیزی که نمی‌تونه قولش رو بده. بلوتوث رایگانه؛ اشتراک، اتصال وای‌فای و هات‌اسپات و مهمان، بی‌صدا کردن خودت و پخش آهنگ رو اضافه می‌کنه. متن‌باز با پروانه‌ی AGPL-3.0."
+      "en": "Read Tarkk’s terms for free Bluetooth calls, paid Wi-Fi and hotspot features, account use, and the source code licence.",
+      "fa": "شرایط استفاده از تَرک، مکالمه رایگان با بلوتوث، امکانات اشتراکی وای‌فای و هات‌اسپات، حساب کاربری و پروانه کد منبع."
     },
     "twitterDescription": {
       "en": "Bluetooth stays free; the rest is a monthly or annual subscription through Cafe Bazaar. Here is what that does and does not entitle you to, in words worth reading.",
@@ -40,8 +40,8 @@
       "fa": "چیزی که می‌تونی انتظار داشته باشی، و چیزی که نمی‌تونیم قولش رو بدیم."
     },
     "lede": {
-      "en": "Tarkk is open source, talking over Bluetooth is free, and the rest is a subscription. It talks over radios that do not always cooperate. These terms say what you get, what it asks of you, and — the part most terms skip — where the app can genuinely let you down.",
-      "fa": "تَرک متن‌بازه، حرف زدن با بلوتوث رایگانه و بقیه‌ش با اشتراکه. از روی رادیوهایی حرف می‌زنه که همیشه همکاری نمی‌کنن. این شرایط می‌گه چی می‌گیری، چی ازت می‌خواد، و — همون بخشی که بیشتر شرایط‌ها ازش رد می‌شن — کجا برنامه واقعاً ممکنه تنهات بذاره."
+      "en": "Tarkk’s source code is public. Bluetooth calls are free, and additional features come with a subscription. These terms cover what the app offers, what it asks of you, and what can go wrong during a call.",
+      "fa": "کد منبع تَرک در دسترس عمومه. مکالمه با بلوتوث رایگانه و امکانات بیشتر با اشتراک فعال می‌شه. این شرایط می‌گه برنامه چه امکاناتی داره، ازت چی می‌خواد و چه وقت ممکنه مکالمه قطع بشه."
     },
     "inEffectSince": {
       "en": "In effect since",
@@ -73,8 +73,8 @@
             "fa": "حرف زدن با بلوتوث، رایگان و بدون حساب کاربری. اشتراک ماهانه یا سالانه، اتصال وای‌فای و هات‌اسپات و مهمان، بی‌صدا کردن خودت و پخش آهنگ رو اضافه می‌کنه."
           },
           {
-            "en": "The source code, under the AGPL-3.0 — yours to read, run, change and pass on under that licence’s terms.",
-            "fa": "کد منبع، با پروانه‌ی AGPL-3.0 — مال خودته که بخونیش، اجراش کنی، تغییرش بدی و طبق شرایط همون پروانه دست به دستش کنی."
+            "en": "Public source code, available under PolyForm Noncommercial 1.0.0.",
+            "fa": "کد منبع عمومی، با پروانه‌ی PolyForm Noncommercial 1.0.0."
           },
           {
             "en": "A plain answer when something fails, in the app itself, and somewhere to report it when the answer is not enough.",
@@ -127,8 +127,8 @@
         {
           "type": "p",
           "text": {
-            "en": "These terms cover how you use Tarkk. They are not the licence for the code — that is the AGPL-3.0, and it says what it says regardless of anything written here.",
-            "fa": "این شرایط به نحوه‌ی استفاده‌ی تو از تَرک مربوطه. پروانه‌ی کد نیستن — پروانه AGPL-3.0 هست و هر چیزی که اینجا نوشته شده، حرف اون رو عوض نمی‌کنه."
+            "en": "These terms cover use of the Tarkk app and services. The repository’s LICENSE file governs use of the source code.",
+            "fa": "این شرایط برای استفاده از برنامه و خدمات تَرکه. فایل LICENSE در مخزن، شرایط استفاده از کد منبع رو مشخص می‌کنه."
           }
         }
       ]
@@ -174,15 +174,15 @@
         {
           "type": "p",
           "text": {
-            "en": "Tarkk’s source code is published under the GNU Affero General Public License, version 3. In short: you may read it, run it, modify it and redistribute it, provided anything you distribute — including anything you run as a network service — carries the same freedoms and the same licence.",
-            "fa": "کد منبع تَرک با پروانه‌ی GNU Affero General Public License نسخه‌ی ۳ منتشر شده. خلاصه‌ش: می‌تونی بخونیش، اجراش کنی، تغییرش بدی و بازنشرش کنی، به شرطی که هر چیزی که منتشر می‌کنی — از جمله هر چیزی که به‌عنوان سرویس شبکه‌ای اجرا می‌کنی — همون آزادی‌ها و همون پروانه رو با خودش ببره."
+            "en": "The current Tarkk source code is available under the PolyForm Noncommercial License 1.0.0. You may use, modify, and share it for noncommercial purposes under the licence terms. Copies previously distributed under AGPL-3.0 remain subject to the licence they were received under.",
+            "fa": "کد منبع فعلی تَرک با پروانه‌ی PolyForm Noncommercial 1.0.0 در دسترسه. طبق شرایط پروانه می‌تونی برای کارهای غیرتجاری از کد استفاده کنی، تغییرش بدی و منتشرش کنی. نسخه‌هایی که قبلا با AGPL-3.0 منتشر شده‌اند، برای دریافت‌کننده‌های همون نسخه‌ها همچنان تابع همون پروانه‌اند."
           }
         },
         {
           "type": "p",
           "text": {
-            "en": "The licence text itself is the authority here, not this summary. If you want Tarkk inside a closed-source product, or the AGPL’s terms do not suit you, a negotiated commercial licence is available — write to the address at the bottom of this page.",
-            "fa": "متن خود پروانه مرجعه، نه این خلاصه. اگه می‌خوای تَرک رو داخل یه محصول بسته استفاده کنی، یا شرایط AGPL به کارت نمی‌خوره، پروانه‌ی تجاری توافقی هم هست — به نشانی پایین همین صفحه بنویس."
+            "en": "The licence text in the repository governs these rights. Commercial use requires prior written permission. Use the contact details at the bottom of this page to discuss separate commercial licensing terms.",
+            "fa": "متن پروانه در مخزن مرجع این شرایطه. استفاده تجاری به اجازه‌ی کتبی قبلی نیاز داره. برای گفت‌وگو درباره‌ی پروانه‌ی تجاری، از راه ارتباطی پایین همین صفحه پیام بده."
           }
         },
         {
@@ -446,8 +446,8 @@
         {
           "type": "p",
           "text": {
-            "en": "Tarkk is provided as it is, with no warranty of any kind — not of fitness for a particular purpose, not of merchantability, and not of uninterrupted or error-free operation. That is the AGPL’s position too, and it is stated here in the same words a court would expect rather than hidden in a licence file.",
-            "fa": "تَرک همون‌طور که هست ارایه می‌شه، بدون هیچ‌گونه ضمانتی — نه ضمانت مناسب بودن برای یه هدف خاص، نه قابلیت فروش، و نه کارکرد بی‌وقفه یا بدون خطا. موضع AGPL هم همینه، و اینجا با همون عباراتی گفته شده که یه دادگاه انتظارش رو داره، به‌جای اینکه لای یه فایل پروانه پنهون بمونه."
+            "en": "Tarkk is provided as it is, without any warranty of fitness for a particular purpose, merchantability, or uninterrupted or error-free operation.",
+            "fa": "تَرک همون‌طور که هست ارایه می‌شه و تضمینی برای مناسب بودن برای یه کاربرد خاص، قابلیت فروش، یا کارکرد بی‌وقفه و بدون خطا نداره."
           }
         },
         {

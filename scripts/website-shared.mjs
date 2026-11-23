@@ -96,8 +96,8 @@ html[lang="fa"] .page-loader .loader-center>strong{font-weight:900}
 </style>`;
 }
 export const SITE_META = {
-  en: { title: 'Tarkk — Walkie-talkie app, even off-grid', description: 'Tarkk turns your phone into a walkie-talkie. Talk over Bluetooth, Wi-Fi or a hotspot—no internet for local calls, and no conversation recording.', image: `${ORIGIN}/og-image-en.png`, imageAlt: 'Tarkk phone beside motorcycle gear, with the message “Same road. Stay close.”' },
-  fa: { title: 'تَرک — بیسیم بدون اینترنت، کنار هم در مسیر', description: 'تَرک، بیسیم بدون اینترنت روی گوشی شما. با بلوتوث، وای‌فای یا هات‌اسپات مستقیم با اطرافیانت حرف بزن؛ ارتباط محلی، بدون ضبط مکالمه.', image: `${ORIGIN}/og-image.png`, imageAlt: 'گوشی تَرک کنار تجهیزات موتورسواری با شعار «هم‌مسیر، هم‌صدا.»' },
+  en: { title: 'Tarkk — Offline Walkie-Talkie App for Android', description: 'Turn your Android phone into a walkie-talkie with Tarkk. Talk to people nearby over Bluetooth, Wi-Fi or a hotspot without mobile data.', image: `${ORIGIN}/og-image-en.png`, imageAlt: 'Tarkk phone beside motorcycle gear, with the message “Same road. Stay close.”' },
+  fa: { title: 'بیسیم اندروید بدون اینترنت | تَرک', description: 'با تَرک گوشی اندرویدی‌ات رو به بیسیم تبدیل کن. با افراد نزدیکت از طریق بلوتوث، وای‌فای یا هات‌اسپات بدون اینترنت حرف بزن.', image: `${ORIGIN}/og-image.png`, imageAlt: 'گوشی تَرک کنار تجهیزات موتورسواری با شعار «هم‌مسیر، هم‌صدا.»' },
 };
 export function landingSeo(lang, faqItems) {
   const m = SITE_META[lang], other = lang === 'fa' ? 'en' : 'fa';
